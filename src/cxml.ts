@@ -1,19 +1,22 @@
 // This file is part of cxml, copyright (c) 2016 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
-import * as xml from './xml';
+import {Namespace, ModuleExports, ImportSpec} from './xml/Namespace';
+import {Type, TypeSpec, MemberSpec} from './xml/Type';
+export {Rule} from './xml/Rule';
+export {BaseClass} from './xml/BaseClass';
 
 /** Tuple: parent type ID, child element list, attribute list */
-export type RawTypeSpec = [ number, xml.MemberSpec[], xml.MemberSpec[] ];
+export type RawTypeSpec = [ number, MemberSpec[], MemberSpec[] ];
 
-var pendingNamespaceList: xml.ModuleExports[] = [];
-var pendingTypeList: xml.TypeSpec[] = [];
+var pendingNamespaceList: ModuleExports[] = [];
+var pendingTypeList: TypeSpec[] = [];
 var pendingCount = 0;
 
-var namespaceList: xml.Namespace[] = [];
-var typeList: xml.TypeSpec[] = [];
+var namespaceList: Namespace[] = [];
+var typeList: TypeSpec[] = [];
 
-function mark(exports: xml.ModuleExports, namespace?: xml.Namespace) {
+function mark(exports: ModuleExports, namespace?: Namespace) {
 	if(!exports._cxml) {
 		exports._cxml = [null];
 		pendingNamespaceList.push(exports);
@@ -23,7 +26,7 @@ function mark(exports: xml.ModuleExports, namespace?: xml.Namespace) {
 	if(namespace) exports._cxml[0] = namespace;
 }
 
-function process(pendingNamespaceList: xml.ModuleExports[], pendingTypeList: xml.TypeSpec[]) {
+function process(pendingNamespaceList: ModuleExports[], pendingTypeList: TypeSpec[]) {
 	// Link types to their parents.
 
 	for(var exportObject of pendingNamespaceList) {
@@ -55,17 +58,17 @@ function process(pendingNamespaceList: xml.ModuleExports[], pendingTypeList: xml
 
 export function register(
 	name: string,
-	exportObject: xml.ModuleExports,
-	importSpecList: xml.ImportSpec[],
+	exportObject: ModuleExports,
+	importSpecList: ImportSpec[],
 	exportTypeNameList: string[],
 	rawTypeSpecList: RawTypeSpec[]
 ) {
-	var typeSpecList: xml.TypeSpec[] = [];
+	var typeSpecList: TypeSpec[] = [];
 	var exportTypeCount = exportTypeNameList.length;
 	var typeCount = rawTypeSpecList.length;
 	var typeName: string;
 
-	var namespace = new xml.Namespace(name, importSpecList);
+	var namespace = new Namespace(name, importSpecList);
 	namespaceList.push(namespace);
 
 	for(var typeNum = 0; typeNum < typeCount; ++typeNum) {
@@ -75,7 +78,7 @@ export function register(
 			typeName = exportTypeNameList[typeNum - 1];
 		} else typeName = null;
 
-		var typeSpec = new xml.TypeSpec(namespace, typeName, rawSpec[0], rawSpec[1], rawSpec[2]);
+		var typeSpec = new TypeSpec(namespace, typeName, rawSpec[0], rawSpec[1], rawSpec[2]);
 
 		namespace.addType(typeSpec);
 		pendingTypeList.push(typeSpec);
