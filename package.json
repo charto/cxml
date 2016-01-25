@@ -1,0 +1,32 @@
+{
+  "name": "cxml",
+  "version": "0.0.3",
+  "description": "(incomplete) fast schema-aware XML parser with XSD support",
+  "main": "dist/cxml.js",
+  "typings": "dist/cxml.d.ts",
+  "scripts": {
+    "tsc": "tsc",
+    "tsd": "tsd",
+    "prepublish": "tsd install && tsc",
+    "test": "node index.js"
+  },
+  "author": "Juha Järvi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/charto/cxml.git"
+  },
+  "bugs": {
+    "url": "https://github.com/charto/cxml/issues"
+  },
+  "homepage": "https://github.com/charto/cxml#readme",
+  "dependencies": {
+    "bluebird": "~3.1.1",
+    "cget": "~0.0.3",
+    "node-expat": "~2.3.12"
+  },
+  "devDependencies": {
+    "tsd": "~0.6.5",
+    "typescript": "~1.8.0-dev.20160114"
+  }
+}
