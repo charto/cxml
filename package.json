@@ -1,0 +1,46 @@
+{
+  "name": "cxml",
+  "version": "0.3.0",
+  "description": "Advanced schema-aware streaming XML parser",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "scripts": {
+    "autogypi": "autogypi",
+    "node-gyp": "node-gyp",
+    "emcc-path": "emcc-path",
+    "copyasm": "copyasm",
+    "ndts": "ndts",
+    "tsc": "tsc",
+    "prepublish": "tsc -p src",
+    "install": "autogypi && node-gyp configure build"
+  },
+  "author": "Juha Järvi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/charto/cxml.git"
+  },
+  "bugs": {
+    "url": "https://github.com/charto/cxml/issues"
+  },
+  "homepage": "https://github.com/charto/cxml#readme",
+  "keywords": [
+    "xml",
+    "streaming",
+    "schema",
+    "parser",
+    "xsd",
+    "dts",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@types/sax": "^1.0.0",
+    "sax": "^1.2.2",
+    "typescript": "^2.3.0-dev.20170324"
+  },
+  "dependencies": {
+    "@types/node": "^7.0.10",
+    "autogypi": "^0.2.2",
+    "nbind": "^0.3.9"
+  }
+}
