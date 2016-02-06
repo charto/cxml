@@ -6,8 +6,8 @@
   "typings": "dist/cxml.d.ts",
   "scripts": {
     "tsc": "tsc",
-    "tsd": "tsd",
-    "prepublish": "tsd install && tsc",
+    "typings": "typings",
+    "prepublish": "typings install && tsc",
     "test": "node index.js"
   },
   "author": "Juha Järvi",
@@ -21,12 +21,12 @@
   },
   "homepage": "https://github.com/charto/cxml#readme",
   "dependencies": {
-    "bluebird": "~3.1.1",
-    "cget": "~0.0.3",
-    "node-expat": "~2.3.12"
+    "bluebird": "~3.2.2",
+    "cget": "~0.0.4",
+    "node-expat": "~2.3.13"
   },
   "devDependencies": {
-    "tsd": "~0.6.5",
-    "typescript": "~1.8.0-dev.20160114"
+    "typescript": "~1.9.0-dev.20160205",
+    "typings": "~0.6.6"
   }
 }
