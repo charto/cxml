@@ -1,7 +1,9 @@
 // This file is part of cxml, copyright (c) 2016 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
+import {NamespaceBase} from './NamespaceBase';
 import {Type, TypeSpec, TypeClassMembers} from './Type';
+import {Context} from './Context';
 
 export interface ModuleExports {
 	[name: string]: any;
@@ -11,9 +13,10 @@ export interface ModuleExports {
 /** Tuple: module exports object, list of imported type names */
 export type ImportSpec = [ ModuleExports, string[] ];
 
-export class Namespace {
+export class Namespace extends NamespaceBase<Context, Namespace> {
 	constructor(name: string, importSpecList: ImportSpec[]) {
-		this.name = name;
+		// TODO: pass the correct ID and context!
+		super(name, 0, null);
 		this.importSpecList = importSpecList;
 
 		// Skip the document type.
@@ -85,7 +88,6 @@ export class Namespace {
 		}
 	}
 
-	name: string;
 	importSpecList: ImportSpec[];
 	exportTypeNameList: string[];
 	typeSpecList: TypeSpec[] = [];

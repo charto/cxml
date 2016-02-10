@@ -21,7 +21,8 @@ function parseName(name: string) {
 	});
 }
 
-/** Tuple: parent type ID, child element list, attribute list */
+/** Type specification defining attributes and children. */
+
 export class TypeSpec {
 	constructor(
 		namespace: Namespace,
@@ -141,5 +142,7 @@ export interface TypeClassMembers {
 }
 
 export class Type {
+	/** Name of the type, pointing to the name of the constructor function.
+	  * Might contain garbage... */
 	static name: string;
 }

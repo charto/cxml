@@ -6,6 +6,10 @@ import {Type, TypeSpec, MemberSpec} from './xml/Type';
 export {Rule} from './xml/Rule';
 export {BaseClass} from './xml/BaseClass';
 
+export {ContextBase} from './xml/ContextBase';
+export {Context} from './xml/Context';
+export {NamespaceBase} from './xml/NamespaceBase';
+
 /** Tuple: parent type ID, child element list, attribute list */
 export type RawTypeSpec = [ number, MemberSpec[], MemberSpec[] ];
 
