@@ -17,7 +17,6 @@ export class ContextBase<Context extends ContextBase<Context, Namespace>, Namesp
 	/** Create or look up a namespace by name in URI (URL or URN) format. */
 
 	registerNamespace(name: string) {
-		// OLD INCORRECT COMMENT: When importing a remote schema file, its namespace name may be unknown.
 		name = NamespaceBase.sanitize(name);
 		var namespace = this.namespaceNameTbl[name];
 
@@ -30,6 +29,27 @@ export class ContextBase<Context extends ContextBase<Context, Namespace>, Namesp
 			this.namespaceNameTbl[name] = namespace;
 			this.namespaceList[id] = namespace;
 		}
+
+		return(namespace);
+	}
+
+	copyNamespace(other: NamespaceBase<any, any>) {
+		var namespace = this.namespaceList[other.id];
+
+		if(namespace) {
+			if(namespace.name != other.name) throw(new Error('Duplicate namespace ID'));
+			return(namespace);
+		}
+
+		if(this.namespaceNameTbl[other.name]) throw(new Error('Duplicate namespace name'));
+
+		namespace = new this.NamespaceType(other.name, other.id, this as any as Context);
+		namespace.initFrom(other);
+
+		this.namespaceNameTbl[other.name] = namespace;
+		this.namespaceList[other.id] = namespace;
+
+		if(this.namespaceKeyNext <= other.id) this.namespaceKeyNext = other.id + 1;
 
 		return(namespace);
 	}

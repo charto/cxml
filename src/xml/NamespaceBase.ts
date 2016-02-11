@@ -10,6 +10,11 @@ export class NamespaceBase<Context extends ContextBase<Context, Namespace>, Name
 		this.context = context;
 	}
 
+	initFrom(other: NamespaceBase<any, any>) {
+		this.schemaUrl = other.schemaUrl;
+		this.short = other.short;
+	}
+
 	static sanitize(name: string) {
 		return(name && name.replace(/\/+$/, ''));
 	}
@@ -18,5 +23,11 @@ export class NamespaceBase<Context extends ContextBase<Context, Namespace>, Name
 	name: string;
 	/** Surrogate key, used internally as a unique namespace ID. */
 	id: number;
+	/** Parser context that uses this namespace. */
 	context: Context;
+
+	/** URL address where main schema file was downloaded. */
+	schemaUrl: string;
+	/** Example short name for this namespace. */
+	short: string;
 }
