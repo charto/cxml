@@ -7,11 +7,14 @@ export {Rule} from './xml/Rule';
 export {BaseClass} from './xml/BaseClass';
 
 export {ContextBase} from './xml/ContextBase';
-export {Context} from './xml/Context';
+import {Context} from './xml/Context';
+export {Context};
 export {NamespaceBase} from './xml/NamespaceBase';
 
 /** Tuple: parent type ID, child element list, attribute list */
 export type RawTypeSpec = [ number, MemberSpec[], MemberSpec[] ];
+
+var context = new Context();
 
 var pendingNamespaceList: ModuleExports[] = [];
 var pendingTypeList: TypeSpec[] = [];
@@ -72,7 +75,7 @@ export function register(
 	var typeCount = rawTypeSpecList.length;
 	var typeName: string;
 
-	var namespace = new Namespace(name, importSpecList);
+	var namespace = context.registerNamespace(name).init(importSpecList);
 	namespaceList.push(namespace);
 
 	for(var typeNum = 0; typeNum < typeCount; ++typeNum) {

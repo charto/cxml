@@ -7,4 +7,7 @@ import {Namespace} from './Namespace';
 /** XML parser context, holding definitions of all imported namespaces. */
 
 export class Context extends ContextBase<Context, Namespace> {
+	constructor() {
+		super(Namespace);
+	}
 }

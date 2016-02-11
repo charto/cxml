@@ -14,9 +14,7 @@ export interface ModuleExports {
 export type ImportSpec = [ ModuleExports, string[] ];
 
 export class Namespace extends NamespaceBase<Context, Namespace> {
-	constructor(name: string, importSpecList: ImportSpec[]) {
-		// TODO: pass the correct ID and context!
-		super(name, 0, null);
+	init(importSpecList: ImportSpec[]) {
 		this.importSpecList = importSpecList;
 
 		// Skip the document type.
@@ -27,6 +25,7 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 		}
 
 		this.typeSpecList.length = importOffset;
+		return(this);
 	}
 
 	addType(spec: TypeSpec) {
