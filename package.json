@@ -22,8 +22,7 @@
   "homepage": "https://github.com/charto/cxml#readme",
   "dependencies": {
     "bluebird": "~3.2.2",
-    "cget": "~0.0.4",
-    "node-expat": "~2.3.13"
+    "sax": "~1.1.5"
   },
   "devDependencies": {
     "typescript": "~1.9.0-dev.20160205",
