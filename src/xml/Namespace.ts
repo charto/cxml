@@ -75,12 +75,12 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 		for(var typeNum = this.exportOffset; typeNum < typeCount; ++typeNum) {
 			var typeSpec = typeSpecList[typeNum];
 
-			exports[typeSpec.safeName] = typeSpec.type;
+			exports[typeSpec.safeName] = typeSpec.proto;
 		}
 	}
 
 	exportDocument(exports: ModuleExports) {
-		var doc = this.typeSpecList[0].type.prototype as TypeClassMembers;
+		var doc = this.typeSpecList[0].proto.prototype as TypeClassMembers;
 
 		for(var safeName of Object.keys(doc)) {
 			exports[safeName] = doc[safeName];

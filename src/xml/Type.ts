@@ -2,9 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-
-/** Tuple: name, flags, type ID list */
-export type MemberSpec = [ string, number, number[] ];
+import {Member, MemberSpec} from './Member';
 
 function parseName(name: string) {
 	var splitPos = name.indexOf(':');
@@ -46,7 +44,7 @@ export class TypeSpec {
 	setParent(spec: TypeSpec) {
 		this.parent = spec;
 
-		if(spec.type) {
+		if(spec.proto) {
 			// Entire namespace for parent type is already fully defined,
 			// so the parent type's dependentList won't get processed any more
 			// and we should process this type immediately.
@@ -56,13 +54,13 @@ export class TypeSpec {
 	}
 
 	defineType() {
-		if(!this.type) {
+		if(!this.proto) {
 			// This function hasn't been called for this type yet by setParent,
 			// but something must by now have called it for the parent type.
 
-			var parent = (this.parent && this.parent != this) ? this.parent.type : Type;
+			var parent = (this.parent && this.parent != this) ? this.parent.proto : TypeInstance;
 
-			this.type = class XmlType extends parent {};
+			this.proto = class XmlType extends parent {};
 		}
 
 		for(var dependent of this.dependentList) {
@@ -79,8 +77,8 @@ export class TypeSpec {
 
 		if(typeNumList.length == 1) {
 			var safeName = parts.safeName;
-			var type = (this.type.prototype) as TypeClassMembers;
-			var memberType = new (this.namespace.typeByNum(typeNumList[0]).type);
+			var type = (this.proto.prototype) as TypeClassMembers;
+			var memberType = new (this.namespace.typeByNum(typeNumList[0]).proto);
 
 			if(flags & TypeSpec.arrayFlag) type[safeName] = [memberType];
 			else type[safeName] = memberType;
@@ -102,7 +100,7 @@ export class TypeSpec {
 	}
 
 	cleanPlaceholders(strict?: boolean) {
-		var type = (this.type.prototype) as TypeClassMembers;
+		var type = (this.proto.prototype) as TypeClassMembers;
 		var nameList = this.optionalList;
 
 		if(strict) nameList = nameList.concat(this.requiredList);
@@ -127,22 +125,40 @@ export class TypeSpec {
 	// Track dependents for Kahn's topological sort algorithm.
 	dependentList: TypeSpec[] = [];
 
-	type: TypeClass;
+	proto: TypeClass;
 
 	static optionalFlag = 1;
 	static arrayFlag = 2;
 }
 
 export interface TypeClass {
-	new(): Type;
+	new(): TypeInstance;
 }
 
 export interface TypeClassMembers {
-	[name: string]: Type | Type[];
+	[name: string]: TypeInstance | TypeInstance[];
 }
 
-export class Type {
+export class TypeInstance {
 	/** Name of the type, pointing to the name of the constructor function.
 	  * Might contain garbage... */
 	static name: string;
+}
+
+/** Parser rule, defines a handler class, valid attributes and children
+  * for an XSD tag. */
+
+export class Type {
+	constructor(proto: TypeClass) {
+		this.proto = proto;
+	}
+
+	/** Constructor function for creating objects handling and representing the results of this parsing rule. */
+	proto: TypeClass;
+
+	/** Table of allowed attributes. */
+	attributeTbl: { [key: string]: Member } = {};
+
+	/** Table mapping the names of allowed child tags, to their parsing rules. */
+	childTbl: { [key: string]: Member } = {};
 }
