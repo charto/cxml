@@ -29,10 +29,10 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 	}
 
 	addType(spec: TypeSpec) {
-		if(this.typeSpecList[0]) this.typeSpecList.push(spec);
+		if(this.doc) this.typeSpecList.push(spec);
 		else {
 			// First type added after imports is number 0, the document type.
-			this.typeSpecList[0] = spec;
+			this.doc = spec;
 		}
 
 		if(spec.safeName) this.exportTypeTbl[spec.safeName] = spec;
@@ -48,6 +48,8 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 
 		for(var importSpec of this.importSpecList) {
 			var other = importSpec[0]._cxml[0];
+
+			this.importNamespaceList.push(other);
 
 			for(var typeName of importSpec[1]) {
 				this.typeSpecList[typeNum++] = other.exportTypeTbl[typeName];
@@ -80,14 +82,22 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 	}
 
 	exportDocument(exports: ModuleExports) {
-		var doc = this.typeSpecList[0].proto.prototype as TypeClassMembers;
+		var doc = this.doc.proto.prototype as TypeClassMembers;
 
 		for(var safeName of Object.keys(doc)) {
 			exports[safeName] = doc[safeName];
 		}
 	}
 
+	/** Get an internally used arbitrary prefix for fully qualified names
+	  * in this namespace. */
+
+	getPrefix() { return(this.id + ':'); }
+
+	doc: TypeSpec;
+
 	importSpecList: ImportSpec[];
+	importNamespaceList: Namespace[] = [];
 	exportTypeNameList: string[];
 	typeSpecList: TypeSpec[] = [];
 	exportOffset: number;

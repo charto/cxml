@@ -7,62 +7,26 @@ import * as sax from 'sax';
 
 import {Context} from './Context';
 import {Namespace} from './Namespace';
-
-export class State {
-	constructor(parent: State) {
-		this.parent = parent;
-
-		if(parent) {
-			this.namespacePrefixTbl = parent.namespacePrefixTbl;
-		} else {
-			this.namespacePrefixTbl = {'': ''};
-		}
-	}
-
-	addNamespace(short: string, namespace: Namespace) {
-		var key: string;
-		var prefixTbl = this.namespacePrefixTbl;
-
-		if(this.parent && prefixTbl == this.parent.namespacePrefixTbl) {
-			prefixTbl = {};
-
-			for(key of Object.keys(this.parent.namespacePrefixTbl)) {
-				prefixTbl[key] = this.parent.namespacePrefixTbl[key];
-			}
-
-			this.namespacePrefixTbl = prefixTbl;;
-		}
-
-		prefixTbl[short] = namespace.id + ':';
-	}
-
-	parent: State;
-	namespacePrefixTbl: { [short: string]: string };
-}
+//import {Type} from './Type';
+import {State} from './State';
+import {defaultContext} from '../importer/JS';
 
 export class Parser {
-	constructor(context: Context) {
-		this.context = context;
+	constructor(namespace: any, context?: Context) {
+		this.context = context || defaultContext;
+		this.namespace = namespace._cxml[0];
 	}
 
-	init(stream: stream.Readable) {
+	parse(stream: stream.Readable) {
 		var xml = sax.createStream(true, { position: true });
 
-		var state = new State(null);
+		var state = new State(null, this.namespace.doc.getType());
 
 		xml.on('opentag', (node: sax.Tag) => {
-			var name = node.name;
 			var attrTbl = node.attributes;
 			var attr: string;
-			var ns = '';
-			var splitter = name.indexOf(':');
-
-			if(splitter >= 0) {
-				ns = name.substr(0, splitter);
-				name = name.substr(splitter + 1);
-			}
-
-			name = state.namespacePrefixTbl[ns] + name;
+			var ns: string;
+			var splitter: number
 
 			for(var key of Object.keys(attrTbl)) {
 				ns = '';
@@ -83,10 +47,24 @@ export class Parser {
 					// TODO: check if current rule allows the attribute.
 				}
 			}
+
+			var name = node.name;
+			ns = '';
+			splitter = name.indexOf(':');
+
+			if(splitter >= 0) {
+				ns = name.substr(0, splitter);
+				name = name.substr(splitter + 1);
+			}
+
+			name = state.namespacePrefixTbl[ns] + name;
+
+			console.log(name);
+			state = new State(state, state.type.childTbl[name].type);
 		});
 
 		xml.on('closetag', function(name: string) {
-console.log('Close ' + name);
+			state = state.parent;
 		});
 
 		xml.on('text', function(text: string) {
@@ -100,4 +78,5 @@ console.log('Close ' + name);
 	}
 
 	context: Context;
+	namespace: Namespace;
 }

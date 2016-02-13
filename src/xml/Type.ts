@@ -4,7 +4,7 @@
 import {Namespace} from './Namespace';
 import {Member, MemberSpec} from './Member';
 
-function parseName(name: string) {
+export function parseName(name: string) {
 	var splitPos = name.indexOf(':');
 	var safeName: string
 
@@ -17,6 +17,12 @@ function parseName(name: string) {
 		name: name,
 		safeName: safeName
 	});
+}
+
+function inherit<Type>(parentObject: Type) {
+	function Proxy() {}
+	Proxy.prototype = parentObject;
+	return(new (Proxy as any as { new(): Type })());
 }
 
 /** Type specification defining attributes and children. */
@@ -53,6 +59,8 @@ export class TypeSpec {
 		} else if(spec != this) spec.dependentList.push(this);
 	}
 
+	getType() { return(this.type); }
+
 	defineType() {
 		if(!this.proto) {
 			// This function hasn't been called for this type yet by setParent,
@@ -61,6 +69,15 @@ export class TypeSpec {
 			var parent = (this.parent && this.parent != this) ? this.parent.proto : TypeInstance;
 
 			this.proto = class XmlType extends parent {};
+			this.type = new Type(this.proto);
+
+			if(this.parent) {
+				this.type.childTbl = inherit(this.parent.type.childTbl);
+				this.type.attributeTbl = inherit(this.parent.type.attributeTbl);
+			} else {
+				this.type.attributeTbl = {};
+				this.type.childTbl = {};
+			}
 		}
 
 		for(var dependent of this.dependentList) {
@@ -71,32 +88,33 @@ export class TypeSpec {
 	}
 
 	private defineMember(spec: MemberSpec) {
-		var parts = parseName(spec[0]);
-		var flags = spec[1];
-		var typeNumList = spec[2];
+		var member = new Member(spec, this.namespace);
 
-		if(typeNumList.length == 1) {
-			var safeName = parts.safeName;
+		if(member.typeSpec) {
+			var memberType = new (member.typeSpec.proto);
 			var type = (this.proto.prototype) as TypeClassMembers;
-			var memberType = new (this.namespace.typeByNum(typeNumList[0]).proto);
 
-			if(flags & TypeSpec.arrayFlag) type[safeName] = [memberType];
-			else type[safeName] = memberType;
+			type[member.safeName] = (member.max > 1) ? [memberType] : memberType;
 
-			if(flags & TypeSpec.optionalFlag) this.optionalList.push(safeName);
-			else this.requiredList.push(safeName);
-		} else {
-			// TODO: What now? Make sure this is not reached.
-			// Different types shouldn't be joined with | in .d.ts, instead
-			// they should be converted to { TypeA: TypeA, TypeB: TypeB... }
+			if(member.min < 1) this.optionalList.push(member.safeName);
+			else this.requiredList.push(member.safeName);
 		}
+
+		return(member);
 	}
 
 	defineMembers() {
 		var spec: MemberSpec;
 
-		for(spec of this.childSpecList) this.defineMember(spec);
-		for(spec of this.attributeSpecList) this.defineMember(spec);
+		for(spec of this.childSpecList) {
+			var member = this.defineMember(spec);
+			if(member.typeSpec) this.type.addChild(member);
+		}
+
+		for(spec of this.attributeSpecList) {
+			var member = this.defineMember(spec);
+			if(member.typeSpec) this.type.addAttribute(member);
+		}
 	}
 
 	cleanPlaceholders(strict?: boolean) {
@@ -125,6 +143,7 @@ export class TypeSpec {
 	// Track dependents for Kahn's topological sort algorithm.
 	dependentList: TypeSpec[] = [];
 
+	private type: Type;
 	proto: TypeClass;
 
 	static optionalFlag = 1;
@@ -153,6 +172,14 @@ export class Type {
 		this.proto = proto;
 	}
 
+	addAttribute(member: Member) {
+		this.attributeTbl[member.namespace.getPrefix() + member.name] = member;
+	}
+
+	addChild(member: Member) {
+		this.childTbl[member.namespace.getPrefix() + member.name] = member;
+	}
+
 	/** Constructor function for creating objects handling and representing the results of this parsing rule. */
 	proto: TypeClass;
 
@@ -160,5 +187,5 @@ export class Type {
 	attributeTbl: { [key: string]: Member } = {};
 
 	/** Table mapping the names of allowed child tags, to their parsing rules. */
-	childTbl: { [key: string]: Member } = {};
+	childTbl: { [key: string]: Member };
 }
