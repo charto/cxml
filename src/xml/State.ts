@@ -12,7 +12,7 @@ export class State {
 		if(parent) {
 			this.namespacePrefixTbl = parent.namespacePrefixTbl;
 		} else {
-			this.namespacePrefixTbl = {'': ''};
+			this.namespacePrefixTbl = {};
 		}
 	}
 

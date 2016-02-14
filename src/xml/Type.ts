@@ -59,6 +59,8 @@ export class TypeSpec {
 		} else if(spec != this) spec.dependentList.push(this);
 	}
 
+	getProto() { return(this.proto); }
+
 	getType() { return(this.type); }
 
 	defineType() {
@@ -70,6 +72,7 @@ export class TypeSpec {
 
 			this.proto = class XmlType extends parent {};
 			this.type = new Type(this.proto);
+			this.proto.type = this.type;
 
 			if(this.parent) {
 				this.type.childTbl = inherit(this.parent.type.childTbl);
@@ -144,7 +147,7 @@ export class TypeSpec {
 	dependentList: TypeSpec[] = [];
 
 	private type: Type;
-	proto: TypeClass;
+	private proto: TypeClass;
 
 	static optionalFlag = 1;
 	static arrayFlag = 2;
@@ -152,6 +155,23 @@ export class TypeSpec {
 
 export interface TypeClass {
 	new(): TypeInstance;
+
+	type?: Type;
+}
+
+export interface Handler {
+	[key: string]: any;
+
+	before?(): void;
+	after?(): void;
+}
+
+export interface HandlerClass extends TypeClass {
+	new(): HandlerInstance;
+
+	custom?: boolean;
+	before?: boolean;
+	after?: boolean;
 }
 
 export interface TypeClassMembers {
@@ -162,14 +182,20 @@ export class TypeInstance {
 	/** Name of the type, pointing to the name of the constructor function.
 	  * Might contain garbage... */
 	static name: string;
+	static type: Type;
+}
+
+export interface HandlerInstance extends TypeInstance {
+	before?(): void;
+	after?(): void;
 }
 
 /** Parser rule, defines a handler class, valid attributes and children
   * for an XSD tag. */
 
 export class Type {
-	constructor(proto: TypeClass) {
-		this.proto = proto;
+	constructor(handler: TypeClass) {
+		this.handler = handler;
 	}
 
 	addAttribute(member: Member) {
@@ -181,7 +207,7 @@ export class Type {
 	}
 
 	/** Constructor function for creating objects handling and representing the results of this parsing rule. */
-	proto: TypeClass;
+	handler: HandlerClass;
 
 	/** Table of allowed attributes. */
 	attributeTbl: { [key: string]: Member } = {};
