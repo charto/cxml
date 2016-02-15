@@ -7,7 +7,7 @@ import * as sax from 'sax';
 
 import {Context} from './Context';
 import {Namespace} from './Namespace';
-import {Type, TypeClass, Handler} from './Type';
+import {Type, TypeClass, HandlerInstance} from './Type';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
@@ -17,7 +17,7 @@ export class Parser {
 		this.namespace = namespace._cxml[0];
 	}
 
-	attach<CustomHandler extends Handler>(handler: { new(): CustomHandler; type?: Type; }) {
+	attach<CustomHandler extends HandlerInstance>(handler: { new(): CustomHandler; type?: Type; }) {
 		var proto = handler.prototype as CustomHandler;
 		var realHandler = (handler as TypeClass).type.handler;
 		var realProto = realHandler.prototype as CustomHandler;
@@ -33,8 +33,10 @@ export class Parser {
 
 	parse(stream: stream.Readable) {
 		var xml = sax.createStream(true, { position: true });
+		var type = this.namespace.doc.getType();
 
-		var state = new State(null, this.namespace.doc.getType());
+		var state = new State(null, type, new type.handler());
+		var rootState = state;
 		state.addNamespace('', this.namespace);
 
 		xml.on('opentag', (node: sax.Tag) => {
@@ -43,6 +45,7 @@ export class Parser {
 			var ns = '';
 			var name = node.name;
 			var splitter = name.indexOf(':');
+			var item: HandlerInstance = null;
 
 			if(splitter >= 0) {
 				ns = name.substr(0, splitter);
@@ -50,14 +53,22 @@ export class Parser {
 			}
 
 			name = state.namespacePrefixTbl[ns] + name;
-			console.log(name);
 
-			var type = state.type.childTbl[name].type;
+			var member = state.type.childTbl[name];
+			var type = member.type;
 
-			if(type.handler.custom) {
+//			if(type.handler.custom) {
 				var Handler = type.handler;
-				var item = new Handler();
-			}
+				item = new Handler();
+				var parent = state.item;
+
+				if(parent) {
+					if(member.max > 1) {
+						if(!parent.hasOwnProperty(member.safeName)) parent[member.safeName] = [];
+						parent[member.safeName].push(item);
+					} else parent[member.safeName] = item;
+				}
+//			}
 
 			for(var key of Object.keys(attrTbl)) {
 				ns = '';
@@ -74,7 +85,7 @@ export class Parser {
 					state.addNamespace(attr, this.context.registerNamespace(attrTbl[key]));
 				} else if(item) {
 					attr = state.namespacePrefixTbl[ns] + attr;
-					var member = type.attributeTbl[attr];
+					member = type.attributeTbl[attr];
 
 					if(member) item[member.safeName] = attrTbl[key];
 				}
@@ -82,14 +93,20 @@ export class Parser {
 
 			if(Handler && Handler.before) item.before();
 
-			state = new State(state, type);
+			state = new State(state, type, item);
 		});
 
 		xml.on('closetag', function(name: string) {
+			if(state.item && state.type.handler.after) state.item.after();
+
 			state = state.parent;
 		});
 
 		xml.on('text', function(text: string) {
+		});
+
+		xml.on('end', function() {
+			console.log(JSON.stringify(rootState.item, null, 2));
 		});
 
 		xml.on('error', function(err: any) {

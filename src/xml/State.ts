@@ -2,12 +2,13 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Type} from './Type';
+import {Type, HandlerInstance} from './Type';
 
 export class State {
-	constructor(parent: State, type: Type) {
+	constructor(parent: State, type: Type, item: HandlerInstance) {
 		this.parent = parent;
 		this.type = type;
+		this.item = item;
 
 		if(parent) {
 			this.namespacePrefixTbl = parent.namespacePrefixTbl;
@@ -35,6 +36,7 @@ export class State {
 
 	parent: State;
 	type: Type;
+	item: HandlerInstance;
 
 	namespacePrefixTbl: { [short: string]: string };
 }

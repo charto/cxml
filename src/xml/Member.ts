@@ -24,8 +24,8 @@ export class Member {
 			this.typeSpec = namespace.typeByNum(typeNumList[0]);
 			this.type = this.typeSpec.getType();
 
-			this.min = (flags & TypeSpec.optionalFlag) ? 0 : 1;
-			this.max = (flags & TypeSpec.arrayFlag) ? Infinity : 1;
+			this.min = (flags & Member.optionalFlag) ? 0 : 1;
+			this.max = (flags & Member.arrayFlag) ? Infinity : 1;
 
 			// if(this.namespace != namespace) console.log(namespace.name + ':' + this.typeSpec.name + ':' + this.name + '\t' + this.namespace.name);
 		} else {
@@ -46,4 +46,7 @@ export class Member {
 
 	typeSpec: TypeSpec;
 	type: Type;
+
+	static optionalFlag = 1;
+	static arrayFlag = 2;
 }

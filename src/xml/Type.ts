@@ -149,8 +149,7 @@ export class TypeSpec {
 	private type: Type;
 	private proto: TypeClass;
 
-	static optionalFlag = 1;
-	static arrayFlag = 2;
+	static literalFlag = 1;
 }
 
 export interface TypeClass {
@@ -159,7 +158,7 @@ export interface TypeClass {
 	type?: Type;
 }
 
-export interface Handler {
+export interface HandlerInstance {
 	[key: string]: any;
 
 	before?(): void;
@@ -181,13 +180,8 @@ export interface TypeClassMembers {
 export class TypeInstance {
 	/** Name of the type, pointing to the name of the constructor function.
 	  * Might contain garbage... */
-	static name: string;
-	static type: Type;
-}
-
-export interface HandlerInstance extends TypeInstance {
-	before?(): void;
-	after?(): void;
+	// static name: string;
+	// static type: Type;
 }
 
 /** Parser rule, defines a handler class, valid attributes and children
