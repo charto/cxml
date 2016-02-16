@@ -35,7 +35,7 @@ export class Parser {
 		var xml = sax.createStream(true, { position: true });
 		var type = this.namespace.doc.getType();
 
-		var state = new State(null, type, new type.handler());
+		var state = new State(null, null, type, new type.handler());
 		var rootState = state;
 		state.addNamespace('', this.namespace);
 
@@ -54,21 +54,13 @@ export class Parser {
 
 			name = state.namespacePrefixTbl[ns] + name;
 
-			var member = state.type.childTbl[name];
-			var type = member.type;
+			var child = state.type.childTbl[name];
+			var type = child.type;
 
-//			if(type.handler.custom) {
+			if(!type.isPlainPrimitive) {
 				var Handler = type.handler;
 				item = new Handler();
-				var parent = state.item;
-
-				if(parent) {
-					if(member.max > 1) {
-						if(!parent.hasOwnProperty(member.safeName)) parent[member.safeName] = [];
-						parent[member.safeName].push(item);
-					} else parent[member.safeName] = item;
-				}
-//			}
+			}
 
 			for(var key of Object.keys(attrTbl)) {
 				ns = '';
@@ -85,7 +77,7 @@ export class Parser {
 					state.addNamespace(attr, this.context.registerNamespace(attrTbl[key]));
 				} else if(item) {
 					attr = state.namespacePrefixTbl[ns] + attr;
-					member = type.attributeTbl[attr];
+					var member = type.attributeTbl[attr];
 
 					if(member) item[member.safeName] = attrTbl[key];
 				}
@@ -93,16 +85,46 @@ export class Parser {
 
 			if(Handler && Handler.before) item.before();
 
-			state = new State(state, type, item);
-		});
-
-		xml.on('closetag', function(name: string) {
-			if(state.item && state.type.handler.after) state.item.after();
-
-			state = state.parent;
+			state = new State(state, child, type, item);
 		});
 
 		xml.on('text', function(text: string) {
+			if(state.type.isPrimitive) {
+				if(!state.textList) state.textList = [];
+				state.textList.push(text);
+			}
+		});
+
+		xml.on('closetag', function(name: string) {
+			var member = state.memberSpec;
+			var obj = state.item;
+			var item: any = obj;
+			var text: string;
+
+			if(state.type.isPrimitive) text = (state.textList || []).join('').trim();
+
+			if(text) {
+				var primitiveType = state.type.primitiveType;
+				var content: any;
+
+				if(primitiveType == 'string') content = text;
+				else if(primitiveType == 'number') content = +text;
+
+				if(state.type.isPlainPrimitive) item = content;
+				else obj.content = content;
+			}
+
+			if(obj && member.type.handler.after) obj.after();
+
+			state = state.parent;
+			var parent = state.item;
+
+			if(parent) {
+				if(member.max > 1) {
+					if(!parent.hasOwnProperty(member.safeName)) parent[member.safeName] = [];
+					parent[member.safeName].push(item);
+				} else parent[member.safeName] = item;
+			}
 		});
 
 		xml.on('end', function() {

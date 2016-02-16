@@ -3,10 +3,12 @@
 
 import {Namespace} from './Namespace';
 import {Type, HandlerInstance} from './Type';
+import {Member} from './Member';
 
 export class State {
-	constructor(parent: State, type: Type, item: HandlerInstance) {
+	constructor(parent: State, memberSpec: Member, type: Type, item: HandlerInstance) {
 		this.parent = parent;
+		this.memberSpec = memberSpec;
 		this.type = type;
 		this.item = item;
 
@@ -35,8 +37,10 @@ export class State {
 	}
 
 	parent: State;
+	memberSpec: Member;
 	type: Type;
 	item: HandlerInstance;
+	textList: string[];
 
 	namespacePrefixTbl: { [short: string]: string };
 }

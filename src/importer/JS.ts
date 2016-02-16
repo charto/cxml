@@ -8,8 +8,8 @@ import {TypeSpec} from '../xml/Type';
 import {Context} from '../xml/Context';
 import {Parser} from '../xml/Parser';
 
-/** Tuple: parent type ID, child element list, attribute list */
-export type RawTypeSpec = [ number, MemberSpec[], MemberSpec[] ];
+/** Tuple: flags, parent type ID, child element list, attribute list */
+export type RawTypeSpec = [ number, number, MemberSpec[], MemberSpec[] ];
 
 export var defaultContext = new Context();
 
@@ -92,7 +92,7 @@ export function register(
 			typeName = exportTypeNameList[typeNum - 1];
 		} else typeName = null;
 
-		var typeSpec = new TypeSpec(namespace, typeName, rawSpec[0], rawSpec[1], rawSpec[2]);
+		var typeSpec = new TypeSpec(namespace, typeName, rawSpec[0], rawSpec[1], rawSpec[2], rawSpec[3]);
 
 		namespace.addType(typeSpec);
 		pendingTypeList.push(typeSpec);

@@ -31,6 +31,7 @@ export class TypeSpec {
 	constructor(
 		namespace: Namespace,
 		name: string,
+		flags: number,
 		parentNum: number,
 		childSpecList: MemberSpec[],
 		attributeSpecList: MemberSpec[]
@@ -42,6 +43,7 @@ export class TypeSpec {
 		}
 
 		this.namespace = namespace;
+		this.flags = flags;
 		this.parentNum = parentNum;
 		this.childSpecList = childSpecList;
 		this.attributeSpecList = attributeSpecList;
@@ -80,6 +82,18 @@ export class TypeSpec {
 			} else {
 				this.type.attributeTbl = {};
 				this.type.childTbl = {};
+			}
+
+			this.type.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
+			this.type.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
+
+			if(this.type.isPrimitive) {
+				var primitiveType: TypeSpec = this;
+				var next: TypeSpec;
+
+				while((next = primitiveType.parent) && next != primitiveType) primitiveType = next;
+
+				this.type.primitiveType = primitiveType.safeName;
 			}
 		}
 
@@ -134,6 +148,7 @@ export class TypeSpec {
 	namespace: Namespace;
 	name: string;
 	safeName: string;
+	flags: number;
 
 	parentNum: number;
 	parent: TypeSpec;
@@ -149,7 +164,8 @@ export class TypeSpec {
 	private type: Type;
 	private proto: TypeClass;
 
-	static literalFlag = 1;
+	static primitiveFlag = 1;
+	static plainPrimitiveFlag = 2;
 }
 
 export interface TypeClass {
@@ -160,6 +176,8 @@ export interface TypeClass {
 
 export interface HandlerInstance {
 	[key: string]: any;
+
+	content?: any;
 
 	before?(): void;
 	after?(): void;
@@ -208,4 +226,9 @@ export class Type {
 
 	/** Table mapping the names of allowed child tags, to their parsing rules. */
 	childTbl: { [key: string]: Member };
+
+	isPrimitive: boolean;
+	isPlainPrimitive: boolean;
+
+	primitiveType: string;
 }
