@@ -86,6 +86,7 @@ export class TypeSpec {
 
 			this.type.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
 			this.type.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
+			this.type.isList = !!(this.flags & TypeSpec.listFlag);
 
 			if(this.type.isPrimitive) {
 				var primitiveType: TypeSpec = this;
@@ -166,6 +167,7 @@ export class TypeSpec {
 
 	static primitiveFlag = 1;
 	static plainPrimitiveFlag = 2;
+	static listFlag = 4;
 }
 
 export interface TypeClass {
@@ -229,6 +231,7 @@ export class Type {
 
 	isPrimitive: boolean;
 	isPlainPrimitive: boolean;
+	isList: boolean;
 
 	primitiveType: string;
 }

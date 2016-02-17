@@ -11,6 +11,11 @@ import {Type, TypeClass, HandlerInstance} from './Type';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
+var converterTbl = {
+	string: ((item: string) => item),
+	number: ((item: string) => +item)
+};
+
 export class Parser {
 	constructor(namespace: any, context?: Context) {
 		this.context = context || defaultContext;
@@ -42,17 +47,17 @@ export class Parser {
 		xml.on('opentag', (node: sax.Tag) => {
 			var attrTbl = node.attributes;
 			var attr: string;
-			var ns = '';
+			var nodeNamespace = '';
 			var name = node.name;
 			var splitter = name.indexOf(':');
 			var item: HandlerInstance = null;
 
 			if(splitter >= 0) {
-				ns = name.substr(0, splitter);
+				nodeNamespace = name.substr(0, splitter);
 				name = name.substr(splitter + 1);
 			}
 
-			name = state.namespacePrefixTbl[ns] + name;
+			name = state.namespacePrefixTbl[nodeNamespace] + name;
 
 			var child = state.type.childTbl[name];
 			var type = child.type;
@@ -63,20 +68,20 @@ export class Parser {
 			}
 
 			for(var key of Object.keys(attrTbl)) {
-				ns = '';
+				var attrNamespace = nodeNamespace;
 				attr = key;
 				splitter = attr.indexOf(':');
 
 				if(splitter >= 0) {
-					ns = attr.substr(0, splitter);
+					attrNamespace = attr.substr(0, splitter);
 					attr = attr.substr(splitter + 1);
 				}
 
-				if(attr == 'xmlns' || ns == 'xmlns') {
+				if(attr == 'xmlns' || attrNamespace == 'xmlns') {
 					if(attr == 'xmlns') attr = '';
 					state.addNamespace(attr, this.context.registerNamespace(attrTbl[key]));
 				} else if(item) {
-					attr = state.namespacePrefixTbl[ns] + attr;
+					attr = state.namespacePrefixTbl[attrNamespace] + attr;
 					var member = type.attributeTbl[attr];
 
 					if(member) item[member.safeName] = attrTbl[key];
@@ -104,11 +109,16 @@ export class Parser {
 			if(state.type.isPrimitive) text = (state.textList || []).join('').trim();
 
 			if(text) {
-				var primitiveType = state.type.primitiveType;
 				var content: any;
+				var converter = converterTbl[state.type.primitiveType];
 
-				if(primitiveType == 'string') content = text;
-				else if(primitiveType == 'number') content = +text;
+				if(converter) {
+					if(state.type.isList) {
+						content = text.trim().split(/\s+/).map(converter);
+					} else {
+						content = converter(text.trim());
+					}
+				}
 
 				if(state.type.isPlainPrimitive) item = content;
 				else obj.content = content;
