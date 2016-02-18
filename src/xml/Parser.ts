@@ -15,7 +15,12 @@ import {defaultContext} from '../importer/JS';
 var converterTbl: { [type: string]: (item: string) => any } = {
 	Date: ((item: string) => {
 		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
-		var offset = +(dateParts[8] || '0') * 60 + +(dateParts[9] || '0');
+		var offsetMinutes = +(dateParts[9] || '0');
+		var offset = +(dateParts[8] || '0') * 60;
+
+		if(offset < 0) offsetMinutes = -offsetMinutes;
+
+		offset += offsetMinutes;
 
 		var date = new Date(
 			+dateParts[1],
@@ -27,8 +32,7 @@ var converterTbl: { [type: string]: (item: string) => any } = {
 			+(dateParts[7] || '0') * 1000
 		);
 
-		offset += date.getTimezoneOffset();
-		date.setTime(date.getTime() - offset * 60000);
+		date.setTime(date.getTime() - (offset + date.getTimezoneOffset()) * 60000);
 
 		return(date);
 	}),
@@ -36,6 +40,20 @@ var converterTbl: { [type: string]: (item: string) => any } = {
 	string: ((item: string) => item),
 	number: ((item: string) => +item)
 };
+
+function convertPrimitive(text: string, type: Type) {
+	var converter = converterTbl[type.primitiveType];
+
+	if(converter) {
+		if(type.isList) {
+			return(text.trim().split(/\s+/).map(converter));
+		} else {
+			return(converter(text.trim()));
+		}
+	}
+
+	return(null);
+}
 
 export class Parser {
 	constructor(namespace: any, context?: Context) {
@@ -74,12 +92,28 @@ export class Parser {
 			var splitter = name.indexOf(':');
 			var item: HandlerInstance = null;
 
+			// Read xmlns namespace prefix definitions before parsing node name.
+
+			for(var key of Object.keys(attrTbl)) {
+				if(key.substr(0, 5) == 'xmlns') {
+					var nsParts = key.match(/^xmlns(:(.+))?$/);
+
+					if(nsParts) {
+						state.addNamespace(nsParts[2] || '', this.context.registerNamespace(attrTbl[key]));
+					}
+				}
+			}
+
+			// Parse node name and possible namespace prefix.
+
 			if(splitter >= 0) {
 				nodePrefix = name.substr(0, splitter);
 				name = name.substr(splitter + 1);
 			}
 
-			var nodeNamespace = state.namespaceTbl[nodePrefix] || state.namespaceTbl[''];
+			// Add internal surrogate key namespace prefix to node name.
+
+			var nodeNamespace = state.namespaceTbl[nodePrefix];
 			name = nodeNamespace[1] + name;
 
 			var child: Member;
@@ -92,39 +126,38 @@ export class Parser {
 				child = nodeNamespace[0].doc.getType().childTbl[name];
 			}
 
-			if(child) {
-				type = child.type;
+			if(child) type = child.type;
 
-				if(!type.isPlainPrimitive) {
-					var Handler = type.handler;
-					item = new Handler();
-				}
+			if(type && !child.type.isPlainPrimitive) {
+				item = new type.handler();
+
+				// Parse all attributes.
 
 				for(var key of Object.keys(attrTbl)) {
-					var attrPrefix = nodePrefix;
-					attr = key;
-					splitter = attr.indexOf(':');
+					splitter = key.indexOf(':');
 
 					if(splitter >= 0) {
-						attrPrefix = attr.substr(0, splitter);
-						attr = attr.substr(splitter + 1);
-					}
+						var attrPrefix = key.substr(0, splitter);
+						if(attrPrefix == 'xmlns') continue;
 
-					if(attr == 'xmlns' || attrPrefix == 'xmlns') {
-						if(attr == 'xmlns') attr = '';
-						state.addNamespace(attr, this.context.registerNamespace(attrTbl[key]));
-					} else if(item) {
 						var attrNamespace = state.namespaceTbl[attrPrefix];
-						if(attrNamespace) {
-							attr = attrNamespace[1] + attr;
-							var member = type.attributeTbl[attr];
 
-							if(member) item[member.safeName] = attrTbl[key];
-						} else console.log('prefix ' + attrPrefix);
+						if(attrNamespace) {
+							attr = attrNamespace[1] + key.substr(splitter + 1);
+						} else {
+							console.log('Namespace not found for ' + key);
+							continue;
+						}
+					} else {
+						attr = nodeNamespace[1] + key;
 					}
+
+					var member = type.attributeTbl[attr];
+
+					if(member && member.type.isPlainPrimitive) item[member.safeName] = convertPrimitive(attrTbl[key], member.type);
 				}
 
-				if(item && item._before) item._before();
+				if(item._before) item._before();
 			}
 
 			state = new State(state, child, type, item);
@@ -146,16 +179,7 @@ export class Parser {
 			if(state.type && state.type.isPrimitive) text = (state.textList || []).join('').trim();
 
 			if(text) {
-				var content: any;
-				var converter = converterTbl[state.type.primitiveType];
-
-				if(converter) {
-					if(state.type.isList) {
-						content = text.trim().split(/\s+/).map(converter);
-					} else {
-						content = converter(text.trim());
-					}
-				}
+				var content = convertPrimitive(text, state.type);
 
 				if(state.type.isPlainPrimitive) item = content;
 				else obj.content = content;
