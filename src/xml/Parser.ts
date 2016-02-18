@@ -52,9 +52,9 @@ export class Parser {
 			realProto[key] = proto[key];
 		}
 
-		realHandler.custom = true;
-		if(proto.before) realHandler.before = true;
-		if(proto.after) realHandler.after = true;
+		realHandler._custom = true;
+		if(proto._before) realHandler._before = true;
+		if(proto._after) realHandler._after = true;
 	}
 
 	parse(stream: stream.Readable) {
@@ -126,7 +126,7 @@ export class Parser {
 					}
 				}
 
-				if(Handler && Handler.before) item.before();
+				if(Handler && Handler._before) item._before();
 			}
 
 			state = new State(state, child, type, item);
@@ -163,7 +163,7 @@ export class Parser {
 				else obj.content = content;
 			}
 
-			if(obj && member.type.handler.after) obj.after();
+			if(obj && member.type.handler._after) obj._after();
 
 			state = state.parent;
 

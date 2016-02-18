@@ -186,16 +186,16 @@ export interface HandlerInstance {
 	content?: any;
 	_exists: boolean;
 
-	before?(): void;
-	after?(): void;
+	_before?(): void;
+	_after?(): void;
 }
 
 export interface HandlerClass extends TypeClass {
 	new(): HandlerInstance;
 
-	custom?: boolean;
-	before?: boolean;
-	after?: boolean;
+	_custom?: boolean;
+	_before?: boolean;
+	_after?: boolean;
 }
 
 export interface TypeClassMembers {
