@@ -194,8 +194,6 @@ export interface HandlerClass extends TypeClass {
 	new(): HandlerInstance;
 
 	_custom?: boolean;
-	_before?: boolean;
-	_after?: boolean;
 }
 
 export interface TypeClassMembers {

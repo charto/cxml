@@ -53,8 +53,6 @@ export class Parser {
 		}
 
 		realHandler._custom = true;
-		if(proto._before) realHandler._before = true;
-		if(proto._after) realHandler._after = true;
 	}
 
 	parse(stream: stream.Readable) {
@@ -126,7 +124,7 @@ export class Parser {
 					}
 				}
 
-				if(Handler && Handler._before) item._before();
+				if(item && item._before) item._before();
 			}
 
 			state = new State(state, child, type, item);
@@ -163,7 +161,7 @@ export class Parser {
 				else obj.content = content;
 			}
 
-			if(obj && member.type.handler._after) obj._after();
+			if(obj && obj._after) obj._after();
 
 			state = state.parent;
 
