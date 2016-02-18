@@ -73,6 +73,9 @@ export class TypeSpec {
 			var parent = (this.parent && this.parent != this) ? this.parent.proto : TypeInstance;
 
 			this.proto = class XmlType extends parent {};
+			(this.proto.prototype as TypeInstance)._exists = true;
+			this.placeHolder = new this.proto();
+			this.placeHolder._exists = false;
 			this.type = new Type(this.proto);
 			this.proto.type = this.type;
 
@@ -109,7 +112,7 @@ export class TypeSpec {
 		var member = new Member(spec, this.namespace);
 
 		if(member.typeSpec) {
-			var memberType = new (member.typeSpec.proto);
+			var memberType = member.typeSpec.placeHolder;
 			var type = (this.proto.prototype) as TypeClassMembers;
 
 			type[member.safeName] = (member.max > 1) ? [memberType] : memberType;
@@ -164,6 +167,7 @@ export class TypeSpec {
 
 	private type: Type;
 	private proto: TypeClass;
+	private placeHolder: TypeInstance;
 
 	static primitiveFlag = 1;
 	static plainPrimitiveFlag = 2;
@@ -180,6 +184,7 @@ export interface HandlerInstance {
 	[key: string]: any;
 
 	content?: any;
+	_exists: boolean;
 
 	before?(): void;
 	after?(): void;
@@ -202,6 +207,7 @@ export class TypeInstance {
 	  * Might contain garbage... */
 	// static name: string;
 	// static type: Type;
+	_exists: boolean;
 }
 
 /** Parser rule, defines a handler class, valid attributes and children

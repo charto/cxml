@@ -43,7 +43,7 @@ export class Parser {
 		this.namespace = namespace._cxml[0];
 	}
 
-	attach<CustomHandler extends HandlerInstance>(handler: { new(): CustomHandler; type?: Type; }) {
+	attach<CustomHandler extends HandlerInstance>(handler: { new(): CustomHandler; }) {
 		var proto = handler.prototype as CustomHandler;
 		var realHandler = (handler as TypeClass).type.handler;
 		var realProto = realHandler.prototype as CustomHandler;
