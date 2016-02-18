@@ -61,9 +61,12 @@ export class Parser {
 		var xml = sax.createStream(true, { position: true });
 		var type = this.namespace.doc.getType();
 
+		var xmlSpace = this.context.registerNamespace('http://www.w3.org/XML/1998/namespace');
 		var state = new State(null, null, type, new type.handler());
 		var rootState = state;
+
 		state.addNamespace('', this.namespace);
+		if(xmlSpace) state.addNamespace('xml', xmlSpace);
 
 		xml.on('opentag', (node: sax.Tag) => {
 			var attrTbl = node.attributes;
