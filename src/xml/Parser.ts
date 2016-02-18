@@ -12,6 +12,10 @@ import {Member} from './Member';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
+export interface CxmlDate extends Date {
+	cxmlTimezoneOffset: number;
+}
+
 var converterTbl: { [type: string]: (item: string) => any } = {
 	Date: ((item: string) => {
 		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
@@ -30,9 +34,10 @@ var converterTbl: { [type: string]: (item: string) => any } = {
 			+(dateParts[5] || '0'),
 			+(dateParts[6] || '0'),
 			+(dateParts[7] || '0') * 1000
-		);
+		) as CxmlDate;
 
 		date.setTime(date.getTime() - (offset + date.getTimezoneOffset()) * 60000);
+		date.cxmlTimezoneOffset = offset;
 
 		return(date);
 	}),
