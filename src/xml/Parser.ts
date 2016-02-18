@@ -8,10 +8,31 @@ import * as sax from 'sax';
 import {Context} from './Context';
 import {Namespace} from './Namespace';
 import {Type, TypeClass, HandlerInstance} from './Type';
+import {Member} from './Member';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
 var converterTbl = {
+	Date: ((item: string) => {
+		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
+		var sec = (dateParts[6] || '0') + (dateParts[7] || '');
+		var offset = +(dateParts[8] || '0') * 60 + +(dateParts[9] || '0');
+
+		var date = new Date(
+			+dateParts[1],
+			+dateParts[2] - 1,
+			+dateParts[3],
+			+(dateParts[4] || '0'),
+			+(dateParts[5] || '0'),
+			+sec
+		);
+
+		offset += date.getTimezoneOffset();
+		date.setTime(date.getTime() - offset * 60000);
+
+		return(date);
+	}),
+	boolean: ((item: string) => !!item),
 	string: ((item: string) => item),
 	number: ((item: string) => +item)
 };
@@ -47,54 +68,69 @@ export class Parser {
 		xml.on('opentag', (node: sax.Tag) => {
 			var attrTbl = node.attributes;
 			var attr: string;
-			var nodeNamespace = '';
+			var nodePrefix = '';
 			var name = node.name;
 			var splitter = name.indexOf(':');
 			var item: HandlerInstance = null;
 
 			if(splitter >= 0) {
-				nodeNamespace = name.substr(0, splitter);
+				nodePrefix = name.substr(0, splitter);
 				name = name.substr(splitter + 1);
 			}
 
-			name = state.namespacePrefixTbl[nodeNamespace] + name;
+			var nodeNamespace = state.namespaceTbl[nodePrefix] || state.namespaceTbl[''];
+			name = nodeNamespace[1] + name;
 
-			var child = state.type.childTbl[name];
-			var type = child.type;
+			var child: Member;
+			var type: Type;
 
-			if(!type.isPlainPrimitive) {
-				var Handler = type.handler;
-				item = new Handler();
+			if(state.type) child = state.type.childTbl[name];
+
+			if(!child) {
+				// TODO: only allow this if any kind of child is allowed.
+				child = nodeNamespace[0].doc.getType().childTbl[name];
 			}
 
-			for(var key of Object.keys(attrTbl)) {
-				var attrNamespace = nodeNamespace;
-				attr = key;
-				splitter = attr.indexOf(':');
+			if(child) {
+				type = child.type;
 
-				if(splitter >= 0) {
-					attrNamespace = attr.substr(0, splitter);
-					attr = attr.substr(splitter + 1);
+				if(!type.isPlainPrimitive) {
+					var Handler = type.handler;
+					item = new Handler();
 				}
 
-				if(attr == 'xmlns' || attrNamespace == 'xmlns') {
-					if(attr == 'xmlns') attr = '';
-					state.addNamespace(attr, this.context.registerNamespace(attrTbl[key]));
-				} else if(item) {
-					attr = state.namespacePrefixTbl[attrNamespace] + attr;
-					var member = type.attributeTbl[attr];
+				for(var key of Object.keys(attrTbl)) {
+					var attrPrefix = nodePrefix;
+					attr = key;
+					splitter = attr.indexOf(':');
 
-					if(member) item[member.safeName] = attrTbl[key];
+					if(splitter >= 0) {
+						attrPrefix = attr.substr(0, splitter);
+						attr = attr.substr(splitter + 1);
+					}
+
+					if(attr == 'xmlns' || attrPrefix == 'xmlns') {
+						if(attr == 'xmlns') attr = '';
+						state.addNamespace(attr, this.context.registerNamespace(attrTbl[key]));
+					} else if(item) {
+						var attrNamespace = state.namespaceTbl[attrPrefix];
+						if(attrNamespace) {
+							attr = attrNamespace[1] + attr;
+							var member = type.attributeTbl[attr];
+
+							if(member) item[member.safeName] = attrTbl[key];
+						} else console.log('prefix ' + attrPrefix);
+					}
 				}
+
+				if(Handler && Handler.before) item.before();
 			}
-
-			if(Handler && Handler.before) item.before();
 
 			state = new State(state, child, type, item);
 		});
 
 		xml.on('text', function(text: string) {
-			if(state.type.isPrimitive) {
+			if(state.type && state.type.isPrimitive) {
 				if(!state.textList) state.textList = [];
 				state.textList.push(text);
 			}
@@ -106,7 +142,7 @@ export class Parser {
 			var item: any = obj;
 			var text: string;
 
-			if(state.type.isPrimitive) text = (state.textList || []).join('').trim();
+			if(state.type && state.type.isPrimitive) text = (state.textList || []).join('').trim();
 
 			if(text) {
 				var content: any;
@@ -127,13 +163,16 @@ export class Parser {
 			if(obj && member.type.handler.after) obj.after();
 
 			state = state.parent;
-			var parent = state.item;
 
-			if(parent) {
-				if(member.max > 1) {
-					if(!parent.hasOwnProperty(member.safeName)) parent[member.safeName] = [];
-					parent[member.safeName].push(item);
-				} else parent[member.safeName] = item;
+			if(item) {
+				var parent = state.item;
+
+				if(parent) {
+					if(member.max > 1) {
+						if(!parent.hasOwnProperty(member.safeName)) parent[member.safeName] = [];
+						parent[member.safeName].push(item);
+					} else parent[member.safeName] = item;
+				}
 			}
 		});
 

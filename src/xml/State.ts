@@ -13,27 +13,27 @@ export class State {
 		this.item = item;
 
 		if(parent) {
-			this.namespacePrefixTbl = parent.namespacePrefixTbl;
+			this.namespaceTbl = parent.namespaceTbl;
 		} else {
-			this.namespacePrefixTbl = {};
+			this.namespaceTbl = {};
 		}
 	}
 
 	addNamespace(short: string, namespace: Namespace) {
 		var key: string;
-		var prefixTbl = this.namespacePrefixTbl;
+		var namespaceTbl = this.namespaceTbl;
 
-		if(this.parent && prefixTbl == this.parent.namespacePrefixTbl) {
-			prefixTbl = {};
+		if(this.parent && namespaceTbl == this.parent.namespaceTbl) {
+			namespaceTbl = {};
 
-			for(key of Object.keys(this.parent.namespacePrefixTbl)) {
-				prefixTbl[key] = this.parent.namespacePrefixTbl[key];
+			for(key of Object.keys(this.parent.namespaceTbl)) {
+				namespaceTbl[key] = this.parent.namespaceTbl[key];
 			}
 
-			this.namespacePrefixTbl = prefixTbl;
+			this.namespaceTbl = namespaceTbl;
 		}
 
-		prefixTbl[short] = namespace.getPrefix();
+		namespaceTbl[short] = [ namespace, namespace.getPrefix() ];
 	}
 
 	parent: State;
@@ -42,5 +42,5 @@ export class State {
 	item: HandlerInstance;
 	textList: string[];
 
-	namespacePrefixTbl: { [short: string]: string };
+	namespaceTbl: { [short: string]: [ Namespace, string ] };
 }
