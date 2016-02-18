@@ -12,7 +12,7 @@ import {Member} from './Member';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
-var converterTbl = {
+var converterTbl: { [type: string]: (item: string) => any } = {
 	Date: ((item: string) => {
 		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
 		var offset = +(dateParts[8] || '0') * 60 + +(dateParts[9] || '0');
