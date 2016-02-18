@@ -200,7 +200,7 @@ export interface TypeClassMembers {
 	[name: string]: TypeInstance | TypeInstance[];
 }
 
-export class TypeInstance {
+export class TypeInstance implements HandlerInstance {
 	/** Name of the type, pointing to the name of the constructor function.
 	  * Might contain garbage... */
 	// static name: string;

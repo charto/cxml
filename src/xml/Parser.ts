@@ -61,11 +61,6 @@ function convertPrimitive(text: string, type: Type) {
 }
 
 export class Parser {
-	constructor(namespace: any, context?: Context) {
-		this.context = context || defaultContext;
-		this.namespace = namespace._cxml[0];
-	}
-
 	attach<CustomHandler extends HandlerInstance>(handler: { new(): CustomHandler; }) {
 		var proto = handler.prototype as CustomHandler;
 		var realHandler = (handler as TypeClass).type.handler;
@@ -78,7 +73,10 @@ export class Parser {
 		realHandler._custom = true;
 	}
 
-	parse(stream: stream.Readable) {
+	parse<Namespace>(stream: stream.Readable, namespace: Namespace, context?: Context) {
+		this.context = context || defaultContext;
+		this.namespace = (namespace as any)._cxml[0];
+
 		var xml = sax.createStream(true, { position: true });
 		var type = this.namespace.doc.getType();
 
@@ -124,16 +122,17 @@ export class Parser {
 			var child: Member;
 			var type: Type;
 
-			if(state.type) child = state.type.childTbl[name];
+			if(state.type) {
+				child = state.type.childTbl[name];
 
-			if(!child) {
-				// TODO: only allow this if any kind of child is allowed.
-				child = nodeNamespace[0].doc.getType().childTbl[name];
+				if(!child) {
+					child = nodeNamespace[0].doc.getType().childTbl[name];
+				}
+
+				if(child) type = child.type;
 			}
 
-			if(child) type = child.type;
-
-			if(type && !child.type.isPlainPrimitive) {
+			if(type && !type.isPlainPrimitive) {
 				item = new type.handler();
 
 				// Parse all attributes.
