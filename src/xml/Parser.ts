@@ -15,7 +15,6 @@ import {defaultContext} from '../importer/JS';
 var converterTbl = {
 	Date: ((item: string) => {
 		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
-		var sec = (dateParts[6] || '0') + (dateParts[7] || '');
 		var offset = +(dateParts[8] || '0') * 60 + +(dateParts[9] || '0');
 
 		var date = new Date(
@@ -24,7 +23,8 @@ var converterTbl = {
 			+dateParts[3],
 			+(dateParts[4] || '0'),
 			+(dateParts[5] || '0'),
-			+sec
+			+(dateParts[6] || '0'),
+			+(dateParts[7] || '0') * 1000
 		);
 
 		offset += date.getTimezoneOffset();
