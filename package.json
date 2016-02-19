@@ -1,7 +1,7 @@
 {
   "name": "cxml",
-  "version": "0.0.5",
-  "description": "(incomplete) fast schema-aware XML parser with XSD support",
+  "version": "0.0.6",
+  "description": "Advanced schema-aware streaming XML parser",
   "main": "dist/cxml.js",
   "typings": "dist/cxml.d.ts",
   "scripts": {
