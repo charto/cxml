@@ -82,11 +82,7 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 	}
 
 	exportDocument(exports: ModuleExports) {
-		var doc = this.doc.getProto().prototype as TypeClassMembers;
-
-		for(var safeName of Object.keys(doc)) {
-			exports[safeName] = doc[safeName];
-		}
+		exports['document'] = this.doc.getProto().prototype;
 	}
 
 	/** Get an internally used arbitrary prefix for fully qualified names

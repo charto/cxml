@@ -78,6 +78,7 @@ export class TypeSpec {
 			this.placeHolder._exists = false;
 			this.type = new Type(this.proto);
 			this.proto.type = this.type;
+			this.type.namespace = this.namespace;
 
 			if(this.parent) {
 				this.type.childTbl = inherit(this.parent.type.childTbl);
@@ -223,6 +224,8 @@ export class Type {
 	addChild(member: Member) {
 		this.childTbl[member.namespace.getPrefix() + member.name] = member;
 	}
+
+	namespace: Namespace;
 
 	/** Constructor function for creating objects handling and representing the results of this parsing rule. */
 	handler: HandlerClass;

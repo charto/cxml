@@ -73,18 +73,29 @@ export class Parser {
 		realHandler._custom = true;
 	}
 
-	parse<Namespace>(stream: stream.Readable, namespace: Namespace, context?: Context) {
+	parse<Output>(stream: stream.Readable, output: Output, context?: Context) {
+		return(new Promise<Output>((resolve: (item: Output) => void, reject: (err: any) => void) =>
+			this._parse<Output>(stream, output, context, resolve, reject)
+		));
+	}
+
+	_parse<Output>(
+		stream: stream.Readable,
+		output: Output,
+		context: Context,
+		resolve: (item: Output) => void,
+		reject: (err: any) => void
+	) {
 		this.context = context || defaultContext;
-		this.namespace = (namespace as any)._cxml[0];
 
 		var xml = sax.createStream(true, { position: true });
-		var type = this.namespace.doc.getType();
+		var type = (output.constructor as any as TypeClass).type;
 
 		var xmlSpace = this.context.registerNamespace('http://www.w3.org/XML/1998/namespace');
 		var state = new State(null, null, type, new type.handler());
 		var rootState = state;
 
-		state.addNamespace('', this.namespace);
+		state.addNamespace('', type.namespace);
 		if(xmlSpace) state.addNamespace('xml', xmlSpace);
 
 		xml.on('opentag', (node: sax.Tag) => {
@@ -206,7 +217,7 @@ export class Parser {
 		});
 
 		xml.on('end', function() {
-			console.log(JSON.stringify(rootState.item, null, 2));
+			resolve(rootState.item as any as Output);
 		});
 
 		xml.on('error', function(err: any) {
@@ -217,5 +228,4 @@ export class Parser {
 	}
 
 	context: Context;
-	namespace: Namespace;
 }
