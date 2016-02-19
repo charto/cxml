@@ -175,11 +175,7 @@ export class TypeSpec {
 	static listFlag = 4;
 }
 
-export interface TypeClass {
-	new(): TypeInstance;
-
-	type?: Type;
-}
+/** Interface implemented by schema type classes, allowing custom hooks. */
 
 export interface HandlerInstance {
 	[key: string]: any;
@@ -191,6 +187,26 @@ export interface HandlerInstance {
 	_after?(): void;
 }
 
+/** Base class inherited by all schema type classes, not defining custom hooks. */
+
+export class TypeInstance implements HandlerInstance {
+	/** Name of the type, pointing to the name of the constructor function.
+	  * Might contain garbage... */
+	// static name: string;
+	// static type: Type;
+	_exists: boolean;
+}
+
+/** Class type compatible with schema type classes. */
+
+export interface TypeClass {
+	new(): TypeInstance;
+
+	type?: Type;
+}
+
+/** Class type compatible with schema type classes, allowing custom hooks. */
+
 export interface HandlerClass extends TypeClass {
 	new(): HandlerInstance;
 
@@ -199,14 +215,6 @@ export interface HandlerClass extends TypeClass {
 
 export interface TypeClassMembers {
 	[name: string]: TypeInstance | TypeInstance[];
-}
-
-export class TypeInstance implements HandlerInstance {
-	/** Name of the type, pointing to the name of the constructor function.
-	  * Might contain garbage... */
-	// static name: string;
-	// static type: Type;
-	_exists: boolean;
 }
 
 /** Parser rule, defines a handler class, valid attributes and children

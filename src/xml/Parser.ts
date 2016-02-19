@@ -73,13 +73,13 @@ export class Parser {
 		realHandler._custom = true;
 	}
 
-	parse<Output>(stream: stream.Readable, output: Output, context?: Context) {
+	parse<Output extends HandlerInstance>(stream: stream.Readable, output: Output, context?: Context) {
 		return(new Promise<Output>((resolve: (item: Output) => void, reject: (err: any) => void) =>
 			this._parse<Output>(stream, output, context, resolve, reject)
 		));
 	}
 
-	_parse<Output>(
+	_parse<Output extends HandlerInstance>(
 		stream: stream.Readable,
 		output: Output,
 		context: Context,
@@ -89,7 +89,7 @@ export class Parser {
 		this.context = context || defaultContext;
 
 		var xml = sax.createStream(true, { position: true });
-		var type = (output.constructor as any as TypeClass).type;
+		var type = (output.constructor as TypeClass).type;
 
 		var xmlSpace = this.context.registerNamespace('http://www.w3.org/XML/1998/namespace');
 		var state = new State(null, null, type, new type.handler());
