@@ -73,7 +73,11 @@ export class TypeSpec {
 			var parent = (this.parent && this.parent != this) ? this.parent.proto : TypeInstance;
 
 			this.proto = class XmlType extends parent {};
-			(this.proto.prototype as TypeInstance)._exists = true;
+
+			var instanceProto = this.proto.prototype as TypeInstance;
+			instanceProto._exists = true;
+			instanceProto._namespace = this.namespace.name;
+
 			this.placeHolder = new this.proto();
 			this.placeHolder._exists = false;
 			this.type = new Type(this.proto);
@@ -182,6 +186,7 @@ export interface HandlerInstance {
 
 	content?: any;
 	_exists: boolean;
+	_namespace: string;
 
 	_before?(): void;
 	_after?(): void;
@@ -195,6 +200,7 @@ export class TypeInstance implements HandlerInstance {
 	// static name: string;
 	// static type: Type;
 	_exists: boolean;
+	_namespace: string;
 }
 
 /** Class type compatible with schema type classes. */
