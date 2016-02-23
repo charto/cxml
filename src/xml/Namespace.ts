@@ -3,6 +3,7 @@
 
 import {NamespaceBase} from './NamespaceBase';
 import {Type, TypeSpec, TypeClassMembers} from './Type';
+import {MemberSpec} from './Member';
 import {Context} from './Context';
 
 export interface ModuleExports {
@@ -11,20 +12,24 @@ export interface ModuleExports {
 }
 
 /** Tuple: module exports object, list of imported type names */
-export type ImportSpec = [ ModuleExports, string[] ];
+export type ImportSpec = [ ModuleExports, string[], string[] ];
 
 export class Namespace extends NamespaceBase<Context, Namespace> {
 	init(importSpecList: ImportSpec[]) {
 		this.importSpecList = importSpecList;
 
-		// Skip the document type.
-		var importOffset = 1;
+		// Separately defined document type is number 0.
+		var importTypeOffset = 1;
+		// Member number 0 is skipped.
+		var importMemberOffset = 1;
 
 		for(var importSpec of importSpecList) {
-			importOffset += importSpec[1].length;
+			importTypeOffset += importSpec[1].length;
+			importMemberOffset += importSpec[2].length;
 		}
 
-		this.typeSpecList.length = importOffset;
+		this.typeSpecList.length = importTypeOffset;
+		this.memberSpecList.length = importMemberOffset;
 		return(this);
 	}
 
@@ -38,13 +43,24 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 		if(spec.safeName) this.exportTypeTbl[spec.safeName] = spec;
 	}
 
+	addMember(spec: MemberSpec) {
+		this.memberSpecList.push(spec);
+
+		if(spec.name) this.exportMemberTbl[spec.name] = spec;
+	}
+
 	typeByNum(num: number) {
 		return(this.typeSpecList[num]);
+	}
+
+	memberByNum(num: number) {
+		return(this.memberSpecList[num]);
 	}
 
 	link() {
 		// Skip the document type.
 		var typeNum = 1;
+		var memberNum = 1;
 
 		for(var importSpec of this.importSpecList) {
 			var other = importSpec[0]._cxml[0];
@@ -53,6 +69,10 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 
 			for(var typeName of importSpec[1]) {
 				this.typeSpecList[typeNum++] = other.exportTypeTbl[typeName];
+			}
+
+			for(var memberName of importSpec[2]) {
+				this.memberSpecList[memberNum++] = other.exportMemberTbl[memberName];
 			}
 		}
 
@@ -66,6 +86,17 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 
 			if(typeSpec.parentNum) {
 				typeSpec.setParent(typeSpecList[typeSpec.parentNum]);
+			}
+		}
+
+		var memberSpecList = this.memberSpecList;
+		var memberCount = memberSpecList.length;
+
+		while(memberNum < memberCount) {
+			var memberSpec = memberSpecList[memberNum++];
+
+			if(memberSpec.substitutesNum) {
+				memberSpec.setSubstitutes(memberSpecList[memberSpec.substitutesNum]);
 			}
 		}
 	}
@@ -96,7 +127,9 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 	importNamespaceList: Namespace[] = [];
 	exportTypeNameList: string[];
 	typeSpecList: TypeSpec[] = [];
+	memberSpecList: MemberSpec[] = [];
 	exportOffset: number;
 
 	exportTypeTbl: { [name: string]: TypeSpec } = {};
+	exportMemberTbl: { [name: string]: MemberSpec } = {};
 }

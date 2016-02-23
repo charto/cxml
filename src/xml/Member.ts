@@ -2,32 +2,23 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Type, TypeSpec, parseName} from './Type';
+import {Type, TypeSpec} from './Type';
 
-/** Tuple: name, flags, type ID list */
-export type MemberSpec = [ string, number, number[], number ];
+/** Tuple: member ID, flags, name */
+export type RawRefSpec = [ number, number, string ];
 
-export class Member {
-	constructor(spec: MemberSpec, namespace: Namespace) {
-		var parts = parseName(spec[0]);
-		var flags = spec[1];
-		var typeNumList = spec[2];
-		var namespaceNum = spec[3];
+/** Tuple: name, type ID list, substituted member ID */
+export type RawMemberSpec = [ string, number[], number ];
+
+export class MemberSpec {
+	constructor(spec: RawMemberSpec, namespace: Namespace) {
+		this.namespace = namespace;
+		this.name = spec[0];
+		this.substitutesNum = spec[2];
+		var typeNumList = spec[1];
 
 		if(typeNumList.length == 1) {
-			this.name = parts.name;
-			if(namespaceNum || namespaceNum === 0) {
-				// The member is not in the same namespace as its parent type.
-				this.namespace = namespace.importNamespaceList[namespaceNum];
-			} else this.namespace = namespace;
-			this.safeName = parts.safeName;
-			this.typeSpec = namespace.typeByNum(typeNumList[0]);
-			this.type = this.typeSpec.getType();
-
-			this.min = (flags & Member.optionalFlag) ? 0 : 1;
-			this.max = (flags & Member.arrayFlag) ? Infinity : 1;
-
-			// if(this.namespace != namespace) console.log(namespace.name + ':' + this.typeSpec.name + ':' + this.name + '\t' + this.namespace.name);
+			this.typeNum = typeNumList[0];
 		} else {
 			// TODO: What now? Make sure this is not reached.
 			// Different types shouldn't be joined with | in .d.ts, instead
@@ -37,15 +28,67 @@ export class Member {
 		}
 	}
 
+	setSubstitutes(spec: MemberSpec) {
+		this.substitutes = spec;
+
+		if(spec.defined) {
+			// Entire namespace for substituted member is already fully defined,
+			// so the substituted member's dependentList won't get processed any more
+			// and we should process this member immediately.
+
+			this.defineMember();
+		} else if(spec != this) spec.dependentList.push(this);
+	}
+
+	defineMember() {
+		if(!this.defined) {
+			this.defined = true;
+
+			// Look up member type if available.
+			// Sometimes abstract elements have no type.
+
+			if(this.typeNum) {
+				this.typeSpec = this.namespace.typeByNum(this.typeNum);
+				this.type = this.typeSpec.getType();
+			}
+		}
+	}
+
 	name: string;
+	namespace: Namespace;
+	substitutesNum: number;
+	substitutes: MemberSpec;
+
+	typeNum: number;
+	typeSpec: TypeSpec;
+	type: Type;
+
+	// Track dependents for Kahn's topological sort algorithm.
+	dependentList: MemberSpec[] = [];
+
+	defined: boolean;
+}
+
+export class MemberRef {
+	constructor(spec: RawRefSpec, namespace: Namespace) {
+		var flags = spec[1];
+
+		this.spec = namespace.memberByNum(spec[0]);
+
+		this.namespace = this.spec.namespace;
+		this.safeName = spec[2] || this.spec.name;
+
+		this.min = (flags & MemberRef.optionalFlag) ? 0 : 1;
+		this.max = (flags & MemberRef.arrayFlag) ? Infinity : 1;
+	}
+
 	namespace: Namespace;
 	safeName: string;
 
 	min: number;
 	max: number;
 
-	typeSpec: TypeSpec;
-	type: Type;
+	spec: MemberSpec;
 
 	static optionalFlag = 1;
 	static arrayFlag = 2;

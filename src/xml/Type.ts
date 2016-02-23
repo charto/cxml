@@ -2,7 +2,10 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Member, MemberSpec} from './Member';
+import {MemberSpec, MemberRef, RawRefSpec} from './Member';
+
+/** Tuple: flags, parent type ID, child element list, attribute list */
+export type RawTypeSpec = [ number, number, RawRefSpec[], RawRefSpec[] ];
 
 export function parseName(name: string) {
 	var splitPos = name.indexOf(':');
@@ -28,14 +31,7 @@ function inherit<Type>(parentObject: Type) {
 /** Type specification defining attributes and children. */
 
 export class TypeSpec {
-	constructor(
-		namespace: Namespace,
-		name: string,
-		flags: number,
-		parentNum: number,
-		childSpecList: MemberSpec[],
-		attributeSpecList: MemberSpec[]
-	) {
+	constructor(spec: RawTypeSpec, namespace: Namespace, name: string) {
 		if(name) {
 			var parts = parseName(name);
 			this.name = parts.name;
@@ -43,16 +39,16 @@ export class TypeSpec {
 		}
 
 		this.namespace = namespace;
-		this.flags = flags;
-		this.parentNum = parentNum;
-		this.childSpecList = childSpecList;
-		this.attributeSpecList = attributeSpecList;
+		this.flags = spec[0];
+		this.parentNum = spec[1];
+		this.childSpecList = spec[2];
+		this.attributeSpecList = spec[3];
 	}
 
 	setParent(spec: TypeSpec) {
 		this.parent = spec;
 
-		if(spec.proto) {
+		if(spec.defined) {
 			// Entire namespace for parent type is already fully defined,
 			// so the parent type's dependentList won't get processed any more
 			// and we should process this type immediately.
@@ -66,7 +62,9 @@ export class TypeSpec {
 	getType() { return(this.type); }
 
 	defineType() {
-		if(!this.proto) {
+		if(!this.defined) {
+			this.defined = true;
+
 			// This function hasn't been called for this type yet by setParent,
 			// but something must by now have called it for the parent type.
 
@@ -113,33 +111,33 @@ export class TypeSpec {
 		this.dependentList = [];
 	}
 
-	private defineMember(spec: MemberSpec) {
-		var member = new Member(spec, this.namespace);
+	private defineMember(spec: RawRefSpec) {
+		var ref = new MemberRef(spec, this.namespace);
 
-		if(member.typeSpec) {
-			var memberType = member.typeSpec.placeHolder;
+		if(ref.spec.typeSpec) {
+			var memberType = ref.spec.typeSpec.placeHolder;
 			var type = (this.proto.prototype) as TypeClassMembers;
 
-			type[member.safeName] = (member.max > 1) ? [memberType] : memberType;
+			type[ref.safeName] = (ref.max > 1) ? [memberType] : memberType;
 
-			if(member.min < 1) this.optionalList.push(member.safeName);
-			else this.requiredList.push(member.safeName);
+			if(ref.min < 1) this.optionalList.push(ref.safeName);
+			else this.requiredList.push(ref.safeName);
 		}
 
-		return(member);
+		return(ref);
 	}
 
 	defineMembers() {
-		var spec: MemberSpec;
+		var spec: RawRefSpec;
 
 		for(spec of this.childSpecList) {
-			var member = this.defineMember(spec);
-			if(member.typeSpec) this.type.addChild(member);
+			var ref = this.defineMember(spec);
+			if(ref.spec.typeSpec) this.type.addChild(ref);
 		}
 
 		for(spec of this.attributeSpecList) {
-			var member = this.defineMember(spec);
-			if(member.typeSpec) this.type.addAttribute(member);
+			var ref = this.defineMember(spec);
+			if(ref.spec.typeSpec) this.type.addAttribute(ref);
 		}
 	}
 
@@ -161,14 +159,16 @@ export class TypeSpec {
 
 	parentNum: number;
 	parent: TypeSpec;
-	childSpecList: MemberSpec[];
-	attributeSpecList: MemberSpec[];
+	childSpecList: RawRefSpec[];
+	attributeSpecList: RawRefSpec[];
 
 	optionalList: string[] = [];
 	requiredList: string[] = [];
 
 	// Track dependents for Kahn's topological sort algorithm.
 	dependentList: TypeSpec[] = [];
+
+	defined: boolean;
 
 	private type: Type;
 	private proto: TypeClass;
@@ -231,12 +231,12 @@ export class Type {
 		this.handler = handler;
 	}
 
-	addAttribute(member: Member) {
-		this.attributeTbl[member.namespace.getPrefix() + member.name] = member;
+	addAttribute(ref: MemberRef) {
+		this.attributeTbl[ref.namespace.getPrefix() + ref.spec.name] = ref;
 	}
 
-	addChild(member: Member) {
-		this.childTbl[member.namespace.getPrefix() + member.name] = member;
+	addChild(ref: MemberRef) {
+		this.childTbl[ref.namespace.getPrefix() + ref.spec.name] = ref;
 	}
 
 	namespace: Namespace;
@@ -245,10 +245,10 @@ export class Type {
 	handler: HandlerClass;
 
 	/** Table of allowed attributes. */
-	attributeTbl: { [key: string]: Member } = {};
+	attributeTbl: { [key: string]: MemberRef } = {};
 
 	/** Table mapping the names of allowed child tags, to their parsing rules. */
-	childTbl: { [key: string]: Member };
+	childTbl: { [key: string]: MemberRef };
 
 	isPrimitive: boolean;
 	isPlainPrimitive: boolean;

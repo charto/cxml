@@ -3,12 +3,12 @@
 
 import {Namespace} from './Namespace';
 import {Type, HandlerInstance} from './Type';
-import {Member} from './Member';
+import {MemberRef} from './Member';
 
 export class State {
-	constructor(parent: State, memberSpec: Member, type: Type, item: HandlerInstance) {
+	constructor(parent: State, memberRef: MemberRef, type: Type, item: HandlerInstance) {
 		this.parent = parent;
-		this.memberSpec = memberSpec;
+		this.memberRef = memberRef;
 		this.type = type;
 		this.item = item;
 
@@ -37,7 +37,7 @@ export class State {
 	}
 
 	parent: State;
-	memberSpec: Member;
+	memberRef: MemberRef;
 	type: Type;
 	item: HandlerInstance;
 	textList: string[];

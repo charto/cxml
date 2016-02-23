@@ -8,7 +8,7 @@ import * as sax from 'sax';
 import {Context} from './Context';
 import {Namespace} from './Namespace';
 import {Type, TypeClass, HandlerInstance} from './Type';
-import {Member} from './Member';
+import {MemberSpec, MemberRef} from './Member';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
@@ -130,7 +130,7 @@ export class Parser {
 			var nodeNamespace = state.namespaceTbl[nodePrefix];
 			name = nodeNamespace[1] + name;
 
-			var child: Member;
+			var child: MemberRef;
 			var type: Type;
 
 			if(state.type) {
@@ -140,7 +140,7 @@ export class Parser {
 					child = nodeNamespace[0].doc.getType().childTbl[name];
 				}
 
-				if(child) type = child.type;
+				if(child) type = child.spec.type;
 			}
 
 			if(type && !type.isPlainPrimitive) {
@@ -169,7 +169,9 @@ export class Parser {
 
 					var member = type.attributeTbl[attr];
 
-					if(member && member.type.isPlainPrimitive) item[member.safeName] = convertPrimitive(attrTbl[key], member.type);
+					if(member && member.spec.type.isPlainPrimitive) {
+						item[member.safeName] = convertPrimitive(attrTbl[key], member.spec.type);
+					}
 				}
 
 				if(item._before) item._before();
@@ -186,7 +188,7 @@ export class Parser {
 		});
 
 		xml.on('closetag', function(name: string) {
-			var member = state.memberSpec;
+			var member = state.memberRef;
 			var obj = state.item;
 			var item: any = obj;
 			var text: string;
