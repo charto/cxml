@@ -2,7 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {NamespaceBase} from './NamespaceBase';
-import {TypeSpec} from './Type';
+import {TypeSpec} from './TypeSpec';
 import {MemberSpec} from './Member';
 import {Context} from './Context';
 

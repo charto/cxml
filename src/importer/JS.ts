@@ -3,7 +3,7 @@
 
 import {Namespace, ModuleExports, ImportSpec} from '../xml/Namespace';
 import {RawMemberSpec} from '../xml/Member';
-import {RawTypeSpec} from '../xml/Type';
+import {RawTypeSpec} from '../xml/TypeSpec';
 import {Context} from '../xml/Context';
 
 /** Context for namespaces defined by calling register(). */

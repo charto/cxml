@@ -3,7 +3,7 @@
 
 import {ContextBase} from './ContextBase';
 import {Namespace, ModuleExports} from './Namespace';
-import {TypeSpec, RawTypeSpec} from './Type';
+import {TypeSpec, RawTypeSpec} from './TypeSpec';
 import {MemberSpec, RawMemberSpec} from './Member';
 import {Item, ItemBase} from '../xml/Item';
 

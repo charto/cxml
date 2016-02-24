@@ -2,7 +2,8 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Type, TypeSpec} from './Type';
+import {Type} from './Type';
+import {TypeSpec} from './TypeSpec';
 import {Item, ItemBase} from './Item';
 
 // TODO: Should extend ItemBase instead of containing it.
