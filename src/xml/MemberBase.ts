@@ -5,7 +5,9 @@ import {Namespace} from './Namespace';
 import {Type, TypeSpec} from './Type';
 import {Item, ItemBase} from './Item';
 
-// TODO: Should extend Item instead of containing it.
+// TODO: Should extend ItemBase instead of containing it.
+// For now, TypeScript doesn't allow ItemBase to extend ItemContent.
+
 export class MemberBase<Member, Namespace, ItemContent extends ItemBase<Item<ItemContent>>> implements Item<ItemContent> {
 	constructor(Item: { new(type: MemberBase<Member, Namespace, ItemContent>): ItemContent }, name: string) {
 		if(Item) this.item = new Item(this);

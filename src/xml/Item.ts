@@ -1,10 +1,14 @@
 // This file is part of cxml, copyright (c) 2015-2016 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
+/** Type or member. */
+
 export interface Item<ItemContent> {
 	define(): void;
 	item: ItemContent;
 }
+
+/** Type and member dependency helper. Should be parent class of both. */
 
 export class ItemBase<Type extends Item<ItemBase<Type>>> {
 	constructor(type: Type) {
@@ -37,11 +41,13 @@ export class ItemBase<Type extends Item<ItemBase<Type>>> {
 		this.dependentList = [];
 	}
 
+	/** Type or member. */
 	type: Type;
 	parentNum: number;
+	/** Parent type or substitution group. */
 	parent: Type;
 
-	// Track dependents for Kahn's topological sort algorithm.
+	/** Track dependents for Kahn's topological sort algorithm. */
 	dependentList: Type[] = [];
 
 	defined: boolean;
