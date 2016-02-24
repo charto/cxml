@@ -1,11 +1,8 @@
-// This file is part of cxsd, copyright (c) 2015-2016 BusFaster Ltd.
+// This file is part of cxml, copyright (c) 2015-2016 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
 import {Type, TypeSpec} from './Type';
-
-/** Tuple: member ID, flags, name */
-export type RawRefSpec = [ number, number, string ];
 
 /** Tuple: name, type ID list, flags, substituted member ID */
 export type RawMemberSpec = [ string, number[], number, number ];
@@ -78,29 +75,4 @@ export class MemberSpec {
 	static abstractFlag = 1;
 	static substitutedFlag = 2;
 	static anyFlag = 4;
-}
-
-export class MemberRef {
-	constructor(spec: RawRefSpec, namespace: Namespace) {
-		var flags = spec[1];
-
-		this.spec = namespace.memberByNum(spec[0]);
-
-		this.namespace = this.spec.namespace;
-		this.safeName = spec[2] || this.spec.name;
-
-		this.min = (flags & MemberRef.optionalFlag) ? 0 : 1;
-		this.max = (flags & MemberRef.arrayFlag) ? Infinity : 1;
-	}
-
-	namespace: Namespace;
-	safeName: string;
-
-	min: number;
-	max: number;
-
-	spec: MemberSpec;
-
-	static optionalFlag = 1;
-	static arrayFlag = 2;
 }

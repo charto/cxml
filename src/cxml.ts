@@ -3,6 +3,7 @@
 
 export {NamespaceBase} from './xml/NamespaceBase';
 export {ContextBase} from './xml/ContextBase';
+export {MemberRefBase} from './xml/MemberRefBase';
 
 export {Context} from './xml/Context';
 export {Parser} from './xml/Parser';

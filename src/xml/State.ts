@@ -3,7 +3,7 @@
 
 import {Namespace} from './Namespace';
 import {Type, HandlerInstance} from './Type';
-import {MemberRef} from './Member';
+import {MemberRef} from './MemberRef';
 
 export class State {
 	constructor(parent: State, memberRef: MemberRef, type: Type, item: HandlerInstance) {

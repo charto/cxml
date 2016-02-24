@@ -2,7 +2,8 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {MemberSpec, MemberRef, RawRefSpec} from './Member';
+import {MemberSpec} from './Member';
+import {MemberRef, RawRefSpec} from './MemberRef';
 
 /** Tuple: flags, parent type ID, child element list, attribute list */
 export type RawTypeSpec = [ number, number, RawRefSpec[], RawRefSpec[] ];
@@ -114,8 +115,8 @@ export class TypeSpec {
 	private defineMember(spec: RawRefSpec) {
 		var ref = new MemberRef(spec, this.namespace);
 
-		if(ref.spec.typeSpec) {
-			var memberType = ref.spec.typeSpec.placeHolder;
+		if(ref.member.typeSpec) {
+			var memberType = ref.member.typeSpec.placeHolder;
 			var type = (this.proto.prototype) as TypeClassMembers;
 
 			type[ref.safeName] = (ref.max > 1) ? [memberType] : memberType;
@@ -132,12 +133,12 @@ export class TypeSpec {
 
 		for(spec of this.childSpecList) {
 			var ref = this.defineMember(spec);
-			if(ref.spec.typeSpec) this.type.addChild(ref);
+			if(ref.member.typeSpec) this.type.addChild(ref);
 		}
 
 		for(spec of this.attributeSpecList) {
 			var ref = this.defineMember(spec);
-			if(ref.spec.typeSpec) this.type.addAttribute(ref);
+			if(ref.member.typeSpec) this.type.addAttribute(ref);
 		}
 	}
 
@@ -232,11 +233,11 @@ export class Type {
 	}
 
 	addAttribute(ref: MemberRef) {
-		this.attributeTbl[ref.namespace.getPrefix() + ref.spec.name] = ref;
+		this.attributeTbl[ref.member.namespace.getPrefix() + ref.member.name] = ref;
 	}
 
 	addChild(ref: MemberRef) {
-		this.childTbl[ref.namespace.getPrefix() + ref.spec.name] = ref;
+		this.childTbl[ref.member.namespace.getPrefix() + ref.member.name] = ref;
 	}
 
 	namespace: Namespace;

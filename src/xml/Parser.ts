@@ -8,7 +8,7 @@ import * as sax from 'sax';
 import {Context} from './Context';
 import {Namespace} from './Namespace';
 import {Type, TypeClass, HandlerInstance} from './Type';
-import {MemberSpec, MemberRef} from './Member';
+import {MemberRef} from './MemberRef';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
@@ -140,7 +140,7 @@ export class Parser {
 					child = nodeNamespace[0].doc.getType().childTbl[name];
 				}
 
-				if(child) type = child.spec.type;
+				if(child) type = child.member.type;
 			}
 
 			if(type && !type.isPlainPrimitive) {
@@ -167,10 +167,10 @@ export class Parser {
 						attr = nodeNamespace[1] + key;
 					}
 
-					var member = type.attributeTbl[attr];
+					var ref = type.attributeTbl[attr];
 
-					if(member && member.spec.type.isPlainPrimitive) {
-						item[member.safeName] = convertPrimitive(attrTbl[key], member.spec.type);
+					if(ref && ref.member.type.isPlainPrimitive) {
+						item[ref.safeName] = convertPrimitive(attrTbl[key], ref.member.type);
 					}
 				}
 
