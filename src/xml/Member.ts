@@ -33,16 +33,12 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 	}
 
 	define() {
-		if(!this.item.defined) {
-			this.item.defined = true;
+		// Look up member type if available.
+		// Sometimes abstract elements have no type.
 
-			// Look up member type if available.
-			// Sometimes abstract elements have no type.
-
-			if(this.typeNum) {
-				this.typeSpec = this.namespace.typeByNum(this.typeNum);
-				this.type = this.typeSpec.getType();
-			}
+		if(this.typeNum) {
+			this.typeSpec = this.namespace.typeByNum(this.typeNum);
+			this.type = this.typeSpec.getType();
 		}
 	}
 

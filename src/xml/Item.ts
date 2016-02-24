@@ -19,8 +19,22 @@ export class ItemBase<Type extends Item<ItemBase<Type>>> {
 			// so the substituted member's dependentList won't get processed any more
 			// and we should process this member immediately.
 
-			this.type.define();
+			this.define();
 		} else if(parent != this.type) parent.item.dependentList.push(this.type);
+	}
+
+	define() {
+		if(!this.defined) {
+			this.defined = true;
+
+			this.type.define();
+		}
+
+		for(var dependent of this.dependentList) {
+			dependent.item.define();
+		}
+
+		this.dependentList = [];
 	}
 
 	type: Type;

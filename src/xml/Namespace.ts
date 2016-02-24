@@ -84,8 +84,8 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 		while(typeNum < typeCount) {
 			var typeSpec = typeSpecList[typeNum++];
 
-			if(typeSpec.parentNum) {
-				typeSpec.setParent(typeSpecList[typeSpec.parentNum]);
+			if(typeSpec.item.parentNum) {
+				typeSpec.item.setParent(typeSpecList[typeSpec.item.parentNum]);
 			}
 		}
 

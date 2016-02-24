@@ -51,13 +51,13 @@ function process(
 	// (the rest is in the TypeSpec class).
 
 	for(var typeSpec of pendingTypeList) {
-		if(!typeSpec.parent || typeSpec.parent == typeSpec) {
-			typeSpec.define();
+		if(!typeSpec.item.parent || typeSpec.item.parent == typeSpec) {
+			typeSpec.item.define();
 		}
 	}
 
 	for(var memberSpec of pendingMemberList) {
-		memberSpec.define();
+		memberSpec.item.define();
 	}
 
 	for(var typeSpec of pendingTypeList) {

@@ -32,8 +32,10 @@ function inherit<Type>(parentObject: Type) {
 
 /** Type specification defining attributes and children. */
 
-export class TypeSpec {
+export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 	constructor(spec: RawTypeSpec, namespace: Namespace, name: string) {
+		this.item = new ItemBase(this as TypeSpec);
+
 		if(name) {
 			var parts = parseName(name);
 			this.name = parts.name;
@@ -42,21 +44,9 @@ export class TypeSpec {
 
 		this.namespace = namespace;
 		this.flags = spec[0];
-		this.parentNum = spec[1];
+		this.item.parentNum = spec[1];
 		this.childSpecList = spec[2];
 		this.attributeSpecList = spec[3];
-	}
-
-	setParent(spec: TypeSpec) {
-		this.parent = spec;
-
-		if(spec.defined) {
-			// Entire namespace for parent type is already fully defined,
-			// so the parent type's dependentList won't get processed any more
-			// and we should process this type immediately.
-
-			this.define();
-		} else if(spec != this) spec.dependentList.push(this);
 	}
 
 	getProto() { return(this.proto); }
@@ -64,53 +54,43 @@ export class TypeSpec {
 	getType() { return(this.type); }
 
 	define() {
-		if(!this.defined) {
-			this.defined = true;
+		// This function hasn't been called for this type yet by setParent,
+		// but something must by now have called it for the parent type.
 
-			// This function hasn't been called for this type yet by setParent,
-			// but something must by now have called it for the parent type.
+		var parent = (this.item.parent && this.item.parent != this) ? this.item.parent.proto : TypeInstance;
 
-			var parent = (this.parent && this.parent != this) ? this.parent.proto : TypeInstance;
+		this.proto = class XmlType extends parent {};
 
-			this.proto = class XmlType extends parent {};
+		var instanceProto = this.proto.prototype as TypeInstance;
+		instanceProto._exists = true;
+		instanceProto._namespace = this.namespace.name;
 
-			var instanceProto = this.proto.prototype as TypeInstance;
-			instanceProto._exists = true;
-			instanceProto._namespace = this.namespace.name;
+		this.placeHolder = new this.proto();
+		this.placeHolder._exists = false;
+		this.type = new Type(this.proto);
+		this.proto.type = this.type;
+		this.type.namespace = this.namespace;
 
-			this.placeHolder = new this.proto();
-			this.placeHolder._exists = false;
-			this.type = new Type(this.proto);
-			this.proto.type = this.type;
-			this.type.namespace = this.namespace;
-
-			if(this.parent) {
-				this.type.childTbl = inherit(this.parent.type.childTbl);
-				this.type.attributeTbl = inherit(this.parent.type.attributeTbl);
-			} else {
-				this.type.attributeTbl = {};
-				this.type.childTbl = {};
-			}
-
-			this.type.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
-			this.type.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
-			this.type.isList = !!(this.flags & TypeSpec.listFlag);
-
-			if(this.type.isPrimitive) {
-				var primitiveType: TypeSpec = this;
-				var next: TypeSpec;
-
-				while((next = primitiveType.parent) && next != primitiveType) primitiveType = next;
-
-				this.type.primitiveType = primitiveType.safeName;
-			}
+		if(this.item.parent) {
+			this.type.childTbl = inherit(this.item.parent.type.childTbl);
+			this.type.attributeTbl = inherit(this.item.parent.type.attributeTbl);
+		} else {
+			this.type.attributeTbl = {};
+			this.type.childTbl = {};
 		}
 
-		for(var dependent of this.dependentList) {
-			dependent.define();
-		}
+		this.type.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
+		this.type.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
+		this.type.isList = !!(this.flags & TypeSpec.listFlag);
 
-		this.dependentList = [];
+		if(this.type.isPrimitive) {
+			var primitiveType: TypeSpec = this;
+			var next: TypeSpec;
+
+			while((next = primitiveType.item.parent) && next != primitiveType) primitiveType = next;
+
+			this.type.primitiveType = primitiveType.safeName;
+		}
 	}
 
 	private defineMember(spec: RawRefSpec) {
@@ -161,18 +141,11 @@ export class TypeSpec {
 	safeName: string;
 	flags: number;
 
-	parentNum: number;
-	parent: TypeSpec;
 	childSpecList: RawRefSpec[];
 	attributeSpecList: RawRefSpec[];
 
 	optionalList: string[] = [];
 	requiredList: string[] = [];
-
-	// Track dependents for Kahn's topological sort algorithm.
-	dependentList: TypeSpec[] = [];
-
-	defined: boolean;
 
 	private type: Type;
 	private proto: TypeClass;
