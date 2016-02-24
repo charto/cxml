@@ -7,15 +7,19 @@ import {Type, TypeSpec} from './Type';
 /** Tuple: member ID, flags, name */
 export type RawRefSpec = [ number, number, string ];
 
-/** Tuple: name, type ID list, substituted member ID */
-export type RawMemberSpec = [ string, number[], number ];
+/** Tuple: name, type ID list, flags, substituted member ID */
+export type RawMemberSpec = [ string, number[], number, number ];
 
 export class MemberSpec {
 	constructor(spec: RawMemberSpec, namespace: Namespace) {
 		this.namespace = namespace;
 		this.name = spec[0];
-		this.substitutesNum = spec[2];
+		this.substitutesNum = spec[3];
 		var typeNumList = spec[1];
+		var flags = spec[2];
+
+		this.isAbstract = !!(flags & MemberSpec.abstractFlag);
+		this.isSubstituted = !!(flags & MemberSpec.substitutedFlag);
 
 		if(typeNumList.length == 1) {
 			this.typeNum = typeNumList[0];
@@ -63,10 +67,17 @@ export class MemberSpec {
 	typeSpec: TypeSpec;
 	type: Type;
 
+	isAbstract: boolean;
+	isSubstituted: boolean;
+
 	// Track dependents for Kahn's topological sort algorithm.
 	dependentList: MemberSpec[] = [];
 
 	defined: boolean;
+
+	static abstractFlag = 1;
+	static substitutedFlag = 2;
+	static anyFlag = 4;
 }
 
 export class MemberRef {
