@@ -65,7 +65,7 @@ export class ContextBase<Context extends ContextBase<Context, Namespace>, Namesp
 	/** Next available numeric surrogate key for new namespaces. */
 	private namespaceKeyNext = 0;
 	/** List of namespaces indexed by a numeric surrogate key. */
-	private namespaceList: Namespace[] = [];
+	protected namespaceList: Namespace[] = [];
 	/** Table of namespaces by name in URI format (URL or URN).  */
 	private namespaceNameTbl: { [name: string]: Namespace } = {};
 }

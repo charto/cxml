@@ -8,12 +8,18 @@ export interface Item<ItemContent> {
 	item: ItemContent;
 }
 
-/** Type and member dependency helper. Should be parent class of both. */
+/** Type and member dependency helper. Implements Kahn's topological sort.
+  * Member instead of parent class of both, due to TypeScript limitations
+  * (cannot extend a class given as a generic parameter). */
 
 export class ItemBase<Type extends Item<ItemBase<Type>>> {
+	/** @param type Type or member instance containing this helper. */
+
 	constructor(type: Type) {
 		this.type = type;
 	}
+
+	/** Set parent type or substituted member. */
 
 	setParent(parent: Type) {
 		this.parent = parent;
@@ -26,6 +32,8 @@ export class ItemBase<Type extends Item<ItemBase<Type>>> {
 			this.define();
 		} else if(parent != this.type) parent.item.dependentList.push(this.type);
 	}
+
+	/** Topological sort visitor. */
 
 	define() {
 		if(!this.defined) {
@@ -43,12 +51,14 @@ export class ItemBase<Type extends Item<ItemBase<Type>>> {
 
 	/** Type or member. */
 	type: Type;
+	/** Number of parent type or substituted member. */
 	parentNum: number;
-	/** Parent type or substitution group. */
+	/** Parent type or substituted member. */
 	parent: Type;
 
 	/** Track dependents for Kahn's topological sort algorithm. */
-	dependentList: Type[] = [];
+	private dependentList: Type[] = [];
 
+	/** Visited flag for topological sort. */
 	defined: boolean;
 }
