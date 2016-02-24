@@ -6,7 +6,6 @@ import * as Promise from 'bluebird';
 import * as sax from 'sax';
 
 import {Context} from './Context';
-import {Namespace} from './Namespace';
 import {Type, TypeClass, HandlerInstance} from './Type';
 import {MemberRef} from './MemberRef';
 import {State} from './State';
