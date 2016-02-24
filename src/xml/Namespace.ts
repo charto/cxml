@@ -95,8 +95,8 @@ export class Namespace extends NamespaceBase<Context, Namespace> {
 		while(memberNum < memberCount) {
 			var memberSpec = memberSpecList[memberNum++];
 
-			if(memberSpec.substitutesNum) {
-				memberSpec.setSubstitutes(memberSpecList[memberSpec.substitutesNum]);
+			if(memberSpec.item.parentNum) {
+				memberSpec.item.setParent(memberSpecList[memberSpec.item.parentNum]);
 			}
 		}
 	}

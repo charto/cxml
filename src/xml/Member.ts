@@ -3,15 +3,18 @@
 
 import {Namespace} from './Namespace';
 import {Type, TypeSpec} from './Type';
+import {MemberBase} from './MemberBase';
+import {ItemBase} from './Item';
 
 /** Tuple: name, type ID list, flags, substituted member ID */
 export type RawMemberSpec = [ string, number[], number, number ];
 
-export class MemberSpec {
+export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<MemberSpec> > {
 	constructor(spec: RawMemberSpec, namespace: Namespace) {
+		super(ItemBase, spec[0]);
+
 		this.namespace = namespace;
-		this.name = spec[0];
-		this.substitutesNum = spec[3];
+		this.item.parentNum = spec[3];
 		var typeNumList = spec[1];
 		var flags = spec[2];
 
@@ -29,21 +32,9 @@ export class MemberSpec {
 		}
 	}
 
-	setSubstitutes(spec: MemberSpec) {
-		this.substitutes = spec;
-
-		if(spec.defined) {
-			// Entire namespace for substituted member is already fully defined,
-			// so the substituted member's dependentList won't get processed any more
-			// and we should process this member immediately.
-
-			this.defineMember();
-		} else if(spec != this) spec.dependentList.push(this);
-	}
-
-	defineMember() {
-		if(!this.defined) {
-			this.defined = true;
+	define() {
+		if(!this.item.defined) {
+			this.item.defined = true;
 
 			// Look up member type if available.
 			// Sometimes abstract elements have no type.
@@ -55,24 +46,7 @@ export class MemberSpec {
 		}
 	}
 
-	name: string;
-	namespace: Namespace;
-	substitutesNum: number;
-	substitutes: MemberSpec;
-
 	typeNum: number;
 	typeSpec: TypeSpec;
 	type: Type;
-
-	isAbstract: boolean;
-	isSubstituted: boolean;
-
-	// Track dependents for Kahn's topological sort algorithm.
-	dependentList: MemberSpec[] = [];
-
-	defined: boolean;
-
-	static abstractFlag = 1;
-	static substitutedFlag = 2;
-	static anyFlag = 4;
 }

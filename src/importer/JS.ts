@@ -52,12 +52,12 @@ function process(
 
 	for(var typeSpec of pendingTypeList) {
 		if(!typeSpec.parent || typeSpec.parent == typeSpec) {
-			typeSpec.defineType();
+			typeSpec.define();
 		}
 	}
 
 	for(var memberSpec of pendingMemberList) {
-		memberSpec.defineMember();
+		memberSpec.define();
 	}
 
 	for(var typeSpec of pendingTypeList) {

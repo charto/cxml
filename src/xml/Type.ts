@@ -4,6 +4,7 @@
 import {Namespace} from './Namespace';
 import {MemberSpec} from './Member';
 import {MemberRef, RawRefSpec} from './MemberRef';
+import {Item, ItemBase} from './Item';
 
 /** Tuple: flags, parent type ID, child element list, attribute list */
 export type RawTypeSpec = [ number, number, RawRefSpec[], RawRefSpec[] ];
@@ -54,7 +55,7 @@ export class TypeSpec {
 			// so the parent type's dependentList won't get processed any more
 			// and we should process this type immediately.
 
-			this.defineType();
+			this.define();
 		} else if(spec != this) spec.dependentList.push(this);
 	}
 
@@ -62,7 +63,7 @@ export class TypeSpec {
 
 	getType() { return(this.type); }
 
-	defineType() {
+	define() {
 		if(!this.defined) {
 			this.defined = true;
 
@@ -106,7 +107,7 @@ export class TypeSpec {
 		}
 
 		for(var dependent of this.dependentList) {
-			dependent.defineType();
+			dependent.define();
 		}
 
 		this.dependentList = [];
@@ -152,6 +153,8 @@ export class TypeSpec {
 			delete(type[name]);
 		}
 	}
+
+	item: ItemBase<TypeSpec>;
 
 	namespace: Namespace;
 	name: string;
