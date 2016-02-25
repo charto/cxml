@@ -24,6 +24,11 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 
 		this.isAbstract = !!(flags & MemberSpec.abstractFlag);
 		this.isSubstituted = !!(flags & MemberSpec.substitutedFlag);
+		this.isSubstituted = this.isSubstituted || this.isAbstract;
+
+		if(this.isSubstituted) {
+			this.containingTypeList = [];
+		}
 
 		if(typeNumList.length == 1) {
 			this.typeNum = typeNumList[0];
@@ -45,7 +50,7 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 			this.type = this.typeSpec.getType();
 		}
 
-		if(this.isAbstract || this.isSubstituted) {
+		if(this.isSubstituted) {
 			this.proxySpec = new TypeSpec([0, 0, [], []], this.namespace, '');
 			this.proxyType = this.proxySpec.define();
 
@@ -72,4 +77,6 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 	  * containing all possible substitutes as children. */
 	proxyType: Type;
 	proxySpec: TypeSpec;
+
+	containingTypeList: Type[];
 }

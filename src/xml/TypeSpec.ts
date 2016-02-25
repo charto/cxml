@@ -2,6 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
+import {MemberSpec} from './Member';
 import {MemberRef, RawRefSpec} from './MemberRef';
 import {Type, TypeClass, TypeInstance} from './Type';
 import {Item, ItemBase} from './Item';
@@ -120,7 +121,12 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 		for(spec of this.childSpecList) {
 			var ref = this.defineMember(spec);
-			if(ref.member.typeSpec) this.type.addChild(ref);
+			if(ref.member.typeSpec) {
+				this.type.addChild(ref);
+				if(ref.member.isSubstituted) {
+					ref.member.containingTypeList.push(this.type);
+				}
+			}
 		}
 
 		for(spec of this.attributeSpecList) {
