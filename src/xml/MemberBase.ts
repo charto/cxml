@@ -21,10 +21,10 @@ export class MemberBase<Member, Namespace, ItemContent extends ItemBase<Item<Ite
 
 	name: string;
 	namespace: Namespace;
+	safeName: string;
 
 	isAbstract: boolean;
 	isSubstituted: boolean;
-	substitutes: Member;
 
 	static abstractFlag = 1;
 	static substitutedFlag = 2;

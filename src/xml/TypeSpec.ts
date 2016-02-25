@@ -95,6 +95,8 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 			this.type.primitiveType = primitiveType.safeName;
 		}
+
+		return(this.type);
 	}
 
 	private defineMember(spec: RawRefSpec) {
@@ -141,6 +143,8 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 	item: ItemBase<TypeSpec>;
 
 	namespace: Namespace;
+	// TODO: Is a separate name and safeName needed for anything here?
+	// Maybe for future use when cxsd can import parsed namespaces?
 	name: string;
 	safeName: string;
 	flags: number;
