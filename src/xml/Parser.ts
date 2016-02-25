@@ -135,10 +135,6 @@ export class Parser {
 			if(state.type) {
 				child = state.type.childTbl[name];
 
-				if(!child) {
-					child = nodeNamespace[0].doc.getType().childTbl[name];
-				}
-
 				if(child) type = child.member.type;
 			}
 

@@ -52,21 +52,14 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 
 		if(this.isSubstituted) {
 			this.proxySpec = new TypeSpec([0, 0, [], []], this.namespace, '');
-			this.proxyType = this.proxySpec.define();
-
-			if(!this.isAbstract) this.addSubstitute(this);
+			this.proxySpec.substituteList = [];
+			if(!this.isAbstract) this.proxySpec.addSubstitute(this, this);
 		}
 
 		if(this.item.parent) {
 			// Parent is actually the substitution group base element.
-			this.item.parent.addSubstitute(this);
+			this.item.parent.proxySpec.addSubstitute(this.item.parent, this);
 		}
-	}
-
-	addSubstitute(substitute: MemberSpec) {
-		// Add substitute as a child of proxyType.
-		this.proxySpec.childSpecList = [ [substitute, 0, substitute.safeName] ];
-		this.proxySpec.defineMembers();
 	}
 
 	typeNum: number;
@@ -75,7 +68,6 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 
 	/** Substitution group virtual type,
 	  * containing all possible substitutes as children. */
-	proxyType: Type;
 	proxySpec: TypeSpec;
 
 	containingTypeList: Type[];

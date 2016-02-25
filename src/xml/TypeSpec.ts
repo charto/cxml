@@ -35,6 +35,38 @@ export interface TypeClassMembers {
 	[name: string]: TypeInstance | TypeInstance[];
 }
 
+function defineSubstitute(head: MemberSpec, substitute: MemberSpec) {
+	var ref = new MemberRef([substitute, 0, substitute.safeName], substitute.namespace);
+
+	// console.log('\t' + substitute.namespace.getPrefix() + substitute.name);
+
+	return(ref);
+}
+
+function addSubstitutesToType(headRef: MemberRef, type: Type) {
+	headRef.member.containingTypeList.push(type);
+
+	// console.log('DEFINE ' + headRef.member.namespace.getPrefix() + headRef.member.name);
+	headRef.member.proxySpec.item.define();
+
+	for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
+		if(substitute == headRef.member) {
+			type.addChild(headRef);
+		} else {
+			var substituteRef = defineSubstitute(headRef.member, substitute);
+			addChildToType(substituteRef, type);
+		}
+	}
+}
+
+function addChildToType(memberRef: MemberRef, type: Type) {
+	if(memberRef.member.typeSpec) {
+		if(memberRef.member.isSubstituted) {
+			addSubstitutesToType(memberRef, type);
+		} else if(!memberRef.member.isAbstract) type.addChild(memberRef);
+	}
+}
+
 /** Type specification defining attributes and children. */
 
 export class TypeSpec implements Item<ItemBase<TypeSpec>> {
@@ -116,23 +148,41 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		return(ref);
 	}
 
+	getSubstitutes() {
+		return(this.substituteList);
+	}
+
 	defineMembers() {
 		var spec: RawRefSpec;
 
 		for(spec of this.childSpecList) {
-			var ref = this.defineMember(spec);
-			if(ref.member.typeSpec) {
-				this.type.addChild(ref);
-				if(ref.member.isSubstituted) {
-					ref.member.containingTypeList.push(this.type);
-				}
-			}
+			var memberRef = this.defineMember(spec);
+			addChildToType(memberRef, this.type);
 		}
 
 		for(spec of this.attributeSpecList) {
-			var ref = this.defineMember(spec);
-			if(ref.member.typeSpec) this.type.addAttribute(ref);
+			var attributeRef = this.defineMember(spec);
+			if(attributeRef.member.typeSpec) this.type.addAttribute(attributeRef);
 		}
+	}
+
+	addSubstitute(head: MemberSpec, substitute: MemberSpec) {
+		if(this.item.defined && head.containingTypeList.length) {
+			// The element's proxy type has already been defined
+			// so we need to patch other types containing the element.
+
+			// console.log('ADD ' + this.safeName + ':' + this.name + ' ' + substitute.namespace.getPrefix() + substitute.name + ' ' + (this.item.defined || ''));
+
+			var ref = defineSubstitute(head, substitute);
+
+			for(var type of head.containingTypeList) {
+				// console.log('\t' + Object.keys(type.childTbl).slice(0, 3).join(', '));
+
+				addChildToType(ref, type);
+			}
+		}
+
+		this.substituteList.push(substitute);
 	}
 
 	cleanPlaceholders(strict?: boolean) {
@@ -157,6 +207,7 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 	childSpecList: RawRefSpec[];
 	attributeSpecList: RawRefSpec[];
+	substituteList: MemberSpec[];
 
 	optionalList: string[] = [];
 	requiredList: string[] = [];
