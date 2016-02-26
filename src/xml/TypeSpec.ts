@@ -10,6 +10,9 @@ import {Item, ItemBase} from './Item';
 /** Tuple: flags, parent type ID, child element list, attribute list */
 export type RawTypeSpec = [ number, number, RawRefSpec[], RawRefSpec[] ];
 
+/** If name used in XML is not a valid JavaScript identifier, the schema
+  * definition will be in format <cleaned up name for JavaScript>:<XML name>. */
+
 export function parseName(name: string) {
 	var splitPos = name.indexOf(':');
 	var safeName: string
@@ -31,6 +34,8 @@ function inherit<Type>(parentObject: Type) {
 	return(new (Proxy as any as { new(): Type })());
 }
 
+/** Represents the prototype of TypeClass. */
+
 export interface TypeClassMembers {
 	[name: string]: TypeInstance | TypeInstance[];
 }
@@ -38,15 +43,11 @@ export interface TypeClassMembers {
 function defineSubstitute(head: MemberSpec, substitute: MemberSpec) {
 	var ref = new MemberRef([substitute, 0, substitute.safeName], substitute.namespace);
 
-	// console.log('\t' + substitute.namespace.getPrefix() + substitute.name);
-
 	return(ref);
 }
 
 function addSubstitutesToType(headRef: MemberRef, type: Type) {
 	headRef.member.containingTypeList.push(type);
-
-	// console.log('DEFINE ' + headRef.member.namespace.getPrefix() + headRef.member.name);
 	headRef.member.proxySpec.item.define();
 
 	for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
@@ -71,6 +72,8 @@ function addChildToType(memberRef: MemberRef, type: Type) {
 
 export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 	constructor(spec: RawTypeSpec, namespace: Namespace, name: string) {
+		// Initialize helper containing data and methods also applicable to members.
+
 		this.item = new ItemBase(this as TypeSpec);
 
 		if(name) {
@@ -168,22 +171,22 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 	addSubstitute(head: MemberSpec, substitute: MemberSpec) {
 		if(this.item.defined && head.containingTypeList.length) {
+			var ref = defineSubstitute(head, substitute);
+
 			// The element's proxy type has already been defined
 			// so we need to patch other types containing the element.
 
-			// console.log('ADD ' + this.safeName + ':' + this.name + ' ' + substitute.namespace.getPrefix() + substitute.name + ' ' + (this.item.defined || ''));
-
-			var ref = defineSubstitute(head, substitute);
-
 			for(var type of head.containingTypeList) {
-				// console.log('\t' + Object.keys(type.childTbl).slice(0, 3).join(', '));
-
 				addChildToType(ref, type);
 			}
 		}
 
 		this.substituteList.push(substitute);
 	}
+
+	/** Remove placeholders from instance prototype. They allow dereferencing
+	  * contents of missing optional child elements without throwing errors.
+	  * @param strict Also remove placeholders for mandatory child elements. */
 
 	cleanPlaceholders(strict?: boolean) {
 		var type = (this.proto.prototype) as TypeClassMembers;
@@ -216,7 +219,10 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 	private proto: TypeClass;
 	private placeHolder: TypeInstance;
 
+	/** Type contains text that gets parsed to JavaScript primitives. */
 	static primitiveFlag = 1;
+	/** Type only contains text, no wrapper object is needed to hold its attributes. */
 	static plainPrimitiveFlag = 2;
+	/** Type contains text with a list of whitespace-separated items. */
 	static listFlag = 4;
 }
