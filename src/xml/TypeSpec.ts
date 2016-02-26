@@ -46,28 +46,6 @@ function defineSubstitute(head: MemberSpec, substitute: MemberSpec) {
 	return(ref);
 }
 
-function addSubstitutesToType(headRef: MemberRef, type: Type) {
-	headRef.member.containingTypeList.push(type);
-	headRef.member.proxySpec.item.define();
-
-	for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
-		if(substitute == headRef.member) {
-			type.addChild(headRef);
-		} else {
-			var substituteRef = defineSubstitute(headRef.member, substitute);
-			addChildToType(substituteRef, type);
-		}
-	}
-}
-
-function addChildToType(memberRef: MemberRef, type: Type) {
-	if(memberRef.member.typeSpec) {
-		if(memberRef.member.isSubstituted) {
-			addSubstitutesToType(memberRef, type);
-		} else if(!memberRef.member.isAbstract) type.addChild(memberRef);
-	}
-}
-
 /** Type specification defining attributes and children. */
 
 export class TypeSpec implements Item<ItemBase<TypeSpec>> {
@@ -135,11 +113,17 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		return(this.type);
 	}
 
-	private defineMember(spec: RawRefSpec) {
-		var ref = new MemberRef(spec, this.namespace);
+	private defineMember(ref: MemberRef) {
+		var typeSpec = ref.member.typeSpec;
+		var proxySpec = ref.member.proxySpec;
 
-		if(ref.member.typeSpec) {
-			var memberType = ref.member.typeSpec.placeHolder;
+		if(proxySpec) {
+			TypeSpec.addSubstitutesToProxy(ref.member, proxySpec.proto.prototype);
+			typeSpec = proxySpec;
+		}
+
+		if(typeSpec) {
+			var memberType = typeSpec.placeHolder;
 			var type = (this.proto.prototype) as TypeClassMembers;
 
 			type[ref.safeName] = (ref.max > 1) ? [memberType] : memberType;
@@ -159,14 +143,35 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		var spec: RawRefSpec;
 
 		for(spec of this.childSpecList) {
-			var memberRef = this.defineMember(spec);
-			addChildToType(memberRef, this.type);
+			var memberRef = new MemberRef(spec, this.namespace);
+			this.addChild(memberRef);
+			this.defineMember(memberRef);
 		}
 
 		for(spec of this.attributeSpecList) {
-			var attributeRef = this.defineMember(spec);
+			var attributeRef = new MemberRef(spec, this.namespace);
 			if(attributeRef.member.typeSpec) this.type.addAttribute(attributeRef);
+			this.defineMember(attributeRef);
 		}
+	}
+
+	addSubstitutes(headRef: MemberRef) {
+		headRef.member.containingTypeList.push(this);
+		headRef.member.proxySpec.item.define();
+
+		for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
+			if(substitute == headRef.member) {
+				this.type.addChild(headRef);
+			} else {
+				var substituteRef = defineSubstitute(headRef.member, substitute);
+				this.addChild(substituteRef);
+			}
+		}
+	}
+
+	addChild(memberRef: MemberRef) {
+		if(memberRef.member.proxySpec) this.addSubstitutes(memberRef);
+		else if(!memberRef.member.isAbstract) this.type.addChild(memberRef);
 	}
 
 	addSubstitute(head: MemberSpec, substitute: MemberSpec) {
@@ -176,8 +181,16 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 			// The element's proxy type has already been defined
 			// so we need to patch other types containing the element.
 
-			for(var type of head.containingTypeList) {
-				addChildToType(ref, type);
+			for(var typeSpec of head.containingTypeList) {
+				typeSpec.addChild(ref);
+			}
+
+			// Add the substitution to proxy type of the group head,
+			// and loop if the head further substitutes something else.
+
+			while(head) {
+				TypeSpec.addSubstituteToProxy(substitute, head.proxySpec.proto.prototype);
+				head = head.item.parent;
 			}
 		}
 
@@ -196,6 +209,20 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 		for(var name of nameList) {
 			delete(type[name]);
+		}
+	}
+
+	private static addSubstituteToProxy(substitute: MemberSpec, type: TypeClassMembers, head?: MemberSpec) {
+		if(substitute == head || !substitute.proxySpec) {
+			if(!substitute.isAbstract) type[substitute.safeName] = substitute.typeSpec.placeHolder;
+		} else {
+			TypeSpec.addSubstitutesToProxy(substitute, type);
+		}
+	}
+
+	private static addSubstitutesToProxy(member: MemberSpec, type: TypeClassMembers) {
+		for(var substitute of member.proxySpec.getSubstitutes()) {
+			TypeSpec.addSubstituteToProxy(substitute, type, member);
 		}
 	}
 
