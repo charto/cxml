@@ -40,8 +40,8 @@ export interface TypeClassMembers {
 	[name: string]: TypeInstance | TypeInstance[];
 }
 
-function defineSubstitute(head: MemberSpec, substitute: MemberSpec) {
-	var ref = new MemberRef([substitute, 0, substitute.safeName], substitute.namespace);
+function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
+	var ref = new MemberRef([substitute, 0, substitute.safeName], substitute.namespace, proxy);
 
 	return(ref);
 }
@@ -155,34 +155,36 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		}
 	}
 
-	addSubstitutes(headRef: MemberRef) {
-		headRef.member.containingTypeList.push(this);
+	addSubstitutes(headRef: MemberRef, proxy: MemberRef) {
+		headRef.member.containingTypeList.push({
+			type: this,
+			proxy: proxy
+		});
 		headRef.member.proxySpec.item.define();
 
 		for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
 			if(substitute == headRef.member) {
 				this.type.addChild(headRef);
 			} else {
-				var substituteRef = defineSubstitute(headRef.member, substitute);
-				this.addChild(substituteRef);
+				var substituteRef = defineSubstitute(substitute, proxy);
+				this.addChild(substituteRef, proxy);
 			}
 		}
 	}
 
-	addChild(memberRef: MemberRef) {
-		if(memberRef.member.proxySpec) this.addSubstitutes(memberRef);
+	addChild(memberRef: MemberRef, proxy?: MemberRef) {
+		if(memberRef.member.proxySpec) this.addSubstitutes(memberRef, proxy || memberRef);
 		else if(!memberRef.member.isAbstract) this.type.addChild(memberRef);
 	}
 
 	addSubstitute(head: MemberSpec, substitute: MemberSpec) {
 		if(this.item.defined && head.containingTypeList.length) {
-			var ref = defineSubstitute(head, substitute);
-
 			// The element's proxy type has already been defined
 			// so we need to patch other types containing the element.
 
-			for(var typeSpec of head.containingTypeList) {
-				typeSpec.addChild(ref);
+			for(var spec of head.containingTypeList) {
+				var ref = defineSubstitute(substitute, spec.proxy);
+				spec.type.addChild(ref, spec.proxy);
 			}
 
 			// Add the substitution to proxy type of the group head,

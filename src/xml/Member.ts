@@ -5,6 +5,7 @@ import {Namespace} from './Namespace';
 import {Type} from './Type';
 import {TypeSpec, parseName} from './TypeSpec';
 import {MemberBase} from './MemberBase';
+import {MemberRef} from './MemberRef';
 import {ItemBase} from './Item';
 
 /** Tuple: name, type ID list, flags, substituted member ID */
@@ -70,5 +71,5 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 	  * containing all possible substitutes as children. */
 	proxySpec: TypeSpec;
 
-	containingTypeList: TypeSpec[];
+	containingTypeList: { type: TypeSpec, proxy: MemberRef }[];
 }

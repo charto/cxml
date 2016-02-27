@@ -135,7 +135,14 @@ export class Parser {
 			if(state.type) {
 				child = state.type.childTbl[name];
 
-				if(child) type = child.member.type;
+				if(child) {
+					if(child.proxy) {
+						type = child.proxy.member.type;
+						state = new State(state, child.proxy, type, new type.handler());
+					}
+
+					type = child.member.type;
+				}
 			}
 
 			if(type && !type.isPlainPrimitive) {
@@ -200,6 +207,14 @@ export class Parser {
 			if(obj && obj._after) obj._after();
 
 			state = state.parent;
+
+			if(member.proxy) {
+				if(item) state.item[member.safeName] = item;
+				item = state.item;
+
+				state = state.parent;
+				member = member.proxy;
+			}
 
 			if(item) {
 				var parent = state.item;

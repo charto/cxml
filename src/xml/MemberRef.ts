@@ -9,7 +9,7 @@ import {MemberRefBase} from './MemberRefBase';
 export type RawRefSpec = [ number | MemberSpec, number, string ];
 
 export class MemberRef extends MemberRefBase<MemberSpec> {
-	constructor(spec: RawRefSpec, namespace: Namespace) {
+	constructor(spec: RawRefSpec, namespace: Namespace, proxy?: MemberRef) {
 		var flags = spec[1];
 		var member: MemberSpec;
 
@@ -23,5 +23,10 @@ export class MemberRef extends MemberRefBase<MemberSpec> {
 		);
 
 		this.safeName = spec[2] || this.member.safeName;
+
+		if(member.isSubstituted) proxy = this;
+		if(proxy) this.proxy = proxy;
 	}
+
+	proxy: MemberRef;
 }
