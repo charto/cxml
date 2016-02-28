@@ -118,8 +118,14 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		var proxySpec = ref.member.proxySpec;
 
 		if(proxySpec) {
+			if(ref.max > 1) {
+				typeSpec = proxySpec;
+			} else {
+				proxySpec = this;
+				typeSpec = null;
+			}
+
 			TypeSpec.addSubstitutesToProxy(ref.member, proxySpec.proto.prototype);
-			typeSpec = proxySpec;
 		}
 
 		if(typeSpec) {
@@ -158,6 +164,7 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 	addSubstitutes(headRef: MemberRef, proxy: MemberRef) {
 		headRef.member.containingTypeList.push({
 			type: this,
+			head: headRef,
 			proxy: proxy
 		});
 		headRef.member.proxySpec.item.define();
@@ -185,6 +192,10 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 			for(var spec of head.containingTypeList) {
 				var ref = defineSubstitute(substitute, spec.proxy);
 				spec.type.addChild(ref, spec.proxy);
+
+				if(spec.head.max <= 1) {
+					TypeSpec.addSubstituteToProxy(substitute, spec.type.proto.prototype);
+				}
 			}
 
 			// Add the substitution to proxy type of the group head,

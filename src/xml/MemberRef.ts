@@ -25,7 +25,7 @@ export class MemberRef extends MemberRefBase<MemberSpec> {
 		this.safeName = spec[2] || this.member.safeName;
 
 		if(member.isSubstituted) proxy = this;
-		if(proxy) this.proxy = proxy;
+		if(proxy && this.max > 1) this.proxy = proxy;
 	}
 
 	proxy: MemberRef;

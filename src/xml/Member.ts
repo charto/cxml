@@ -73,5 +73,9 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 
 	/** All types containing this member, to be modified if more substitutions
 	  * for this member are declared later. */
-	containingTypeList: { type: TypeSpec, proxy: MemberRef }[];
+	containingTypeList: {
+		type: TypeSpec,
+		head: MemberRef,
+		proxy: MemberRef
+	}[];
 }
