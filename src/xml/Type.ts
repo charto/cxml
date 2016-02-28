@@ -71,9 +71,14 @@ export class Type {
 	/** Table mapping the names of allowed child tags, to their parsing rules. */
 	childTbl: { [key: string]: MemberRef };
 
+	/** Type has text content representable as JavaScript primitives. */
 	isPrimitive: boolean;
+	/** Primitive type is inherited without any additional attributes
+	  * or children, so is can be represented as a JavaScript primitive. */
 	isPlainPrimitive: boolean;
+	/** Text content is a whitespace-separated list of primitive types. */
 	isList: boolean;
 
+	/** JavaScript primitive type that can represent the text content. */
 	primitiveType: string;
 }
