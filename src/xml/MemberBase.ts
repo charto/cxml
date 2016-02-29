@@ -9,6 +9,8 @@ import {Item, ItemBase} from './Item';
 // TODO: Should extend ItemBase instead of containing it.
 // For now, TypeScript doesn't allow ItemBase to extend ItemContent.
 
+/** Represents a child element or attribute. */
+
 export class MemberBase<Member, Namespace, ItemContent extends ItemBase<Item<ItemContent>>> implements Item<ItemContent> {
 	constructor(Item: { new(type: MemberBase<Member, Namespace, ItemContent>): ItemContent }, name: string) {
 		if(Item) this.item = new Item(this);

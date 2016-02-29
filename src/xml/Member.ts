@@ -11,6 +11,8 @@ import {ItemBase} from './Item';
 /** Tuple: name, type ID list, flags, substituted member ID */
 export type RawMemberSpec = [ string, number[], number, number ];
 
+/** Represents a child element or attribute. */
+
 export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<MemberSpec> > {
 	constructor(spec: RawMemberSpec, namespace: Namespace) {
 		var parts = parseName(spec[0]);

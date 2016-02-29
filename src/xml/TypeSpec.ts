@@ -7,10 +7,12 @@ import {MemberRef, RawRefSpec} from './MemberRef';
 import {Type, TypeClass, TypeInstance} from './Type';
 import {Item, ItemBase} from './Item';
 
-/** Tuple: flags, parent type ID, child element list, attribute list */
+/** Tuple: flags, parent type ID, child element list, attribute list.
+  * Serialized JSON format. */
 export type RawTypeSpec = [ number, number, RawRefSpec[], RawRefSpec[] ];
 
-/** If name used in XML is not a valid JavaScript identifier, the schema
+/** Parse name from schema in serialized JSON format.
+  * If name used in XML is not a valid JavaScript identifier, the schema
   * definition will be in format <cleaned up name for JavaScript>:<XML name>. */
 
 export function parseName(name: string) {
@@ -28,13 +30,16 @@ export function parseName(name: string) {
 	});
 }
 
+/** Create a new data object inheriting default values from another. */
+
 function inherit<Type>(parentObject: Type) {
 	function Proxy() {}
 	Proxy.prototype = parentObject;
 	return(new (Proxy as any as { new(): Type })());
 }
 
-/** Represents the prototype of TypeClass. */
+/** Represents the prototype of TypeClass.
+  * Contains placeholders for any missing members. */
 
 export interface TypeClassMembers {
 	[name: string]: TypeInstance | TypeInstance[];

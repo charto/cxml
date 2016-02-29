@@ -32,6 +32,8 @@ export class Context extends ContextBase<Context, Namespace> {
 		++this.pendingNamespaceCount;
 	}
 
+	/** Parse types from schema in serialized JSON format. */
+
 	registerTypes(
 		namespace: Namespace,
 		exportTypeNameList: string[],
@@ -55,6 +57,8 @@ export class Context extends ContextBase<Context, Namespace> {
 			this.typeList.push(typeSpec);
 		}
 	}
+
+	/** Parse members from schema in serialized JSON format. */
 
 	registerMembers(
 		namespace: Namespace,
