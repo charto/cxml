@@ -1,6 +1,10 @@
 cxml
 ====
 
+[![build status](https://travis-ci.org/charto/cxml.svg?branch=master)](http://travis-ci.org/charto/cxml)
+[![dependency status](https://david-dm.org/charto/cxml.svg)](https://david-dm.org/charto/cxml)
+[![npm version](https://img.shields.io/npm/v/cxml.svg)](https://www.npmjs.com/package/cxml)
+
 `cxml` aims to be the most advanced schema-aware XML parser for JavaScript and TypeScript.
 It fully supports namespaces, derived types and substitution groups.
 It can handle pretty hairy schema such as
