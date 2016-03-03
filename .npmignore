@@ -4,6 +4,7 @@ cache/
 test/
 src/
 .travis.yml
+*.png
 *.log.*
 *.log
 *.tgz

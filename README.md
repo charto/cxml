@@ -5,6 +5,8 @@ cxml
 [![dependency status](https://david-dm.org/charto/cxml.svg)](https://david-dm.org/charto/cxml)
 [![npm version](https://img.shields.io/npm/v/cxml.svg)](https://www.npmjs.com/package/cxml)
 
+![Atom screenshot](src/screenshot.png)
+
 `cxml` aims to be the most advanced schema-aware streaming XML parser for JavaScript and TypeScript.
 It fully supports namespaces, derived types and substitution groups.
 It can handle pretty hairy schema such as
@@ -119,7 +121,7 @@ parser.attach(class DirHandler extends (example.document.dir.constructor) {
 });
 ```
 
-The best part: your code is fully typed with comments pulled from the schema!
+The best part: your code is fully typed with comments pulled from the schema! See the screenshot at the top.
 
 Related projects
 ----------------
