@@ -20,6 +20,15 @@
     "url": "https://github.com/charto/cxml/issues"
   },
   "homepage": "https://github.com/charto/cxml#readme",
+  "keywords": [
+    "xml",
+    "streaming",
+    "schema",
+    "parser",
+    "xsd",
+    "dts",
+    "typescript"
+  ],
   "dependencies": {
     "bluebird": "~3.3.3",
     "sax": "~1.1.5"
