@@ -6,6 +6,13 @@
 	</xs:attributeGroup>
 
 	<xs:complexType name="DirType">
+		<xs:annotation>
+			<xs:documentation>
+				Example directory type containing files.
+
+				Note that it cannot contain other directories.
+			</xs:documentation>
+		</xs:annotation>
 		<xs:attributeGroup ref="NodeAttributes" />
 		<xs:sequence>
 			<xs:element name="owner" type="xs:string" />
@@ -14,10 +21,23 @@
 	</xs:complexType>
 
 	<xs:complexType name="FileType">
+		<xs:annotation>
+			<xs:documentation>
+				Example text file type with plain text contents included.
+
+				Note that it has no owner.
+			</xs:documentation>
+		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="xs:string">
 				<xs:attributeGroup ref="NodeAttributes" />
-				<xs:attribute name="size" type="xs:integer" />
+				<xs:attribute name="size" type="xs:integer">
+					<xs:annotation>
+						<xs:documentation>
+							Size of the file in bytes. Set sizeUnit to use another unit.
+						</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
 				<xs:attribute name="sizeUnit" use="optional">
 					<xs:simpleType>
 						<xs:restriction base="xs:string">
@@ -31,6 +51,19 @@
 		</xs:complexContent>
 	</xs:complexType>
 
-	<xs:element name="dir" type="DirType" />
-	<xs:element name="file" type="FileType" />
+	<xs:element name="dir" type="DirType">
+		<xs:annotation>
+			<xs:documentation>
+				Example directory element, usable as a root element.
+			</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+
+	<xs:element name="file" type="FileType">
+		<xs:annotation>
+			<xs:documentation>
+				Example file element. Plain text file contents can be included inside.
+			</xs:documentation>
+		</xs:annotation>
+	</xs:element>
 </xs:schema>
