@@ -5,13 +5,17 @@ cxml
 [![dependency status](https://david-dm.org/charto/cxml.svg)](https://david-dm.org/charto/cxml)
 [![npm version](https://img.shields.io/npm/v/cxml.svg)](https://www.npmjs.com/package/cxml)
 
-`cxml` aims to be the most advanced schema-aware XML parser for JavaScript and TypeScript.
+`cxml` aims to be the most advanced schema-aware streaming XML parser for JavaScript and TypeScript.
 It fully supports namespaces, derived types and substitution groups.
 It can handle pretty hairy schema such as
 [GML](http://www.opengeospatial.org/standards/gml),
 [WFS](http://www.opengeospatial.org/standards/wfs) and extensions to them defined by
 [INSPIRE](http://inspire.ec.europa.eu/).
 Output is fully typed and structured according to the actual meaning of input data, as defined in the schema.
+
+Introduction
+------------
+
 For example this XML:
 
 ```xml
@@ -23,19 +27,21 @@ For example this XML:
 </dir>
 ```
 
-can become this JSON:
+can become this JSON (run `npm test` to see it happen):
 
 ```json
-"dir" {
-	"name": "123",
-	"owner": "me",
-	"file": [
-		{
-			"name": "test",
-			"size": 123,
-			"content": "data"
-		}
-	]
+{
+  "dir": {
+    "name": "123",
+    "owner": "me",
+    "file": [
+      {
+        "name": "test",
+        "size": 123,
+        "content": "data"
+      }
+    ]
+  }
 }
 ```
 
@@ -46,13 +52,18 @@ Note the following:
 - A `dir` has a single owner but can contain many files, so `file` is an array but `owner` is not.
 - Output data types are as simple as possible while correctly representing the input.
 
-See the [example schema] that makes it happen (a silly example, files cannot have owners).
-Schemas for formats like
+See the [example schema](https://github.com/charto/cxml/blob/master/test/cache/xsd/localhost/example-dir.xsd)
+that makes it happen. Schemas for formats like
 [GML](http://schemas.opengis.net/gml/3.1.1/base/geometryPrimitives.xsd) and
 [SVG](http://www.w3.org/TR/2002/WD-SVG11-20020108/SVG.xsd) are nastier,
 but you don't have to look at them to use them through `cxml`.
 
-There's much more. What if we parse:
+Relevant schema files should be downloaded and compiled using
+[cxsd](https://github.com/charto/cxsd) before using them to parse documents.
+Check out the example schema
+[converted to TypeScript](https://github.com/charto/cxml/blob/master/test/xmlns/dir-example.d.ts).
+
+There's much more. What if we parse an empty dir:
 
 ```typescript
 import * as cxml from 'cxml';
@@ -67,14 +78,19 @@ Now we can print the result and try some magical features:
 
 ```typescript
 result.then((doc: example.document) => {
-	console.log( JSON.stringify(doc) );  // {"dir":{"name":"empty"}}
-	var dir = doc.dir;
 
-	console.log( dir instanceof example.document.dir );   // true
-	console.log( dir instanceof example.document.file );  // false
+    console.log( JSON.stringify(doc) );  // {"dir":{"name":"empty"}}
+    var dir = doc.dir;
 
-	console.log( dir._exists );          // true
-	console.log( dir.file[0]._exists );  // false (not an error!)
+    console.log( dir instanceof example.document.dir.constructor );   // true
+    console.log( dir instanceof example.document.file.constructor );  // false
+
+    console.log( dir instanceof example.DirType );   // true
+    console.log( dir instanceof example.FileType );  // false
+
+    console.log( dir._exists );          // true
+    console.log( dir.file[0]._exists );  // false (not an error!)
+
 });
 ```
 
@@ -83,7 +99,27 @@ Its prototype also contains placeholders for valid children, which means you can
 This saves irrelevant checks when only the existence of a deeply nested item is interesting.
 The magical `_exists` flag is `true` in the prototypes and `false` in the placeholder instances, so it consumes no memory per object.
 
-Relevant schema files should be downloaded and parsed using [cxsd](https://github.com/charto/cxsd) before using them to parse documents.
+We can also process data as soon as the parser sees it in the incoming stream:
+
+```typescript
+parser.attach(class DirHandler extends (example.document.dir.constructor) {
+
+    /** Fires when the opening <dir> and attributes have been parsed. */
+
+    _before() {
+        console.log('Before ' + this.name + ': ' + JSON.stringify(this));
+    }
+
+    /** Fires when the closing </dir> and children have been parsed. */
+
+    _after() {
+        console.log('After  ' + this.name + ': ' + JSON.stringify(this));
+    }
+
+});
+```
+
+The best part: your code is fully typed with comments pulled from the schema!
 
 Related projects
 ----------------
