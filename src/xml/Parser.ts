@@ -40,7 +40,7 @@ var converterTbl: { [type: string]: (item: string) => any } = {
 
 		return(date);
 	}),
-	boolean: ((item: string) => !!item),
+	boolean: ((item: string) => item == 'true'),
 	string: ((item: string) => item),
 	number: ((item: string) => +item)
 };
