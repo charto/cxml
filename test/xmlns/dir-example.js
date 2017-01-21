@@ -1,4 +1,4 @@
-var cxml = require("cxml");
+var cxml = require('../..');
 var Primitive = require('./xml-primitives');
 
 cxml.register('dir-example', exports, [

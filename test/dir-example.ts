@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as cxml from 'cxml';
-import * as example from 'cxml/test/xmlns/dir-example';
+import * as cxml from '..';
+import * as example from './xmlns/dir-example';
 
 var parser = new cxml.Parser();
 

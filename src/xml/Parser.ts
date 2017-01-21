@@ -72,14 +72,14 @@ export class Parser {
 		realHandler._custom = true;
 	}
 
-	parse<Output extends HandlerInstance>(stream: stream.Readable | string, output: Output, context?: Context) {
+	parse<Output extends HandlerInstance>(stream: string | stream.Readable | NodeJS.ReadableStream, output: Output, context?: Context) {
 		return(new Promise<Output>((resolve: (item: Output) => void, reject: (err: any) => void) =>
 			this._parse<Output>(stream, output, context, resolve, reject)
 		));
 	}
 
 	_parse<Output extends HandlerInstance>(
-		stream: stream.Readable | string,
+		stream: string | stream.Readable | NodeJS.ReadableStream,
 		output: Output,
 		context: Context,
 		resolve: (item: Output) => void,

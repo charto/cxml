@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "bluebird": "github:unional/typed-bluebird#ce35f299e5313994c0b8e9f0f31e94e115ec791f"
-  },
-  "ambientDependencies": {
-    "node": "github:DefinitelyTyped/DefinitelyTyped/node/node.d.ts#1c56e368e17bb28ca57577250624ca5bd561aa81",
-    "sax": "github:DefinitelyTyped/DefinitelyTyped/sax/sax.d.ts#5a3ca5378be2f4975508c6d5a6fef5caba69046d"
-  }
-}

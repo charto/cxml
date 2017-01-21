@@ -1,14 +1,13 @@
 {
   "name": "cxml",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Advanced schema-aware streaming XML parser",
   "main": "dist/cxml.js",
   "typings": "dist/cxml.d.ts",
   "scripts": {
     "tsc": "tsc",
-    "typings": "typings",
-    "prepublish": "typings install && tsc",
-    "test": "npm link cxml && tsc -p test && node test/dir-example.js"
+    "prepublish": "tsc -p src",
+    "test": "tsc -p test && node test/dir-example.js"
   },
   "author": "Juha Järvi",
   "license": "MIT",
@@ -30,11 +29,13 @@
     "typescript"
   ],
   "dependencies": {
-    "bluebird": "~3.3.3",
-    "sax": "~1.1.5"
+    "@types/bluebird": "^3.0.37",
+    "@types/node": "^7.0.0",
+    "@types/sax": "0.0.28",
+    "bluebird": "^3.4.7",
+    "sax": "~1.2.1"
   },
   "devDependencies": {
-    "typescript": "~1.8.7",
-    "typings": "~0.6.9"
+    "typescript": "^2.1.5"
   }
 }
