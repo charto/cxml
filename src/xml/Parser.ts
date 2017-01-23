@@ -1,4 +1,4 @@
-// This file is part of cxml, copyright (c) 2016 BusFaster Ltd.
+// This file is part of cxml, copyright (c) 2016-2017 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
 import * as stream from 'stream';
@@ -208,7 +208,7 @@ export class Parser {
 
 			state = state.parent;
 
-			if(member.proxy) {
+			if(member && member.proxy) {
 				if(item) state.item[member.safeName] = item;
 				item = state.item;
 
