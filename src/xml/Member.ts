@@ -1,4 +1,4 @@
-// This file is part of cxml, copyright (c) 2015-2016 BusFaster Ltd.
+// This file is part of cxml, copyright (c) 2015-2017 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
@@ -51,6 +51,8 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 		if(this.typeNum) {
 			this.typeSpec = this.namespace.typeByNum(this.typeNum);
 			this.type = this.typeSpec.getType();
+
+			if(!this.type) this.item.setParent(this.typeSpec as any);
 		}
 
 		if(this.isSubstituted) {
@@ -59,7 +61,7 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 			if(!this.isAbstract) this.proxySpec.addSubstitute(this, this);
 		}
 
-		if(this.item.parent) {
+		if(this.item.parent && this.item.parent instanceof MemberSpec) {
 			// Parent is actually the substitution group base element.
 			this.item.parent.proxySpec.addSubstitute(this.item.parent, this);
 		}
