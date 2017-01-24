@@ -1,6 +1,6 @@
 {
   "name": "cxml",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Advanced schema-aware streaming XML parser",
   "main": "dist/cxml.js",
   "typings": "dist/cxml.d.ts",

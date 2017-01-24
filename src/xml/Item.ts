@@ -4,11 +4,17 @@
 import {TypeSpec} from './TypeSpec';
 import {MemberSpec} from './MemberSpec';
 
+export interface ItemType {
+	new(...args: any[]): Item;
+	nextKey: number;
+}
+
 /** Type and member dependency helper. Implements Kahn's topological sort. */
 
 export class Item {
-	constructor(dependencyNum: number) {
+	constructor(kind: ItemType, dependencyNum?: number) {
 		this.dependencyNum = dependencyNum;
+		this.surrogateKey = kind.nextKey++;
 	}
 
 	resolveDependency(specList: Item[]) {
@@ -60,6 +66,9 @@ export class Item {
 			}
 		}
 	}
+
+	surrogateKey: number;
+	static nextKey = 0;
 
 	/** Number of parent type or substituted member. */
 	dependencyNum: number;

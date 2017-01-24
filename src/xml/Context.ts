@@ -82,7 +82,7 @@ export class Context {
 				typeName = exportTypeNameList[typeNum - 1];
 			} else typeName = null;
 
-			var typeSpec = new TypeSpec(rawSpec, namespace, typeName);
+			var typeSpec = new TypeSpec(typeName, namespace, rawSpec);
 
 			namespace.addType(typeSpec);
 			this.pendingTypeList.push(typeSpec);
@@ -97,7 +97,7 @@ export class Context {
 		rawMemberSpecList: RawMemberSpec[]
 	) {
 		for(var rawSpec of rawMemberSpecList) {
-			var memberSpec = new MemberSpec(rawSpec, namespace);
+			var memberSpec = MemberSpec.parseSpec(rawSpec, namespace);
 
 			namespace.addMember(memberSpec);
 			this.pendingMemberList.push(memberSpec);

@@ -19,24 +19,28 @@ export const enum MemberFlag {
 /** Represents a child element or attribute. */
 
 export class MemberSpec extends Item {
-	constructor(spec: RawMemberSpec, namespace: Namespace) {
+	constructor(name: string, dependencyNum?: number) {
+		super(MemberSpec, dependencyNum);
+		this.name = name;
+	}
+
+	static parseSpec(spec: RawMemberSpec, namespace: Namespace) {
 		var parts = parseName(spec[0]);
 
-		super(spec[3]);
-		this.name = parts.name;
-		this.safeName = parts.safeName;
+		const member = new MemberSpec(parts.name, spec[3]);
+		member.safeName = parts.safeName;
 
-		this.namespace = namespace;
+		member.namespace = namespace;
 		var typeNumList = spec[1];
 		var flags = spec[2];
 
-		this.isAbstract = !!(flags & MemberFlag.abstract);
-		this.isSubstituted = this.isAbstract || !!(flags & MemberFlag.substituted);
+		member.isAbstract = !!(flags & MemberFlag.abstract);
+		member.isSubstituted = member.isAbstract || !!(flags & MemberFlag.substituted);
 
-		if(this.isSubstituted) this.containingTypeList = [];
+		if(member.isSubstituted) member.containingTypeList = [];
 
 		if(typeNumList.length == 1) {
-			this.typeNum = typeNumList[0];
+			member.typeNum = typeNumList[0];
 		} else {
 			// TODO: What now? Make sure this is not reached.
 			// Different types shouldn't be joined with | in .d.ts, instead
@@ -44,6 +48,8 @@ export class MemberSpec extends Item {
 
 			console.error('Member with multiple types: ' + parts.name);
 		}
+
+		return(member);
 	}
 
 	init() {
@@ -51,14 +57,15 @@ export class MemberSpec extends Item {
 		// Sometimes abstract elements have no type.
 
 		if(this.typeNum) {
-			this.typeSpec = this.namespace.typeByNum(this.typeNum);
-			this.rule = this.typeSpec.getType();
+			const typeSpec = this.namespace.typeByNum(this.typeNum);
+			this.typeSpecList = [ typeSpec ];
+			this.rule = typeSpec.getType();
 
-			if(!this.rule) this.setDependency(this.typeSpec);
+			if(!this.rule) this.setDependency(typeSpec);
 		}
 
 		if(this.isSubstituted) {
-			this.proxySpec = new TypeSpec([0, 0, [], []], this.namespace, '');
+			this.proxySpec = new TypeSpec('', this.namespace, [0, 0, [], []]);
 			this.proxySpec.substituteList = [];
 			if(!this.isAbstract) this.proxySpec.addSubstitute(this, this);
 		}
@@ -69,6 +76,31 @@ export class MemberSpec extends Item {
 		}
 	}
 
+	getRef() {
+		return(new MemberRef(this, 0, 1));
+	}
+
+	getProxy() {
+		var proxy = this.proxySpec;
+
+		if(!proxy) {
+			const proxy = new TypeSpec();
+
+			proxy.isProxy = true;
+			proxy.containingRef = this.getRef();
+
+			this.proxySpec = proxy;
+			this.namespace.addType(proxy);
+
+			if(!this.isAbstract) {
+				// TODO
+				// proxy.addChildSpec(this);
+			}
+		}
+
+		return(proxy);
+	}
+
 	name: string;
 	namespace: Namespace;
 	safeName: string;
@@ -77,8 +109,10 @@ export class MemberSpec extends Item {
 	isSubstituted: boolean;
 
 	typeNum: number;
-	typeSpec: TypeSpec;
+	typeSpecList: TypeSpec[];
 	rule: Rule;
+
+	substitutes: MemberSpec;
 
 	/** Substitution group virtual type,
 	  * containing all possible substitutes as children. */
@@ -91,4 +125,7 @@ export class MemberSpec extends Item {
 		head: MemberRef,
 		proxy: MemberRef
 	}[];
+
+	comment: string;
+	isExported: boolean;
 }

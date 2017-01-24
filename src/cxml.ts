@@ -2,6 +2,9 @@
 // Released under the MIT license, see LICENSE.
 
 export {Context} from './xml/Context';
+export {Namespace} from './xml/Namespace';
+export {MemberSpec} from './xml/MemberSpec';
+export {MemberRef} from './xml/MemberRef';
 export {Parser} from './xml/Parser';
 
 export {init, register, defaultContext} from './importer/JS';

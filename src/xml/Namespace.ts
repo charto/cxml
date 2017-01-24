@@ -69,6 +69,8 @@ export class Namespace {
 		}
 
 		if(spec.safeName) this.exportTypeTbl[spec.safeName] = spec;
+
+		spec.namespace = this;
 	}
 
 	addMember(spec: MemberSpec) {

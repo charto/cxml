@@ -13,27 +13,38 @@ export const enum MemberRefFlag {
 }
 
 export class MemberRef {
-	constructor(spec: RawRefSpec, namespace: Namespace, proxy?: MemberRef) {
+	constructor(member: MemberSpec, min: number, max: number) {
+		this.member = member;
+		this.min = min;
+		this.max = max;
+	}
+
+	static parseSpec(spec: RawRefSpec, namespace: Namespace, proxy?: MemberRef) {
 		var flags = spec[1];
 		var member: MemberSpec;
 
 		if(typeof(spec[0]) == 'number') member = namespace.memberByNum(spec[0] as number);
 		else member = spec[0] as MemberSpec;
 
-		this.member = member;
-		this.min = (flags & MemberRefFlag.optional) ? 0 : 1;
-		this.max = (flags & MemberRefFlag.array) ? Infinity : 1;
+		const ref = new MemberRef(
+			member,
+			(flags & MemberRefFlag.optional) ? 0 : 1,
+			(flags & MemberRefFlag.array) ? Infinity : 1
+		);
 
-		this.safeName = spec[2] || this.member.safeName;
+		ref.safeName = spec[2] || member.safeName;
 
-		if(member.isSubstituted) proxy = this;
-		if(proxy && this.max > 1) this.proxy = proxy;
+		if(member.isSubstituted) proxy = ref;
+		if(proxy && ref.max > 1) ref.proxy = proxy;
+
+		return(ref);
 	}
 
 	member: MemberSpec;
 	min: number;
 	max: number;
 
+	prefix: string;
 	safeName: string;
 
 	proxy: MemberRef;

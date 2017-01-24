@@ -46,7 +46,7 @@ export interface RuleMembers {
 }
 
 function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
-	var ref = new MemberRef([substitute, 0, substitute.safeName], substitute.namespace, proxy);
+	var ref = MemberRef.parseSpec([substitute, 0, substitute.safeName], substitute.namespace, proxy);
 
 	return(ref);
 }
@@ -54,8 +54,8 @@ function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
 /** Type specification defining attributes and children. */
 
 export class TypeSpec extends Item {
-	constructor(spec: RawTypeSpec, namespace: Namespace, name: string) {
-		super(spec[1]);
+	constructor(name?: string, namespace?: Namespace, spec?: RawTypeSpec) {
+		super(TypeSpec, spec[1]);
 
 		if(name) {
 			var parts = parseName(name);
@@ -64,9 +64,12 @@ export class TypeSpec extends Item {
 		}
 
 		this.namespace = namespace;
-		this.flags = spec[0];
-		this.childSpecList = spec[2];
-		this.attributeSpecList = spec[3];
+
+		if(spec) {
+			this.flags = spec[0];
+			this.childSpecList = spec[2];
+			this.attributeSpecList = spec[3];
+		}
 	}
 
 	getProto() { return(this.proto); }
@@ -119,7 +122,7 @@ export class TypeSpec extends Item {
 	}
 
 	private defineMember(ref: MemberRef) {
-		var typeSpec = ref.member.typeSpec;
+		var typeSpec = ref.member.typeSpecList && ref.member.typeSpecList[0];
 		var proxySpec = ref.member.proxySpec;
 
 		if(proxySpec) {
@@ -154,14 +157,14 @@ export class TypeSpec extends Item {
 		var spec: RawRefSpec;
 
 		for(spec of this.childSpecList) {
-			var memberRef = new MemberRef(spec, this.namespace);
+			var memberRef = MemberRef.parseSpec(spec, this.namespace);
 			this.addChild(memberRef);
 			this.defineMember(memberRef);
 		}
 
 		for(spec of this.attributeSpecList) {
-			var attributeRef = new MemberRef(spec, this.namespace);
-			if(attributeRef.member.typeSpec) this.rule.addAttribute(attributeRef);
+			var attributeRef = MemberRef.parseSpec(spec, this.namespace);
+			if(attributeRef.member.typeSpecList) this.rule.addAttribute(attributeRef);
 			this.defineMember(attributeRef);
 		}
 	}
@@ -232,7 +235,7 @@ export class TypeSpec extends Item {
 
 	private static addSubstituteToProxy(substitute: MemberSpec, type: RuleMembers, head?: MemberSpec) {
 		if(substitute == head || !substitute.proxySpec) {
-			if(!substitute.isAbstract) type[substitute.safeName] = substitute.typeSpec.placeHolder;
+			if(!substitute.isAbstract) type[substitute.safeName] = substitute.typeSpecList[0].placeHolder;
 		} else {
 			TypeSpec.addSubstitutesToProxy(substitute, type);
 		}
@@ -257,6 +260,15 @@ export class TypeSpec extends Item {
 
 	optionalList: string[] = [];
 	requiredList: string[] = [];
+
+	isProxy: boolean;
+
+	/** For an anonymous type, the member (of another type) that it defines.
+	  * Used for giving the type a descriptive name. */
+	containingType: TypeSpec;
+	containingRef: MemberRef;
+
+	comment: string;
 
 	private rule: Rule;
 	private proto: RuleClass;
