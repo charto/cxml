@@ -1,8 +1,8 @@
 // This file is part of cxml, copyright (c) 2016 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
-import {Namespace} from './Namespace';
-import {MemberRef} from './MemberRef';
+import {Namespace} from '../xml/Namespace';
+import {MemberRef} from '../xml/MemberRef';
 
 /** Interface implemented by schema type classes, allowing custom hooks. */
 

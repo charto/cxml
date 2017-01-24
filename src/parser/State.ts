@@ -1,9 +1,9 @@
 // This file is part of cxml, copyright (c) 2016 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
-import {Namespace} from './Namespace';
-import {Rule, HandlerInstance} from './Type';
-import {MemberRef} from './MemberRef';
+import {Namespace} from '../xml/Namespace';
+import {Rule, HandlerInstance} from './Rule';
+import {MemberRef} from '../xml/MemberRef';
 
 /** Parser state created for each input tag. */
 

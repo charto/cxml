@@ -4,7 +4,7 @@
 import {Namespace} from './Namespace';
 import {MemberSpec} from './MemberSpec';
 import {MemberRef, RawRefSpec} from './MemberRef';
-import {Rule, RuleClass, Member} from './Type';
+import {Rule, RuleClass, Member} from '../parser/Rule';
 import {Item} from './Item';
 
 /** Tuple: flags, parent type ID, child element list, attribute list.

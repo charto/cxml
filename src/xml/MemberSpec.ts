@@ -2,7 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Rule} from './Type';
+import {Rule} from '../parser/Rule';
 import {TypeSpec, parseName} from './TypeSpec';
 import {MemberRef} from './MemberRef';
 import {Item} from './Item';

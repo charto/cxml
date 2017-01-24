@@ -5,9 +5,9 @@ import * as stream from 'stream';
 import * as Promise from 'bluebird';
 import * as sax from 'sax';
 
-import {Context} from './Context';
-import {Rule, RuleClass, HandlerInstance} from './Type';
-import {MemberRef} from './MemberRef';
+import {Context} from '../xml/Context';
+import {Rule, RuleClass, HandlerInstance} from './Rule';
+import {MemberRef} from '../xml/MemberRef';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
 
