@@ -18,6 +18,9 @@ export interface CxmlDate extends Date {
 var converterTbl: { [type: string]: (item: string) => any } = {
 	Date: ((item: string) => {
 		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
+
+		if(!dateParts) return(null);
+
 		var offsetMinutes = +(dateParts[9] || '0');
 		var offset = +(dateParts[8] || '0') * 60;
 
@@ -74,7 +77,7 @@ export class Parser {
 
 	parse<Output extends HandlerInstance>(stream: string | stream.Readable | NodeJS.ReadableStream, output: Output, context?: Context) {
 		return(new Promise<Output>((resolve: (item: Output) => void, reject: (err: any) => void) =>
-			this._parse<Output>(stream, output, context, resolve, reject)
+			this._parse<Output>(stream, output, context || defaultContext, resolve, reject)
 		));
 	}
 
@@ -85,12 +88,10 @@ export class Parser {
 		resolve: (item: Output) => void,
 		reject: (err: any) => void
 	) {
-		this.context = context || defaultContext;
-
 		var xml = sax.createStream(true, { position: true });
 		let rule = (output.constructor as RuleClass).rule;
 
-		var xmlSpace = this.context.registerNamespace('http://www.w3.org/XML/1998/namespace');
+		var xmlSpace = context.registerNamespace('http://www.w3.org/XML/1998/namespace');
 		var state = new State(null, null, rule, new rule.handler());
 		var rootState = state;
 
@@ -112,7 +113,7 @@ export class Parser {
 					var nsParts = key.match(/^xmlns(:(.+))?$/);
 
 					if(nsParts) {
-						state.addNamespace(nsParts[2] || '', this.context.registerNamespace(attrTbl[key]));
+						state.addNamespace(nsParts[2] || '', context.registerNamespace(attrTbl[key]));
 					}
 				}
 			}
@@ -241,6 +242,4 @@ export class Parser {
 			xml.end();
 		} else (stream as stream.Readable).pipe(xml);
 	}
-
-	context: Context;
 }

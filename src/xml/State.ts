@@ -8,7 +8,7 @@ import {MemberRef} from './MemberRef';
 /** Parser state created for each input tag. */
 
 export class State {
-	constructor(parent: State, memberRef: MemberRef, type: Rule, item: HandlerInstance) {
+	constructor(parent: State | null, memberRef: MemberRef, type: Rule, item: HandlerInstance) {
 		this.parent = parent;
 		this.memberRef = memberRef;
 		this.rule = type;
@@ -40,7 +40,7 @@ export class State {
 		namespaceTbl[short] = [ namespace, namespace.getPrefix() ];
 	}
 
-	parent: State;
+	parent: State | null;
 	/** Tag metadata in schema, defining name and occurrence count. */
 	memberRef: MemberRef;
 	/** Tag type in schema, defining attributes and children. */
