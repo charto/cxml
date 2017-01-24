@@ -2,7 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Type} from './Type';
+import {Rule} from './Type';
 import {TypeSpec, parseName} from './TypeSpec';
 import {MemberRef} from './MemberRef';
 import {Item} from './Item';
@@ -52,9 +52,9 @@ export class MemberSpec extends Item {
 
 		if(this.typeNum) {
 			this.typeSpec = this.namespace.typeByNum(this.typeNum);
-			this.type = this.typeSpec.getType();
+			this.rule = this.typeSpec.getType();
 
-			if(!this.type) this.setDependency(this.typeSpec);
+			if(!this.rule) this.setDependency(this.typeSpec);
 		}
 
 		if(this.isSubstituted) {
@@ -78,7 +78,7 @@ export class MemberSpec extends Item {
 
 	typeNum: number;
 	typeSpec: TypeSpec;
-	type: Type;
+	rule: Rule;
 
 	/** Substitution group virtual type,
 	  * containing all possible substitutes as children. */

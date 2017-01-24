@@ -6,7 +6,7 @@ import * as Promise from 'bluebird';
 import * as sax from 'sax';
 
 import {Context} from './Context';
-import {Type, TypeClass, HandlerInstance} from './Type';
+import {Rule, RuleClass, HandlerInstance} from './Type';
 import {MemberRef} from './MemberRef';
 import {State} from './State';
 import {defaultContext} from '../importer/JS';
@@ -45,7 +45,7 @@ var converterTbl: { [type: string]: (item: string) => any } = {
 	number: ((item: string) => +item)
 };
 
-function convertPrimitive(text: string, type: Type) {
+function convertPrimitive(text: string, type: Rule) {
 	var converter = converterTbl[type.primitiveType];
 
 	if(converter) {
@@ -62,7 +62,7 @@ function convertPrimitive(text: string, type: Type) {
 export class Parser {
 	attach<CustomHandler extends HandlerInstance>(handler: { new(): CustomHandler; }) {
 		var proto = handler.prototype as CustomHandler;
-		var realHandler = (handler as TypeClass).type.handler;
+		var realHandler = (handler as RuleClass).rule.handler;
 		var realProto = realHandler.prototype as CustomHandler;
 
 		for(var key of Object.keys(proto)) {
@@ -88,13 +88,13 @@ export class Parser {
 		this.context = context || defaultContext;
 
 		var xml = sax.createStream(true, { position: true });
-		var type = (output.constructor as TypeClass).type;
+		let rule = (output.constructor as RuleClass).rule;
 
 		var xmlSpace = this.context.registerNamespace('http://www.w3.org/XML/1998/namespace');
-		var state = new State(null, null, type, new type.handler());
+		var state = new State(null, null, rule, new rule.handler());
 		var rootState = state;
 
-		state.addNamespace('', type.namespace);
+		state.addNamespace('', rule.namespace);
 		if(xmlSpace) state.addNamespace('xml', xmlSpace);
 
 		xml.on('opentag', (node: sax.Tag) => {
@@ -130,23 +130,23 @@ export class Parser {
 			name = nodeNamespace[1] + name;
 
 			var child: MemberRef;
-			var type: Type;
+			let rule: Rule;
 
-			if(state.type) {
-				child = state.type.childTbl[name];
+			if(state.rule) {
+				child = state.rule.childTbl[name];
 
 				if(child) {
 					if(child.proxy) {
-						type = child.proxy.member.type;
-						state = new State(state, child.proxy, type, new type.handler());
+						rule = child.proxy.member.rule;
+						state = new State(state, child.proxy, rule, new rule.handler());
 					}
 
-					type = child.member.type;
+					rule = child.member.rule;
 				}
 			}
 
-			if(type && !type.isPlainPrimitive) {
-				item = new type.handler();
+			if(rule && !rule.isPlainPrimitive) {
+				item = new rule.handler();
 
 				// Parse all attributes.
 
@@ -169,21 +169,21 @@ export class Parser {
 						attr = nodeNamespace[1] + key;
 					}
 
-					var ref = type.attributeTbl[attr];
+					var ref = rule.attributeTbl[attr];
 
-					if(ref && ref.member.type.isPlainPrimitive) {
-						item[ref.safeName] = convertPrimitive(attrTbl[key], ref.member.type);
+					if(ref && ref.member.rule.isPlainPrimitive) {
+						item[ref.safeName] = convertPrimitive(attrTbl[key], ref.member.rule);
 					}
 				}
 
 				if(item._before) item._before();
 			}
 
-			state = new State(state, child, type, item);
+			state = new State(state, child, rule, item);
 		});
 
 		xml.on('text', function(text: string) {
-			if(state.type && state.type.isPrimitive) {
+			if(state.rule && state.rule.isPrimitive) {
 				if(!state.textList) state.textList = [];
 				state.textList.push(text);
 			}
@@ -195,12 +195,12 @@ export class Parser {
 			var item: any = obj;
 			var text: string;
 
-			if(state.type && state.type.isPrimitive) text = (state.textList || []).join('').trim();
+			if(state.rule && state.rule.isPrimitive) text = (state.textList || []).join('').trim();
 
 			if(text) {
-				var content = convertPrimitive(text, state.type);
+				var content = convertPrimitive(text, state.rule);
 
-				if(state.type.isPlainPrimitive) item = content;
+				if(state.rule.isPlainPrimitive) item = content;
 				else obj.content = content;
 			}
 

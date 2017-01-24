@@ -2,16 +2,16 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {Type, HandlerInstance} from './Type';
+import {Rule, HandlerInstance} from './Type';
 import {MemberRef} from './MemberRef';
 
 /** Parser state created for each input tag. */
 
 export class State {
-	constructor(parent: State, memberRef: MemberRef, type: Type, item: HandlerInstance) {
+	constructor(parent: State, memberRef: MemberRef, type: Rule, item: HandlerInstance) {
 		this.parent = parent;
 		this.memberRef = memberRef;
-		this.type = type;
+		this.rule = type;
 		this.item = item;
 
 		if(parent) {
@@ -44,7 +44,7 @@ export class State {
 	/** Tag metadata in schema, defining name and occurrence count. */
 	memberRef: MemberRef;
 	/** Tag type in schema, defining attributes and children. */
-	type: Type;
+	rule: Rule;
 	/** Output object for contents of this tag. */
 	item: HandlerInstance;
 	/** Text content found inside the tag. */

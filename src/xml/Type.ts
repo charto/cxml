@@ -19,7 +19,7 @@ export interface HandlerInstance {
 
 /** Base class inherited by all schema type classes, not defining custom hooks. */
 
-export class TypeInstance implements HandlerInstance {
+export class Member implements HandlerInstance {
 	/** Name of the type, pointing to the name of the constructor function.
 	  * Might contain garbage... */
 	// static name: string;
@@ -30,15 +30,15 @@ export class TypeInstance implements HandlerInstance {
 
 /** Class type compatible with schema type classes. */
 
-export interface TypeClass {
-	new(): TypeInstance;
+export interface RuleClass {
+	new(): Member;
 
-	type?: Type;
+	rule?: Rule;
 }
 
 /** Class type compatible with schema type classes, allowing custom hooks. */
 
-export interface HandlerClass extends TypeClass {
+export interface HandlerClass extends RuleClass {
 	new(): HandlerInstance;
 
 	_custom?: boolean;
@@ -47,8 +47,8 @@ export interface HandlerClass extends TypeClass {
 /** Parser rule, defines a handler class, valid attributes and children
   * for an XSD tag. */
 
-export class Type {
-	constructor(handler: TypeClass) {
+export class Rule {
+	constructor(handler: RuleClass) {
 		this.handler = handler;
 	}
 

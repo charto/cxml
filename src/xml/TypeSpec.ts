@@ -4,7 +4,7 @@
 import {Namespace} from './Namespace';
 import {MemberSpec} from './MemberSpec';
 import {MemberRef, RawRefSpec} from './MemberRef';
-import {Type, TypeClass, TypeInstance} from './Type';
+import {Rule, RuleClass, Member} from './Type';
 import {Item} from './Item';
 
 /** Tuple: flags, parent type ID, child element list, attribute list.
@@ -38,11 +38,11 @@ function inherit<Type>(parentObject: Type) {
 	return(new (Proxy as any as { new(): Type })());
 }
 
-/** Represents the prototype of TypeClass.
+/** Represents the prototype of RuleClass.
   * Contains placeholders for any missing members. */
 
-export interface TypeClassMembers {
-	[name: string]: TypeInstance | TypeInstance[];
+export interface RuleMembers {
+	[name: string]: Member | Member[];
 }
 
 function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
@@ -71,51 +71,51 @@ export class TypeSpec extends Item {
 
 	getProto() { return(this.proto); }
 
-	getType() { return(this.type); }
+	getType() { return(this.rule); }
 
 	init() {
 		// This function hasn't been called for this type yet by setParent,
 		// but something must by now have called it for the parent type.
 
 		var dependency = this.dependency as TypeSpec;
-		let parent = TypeInstance;
+		let parent = Member;
 
 		if(dependency && dependency != this) parent = dependency.proto;
 
 		this.proto = class XmlType extends parent {};
 
-		var instanceProto = this.proto.prototype as TypeInstance;
+		var instanceProto = this.proto.prototype as Member;
 		instanceProto._exists = true;
 		instanceProto._namespace = this.namespace.name;
 
 		this.placeHolder = new this.proto();
 		this.placeHolder._exists = false;
-		this.type = new Type(this.proto);
-		this.proto.type = this.type;
-		this.type.namespace = this.namespace;
+		this.rule = new Rule(this.proto);
+		this.proto.rule = this.rule;
+		this.rule.namespace = this.namespace;
 
 		if(dependency) {
-			this.type.childTbl = inherit(dependency.type.childTbl);
-			this.type.attributeTbl = inherit(dependency.type.attributeTbl);
+			this.rule.childTbl = inherit(dependency.rule.childTbl);
+			this.rule.attributeTbl = inherit(dependency.rule.attributeTbl);
 		} else {
-			this.type.attributeTbl = {};
-			this.type.childTbl = {};
+			this.rule.attributeTbl = {};
+			this.rule.childTbl = {};
 		}
 
-		this.type.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
-		this.type.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
-		this.type.isList = !!(this.flags & TypeSpec.listFlag);
+		this.rule.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
+		this.rule.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
+		this.rule.isList = !!(this.flags & TypeSpec.listFlag);
 
-		if(this.type.isPrimitive) {
+		if(this.rule.isPrimitive) {
 			var primitiveType: Item = this;
 			var next: Item;
 
 			while((next = primitiveType.dependency) && next != primitiveType) primitiveType = next;
 
-			this.type.primitiveType = (primitiveType as TypeSpec).safeName;
+			this.rule.primitiveType = (primitiveType as TypeSpec).safeName;
 		}
 
-		return(this.type);
+		return(this.rule);
 	}
 
 	private defineMember(ref: MemberRef) {
@@ -135,7 +135,7 @@ export class TypeSpec extends Item {
 
 		if(typeSpec) {
 			var memberType = typeSpec.placeHolder;
-			var type = (this.proto.prototype) as TypeClassMembers;
+			var type = (this.proto.prototype) as RuleMembers;
 
 			type[ref.safeName] = (ref.max > 1) ? [memberType] : memberType;
 
@@ -161,7 +161,7 @@ export class TypeSpec extends Item {
 
 		for(spec of this.attributeSpecList) {
 			var attributeRef = new MemberRef(spec, this.namespace);
-			if(attributeRef.member.typeSpec) this.type.addAttribute(attributeRef);
+			if(attributeRef.member.typeSpec) this.rule.addAttribute(attributeRef);
 			this.defineMember(attributeRef);
 		}
 	}
@@ -176,7 +176,7 @@ export class TypeSpec extends Item {
 
 		for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
 			if(substitute == headRef.member) {
-				this.type.addChild(headRef);
+				this.rule.addChild(headRef);
 			} else {
 				var substituteRef = defineSubstitute(substitute, proxy);
 				this.addChild(substituteRef, proxy);
@@ -186,7 +186,7 @@ export class TypeSpec extends Item {
 
 	addChild(memberRef: MemberRef, proxy?: MemberRef) {
 		if(memberRef.member.proxySpec) this.addSubstitutes(memberRef, proxy || memberRef);
-		else if(!memberRef.member.isAbstract) this.type.addChild(memberRef);
+		else if(!memberRef.member.isAbstract) this.rule.addChild(memberRef);
 	}
 
 	addSubstitute(head: MemberSpec, substitute: MemberSpec) {
@@ -220,7 +220,7 @@ export class TypeSpec extends Item {
 	  * @param strict Also remove placeholders for mandatory child elements. */
 
 	cleanPlaceholders(strict?: boolean) {
-		var type = (this.proto.prototype) as TypeClassMembers;
+		var type = (this.proto.prototype) as RuleMembers;
 		var nameList = this.optionalList;
 
 		if(strict) nameList = nameList.concat(this.requiredList);
@@ -230,7 +230,7 @@ export class TypeSpec extends Item {
 		}
 	}
 
-	private static addSubstituteToProxy(substitute: MemberSpec, type: TypeClassMembers, head?: MemberSpec) {
+	private static addSubstituteToProxy(substitute: MemberSpec, type: RuleMembers, head?: MemberSpec) {
 		if(substitute == head || !substitute.proxySpec) {
 			if(!substitute.isAbstract) type[substitute.safeName] = substitute.typeSpec.placeHolder;
 		} else {
@@ -238,7 +238,7 @@ export class TypeSpec extends Item {
 		}
 	}
 
-	private static addSubstitutesToProxy(member: MemberSpec, type: TypeClassMembers) {
+	private static addSubstitutesToProxy(member: MemberSpec, type: RuleMembers) {
 		for(var substitute of member.proxySpec.getSubstitutes()) {
 			TypeSpec.addSubstituteToProxy(substitute, type, member);
 		}
@@ -258,9 +258,9 @@ export class TypeSpec extends Item {
 	optionalList: string[] = [];
 	requiredList: string[] = [];
 
-	private type: Type;
-	private proto: TypeClass;
-	private placeHolder: TypeInstance;
+	private rule: Rule;
+	private proto: RuleClass;
+	private placeHolder: Member;
 
 	/** Type contains text that gets parsed to JavaScript primitives. */
 	static primitiveFlag = 1;
