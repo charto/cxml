@@ -8,9 +8,7 @@ export interface Item<ItemContent> {
 	item: ItemContent;
 }
 
-/** Type and member dependency helper. Implements Kahn's topological sort.
-  * Member instead of parent class of both, due to TypeScript limitations
-  * (cannot extend a class given as a generic parameter). */
+/** Type and member dependency helper. Implements Kahn's topological sort. */
 
 export class ItemBase<Type extends Item<ItemBase<Type>>> {
 	/** @param type Type or member instance containing this helper. */
