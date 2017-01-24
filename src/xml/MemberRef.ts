@@ -2,13 +2,17 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {MemberSpec} from './Member';
-import {MemberRefBase} from './MemberRefBase';
+import {MemberSpec} from './MemberSpec';
 
 /** Tuple: member ID, flags, name */
 export type RawRefSpec = [ number | MemberSpec, number, string ];
 
-export class MemberRef extends MemberRefBase<MemberSpec> {
+export const enum MemberRefFlag {
+	optional = 1,
+	array = 2
+}
+
+export class MemberRef {
 	constructor(spec: RawRefSpec, namespace: Namespace, proxy?: MemberRef) {
 		var flags = spec[1];
 		var member: MemberSpec;
@@ -16,17 +20,21 @@ export class MemberRef extends MemberRefBase<MemberSpec> {
 		if(typeof(spec[0]) == 'number') member = namespace.memberByNum(spec[0] as number);
 		else member = spec[0] as MemberSpec;
 
-		super(
-			member,
-			(flags & MemberRef.optionalFlag) ? 0 : 1,
-			(flags & MemberRef.arrayFlag) ? Infinity : 1
-		);
+		this.member = member;
+		this.min = (flags & MemberRefFlag.optional) ? 0 : 1;
+		this.max = (flags & MemberRefFlag.array) ? Infinity : 1;
 
 		this.safeName = spec[2] || this.member.safeName;
 
 		if(member.isSubstituted) proxy = this;
 		if(proxy && this.max > 1) this.proxy = proxy;
 	}
+
+	member: MemberSpec;
+	min: number;
+	max: number;
+
+	safeName: string;
 
 	proxy: MemberRef;
 }

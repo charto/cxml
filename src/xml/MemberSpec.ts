@@ -4,34 +4,36 @@
 import {Namespace} from './Namespace';
 import {Type} from './Type';
 import {TypeSpec, parseName} from './TypeSpec';
-import {MemberBase} from './MemberBase';
 import {MemberRef} from './MemberRef';
-import {ItemBase} from './Item';
+import {Item} from './Item';
 
 /** Tuple: name, type ID list, flags, substituted member ID */
 export type RawMemberSpec = [ string, number[], number, number ];
 
+export const enum MemberFlag {
+	abstract = 1,
+	substituted = 2,
+	any = 4
+}
+
 /** Represents a child element or attribute. */
 
-export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<MemberSpec> > {
+export class MemberSpec extends Item {
 	constructor(spec: RawMemberSpec, namespace: Namespace) {
 		var parts = parseName(spec[0]);
 
-		super(ItemBase, parts.name);
+		super(spec[3]);
+		this.name = parts.name;
 		this.safeName = parts.safeName;
 
 		this.namespace = namespace;
-		this.item.parentNum = spec[3];
 		var typeNumList = spec[1];
 		var flags = spec[2];
 
-		this.isAbstract = !!(flags & MemberSpec.abstractFlag);
-		this.isSubstituted = !!(flags & MemberSpec.substitutedFlag);
-		this.isSubstituted = this.isSubstituted || this.isAbstract;
+		this.isAbstract = !!(flags & MemberFlag.abstract);
+		this.isSubstituted = this.isAbstract || !!(flags & MemberFlag.substituted);
 
-		if(this.isSubstituted) {
-			this.containingTypeList = [];
-		}
+		if(this.isSubstituted) this.containingTypeList = [];
 
 		if(typeNumList.length == 1) {
 			this.typeNum = typeNumList[0];
@@ -40,11 +42,11 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 			// Different types shouldn't be joined with | in .d.ts, instead
 			// they should be converted to { TypeA: TypeA, TypeB: TypeB... }
 
-			console.log(spec);
+			console.error('Member with multiple types: ' + parts.name);
 		}
 	}
 
-	define() {
+	init() {
 		// Look up member type if available.
 		// Sometimes abstract elements have no type.
 
@@ -52,7 +54,7 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 			this.typeSpec = this.namespace.typeByNum(this.typeNum);
 			this.type = this.typeSpec.getType();
 
-			if(!this.type) this.item.setParent(this.typeSpec as any);
+			if(!this.type) this.setDependency(this.typeSpec);
 		}
 
 		if(this.isSubstituted) {
@@ -61,11 +63,18 @@ export class MemberSpec extends MemberBase<MemberSpec, Namespace, ItemBase<Membe
 			if(!this.isAbstract) this.proxySpec.addSubstitute(this, this);
 		}
 
-		if(this.item.parent && this.item.parent instanceof MemberSpec) {
+		if(this.dependency && this.dependency instanceof MemberSpec) {
 			// Parent is actually the substitution group base element.
-			this.item.parent.proxySpec.addSubstitute(this.item.parent, this);
+			this.dependency.proxySpec.addSubstitute(this.dependency, this);
 		}
 	}
+
+	name: string;
+	namespace: Namespace;
+	safeName: string;
+
+	isAbstract: boolean;
+	isSubstituted: boolean;
 
 	typeNum: number;
 	typeSpec: TypeSpec;

@@ -2,10 +2,10 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace} from './Namespace';
-import {MemberSpec} from './Member';
+import {MemberSpec} from './MemberSpec';
 import {MemberRef, RawRefSpec} from './MemberRef';
 import {Type, TypeClass, TypeInstance} from './Type';
-import {Item, ItemBase} from './Item';
+import {Item} from './Item';
 
 /** Tuple: flags, parent type ID, child element list, attribute list.
   * Serialized JSON format. */
@@ -53,11 +53,9 @@ function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
 
 /** Type specification defining attributes and children. */
 
-export class TypeSpec implements Item<ItemBase<TypeSpec>> {
+export class TypeSpec extends Item {
 	constructor(spec: RawTypeSpec, namespace: Namespace, name: string) {
-		// Initialize helper containing data and methods also applicable to members.
-
-		this.item = new ItemBase(this as TypeSpec);
+		super(spec[1]);
 
 		if(name) {
 			var parts = parseName(name);
@@ -67,7 +65,6 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 		this.namespace = namespace;
 		this.flags = spec[0];
-		this.item.parentNum = spec[1];
 		this.childSpecList = spec[2];
 		this.attributeSpecList = spec[3];
 	}
@@ -76,11 +73,14 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 	getType() { return(this.type); }
 
-	define() {
+	init() {
 		// This function hasn't been called for this type yet by setParent,
 		// but something must by now have called it for the parent type.
 
-		var parent = (this.item.parent && this.item.parent != this) ? this.item.parent.proto : TypeInstance;
+		var dependency = this.dependency as TypeSpec;
+		let parent = TypeInstance;
+
+		if(dependency && dependency != this) parent = dependency.proto;
 
 		this.proto = class XmlType extends parent {};
 
@@ -94,9 +94,9 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		this.proto.type = this.type;
 		this.type.namespace = this.namespace;
 
-		if(this.item.parent) {
-			this.type.childTbl = inherit(this.item.parent.type.childTbl);
-			this.type.attributeTbl = inherit(this.item.parent.type.attributeTbl);
+		if(dependency) {
+			this.type.childTbl = inherit(dependency.type.childTbl);
+			this.type.attributeTbl = inherit(dependency.type.attributeTbl);
 		} else {
 			this.type.attributeTbl = {};
 			this.type.childTbl = {};
@@ -107,12 +107,12 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 		this.type.isList = !!(this.flags & TypeSpec.listFlag);
 
 		if(this.type.isPrimitive) {
-			var primitiveType: TypeSpec = this;
-			var next: TypeSpec;
+			var primitiveType: Item = this;
+			var next: Item;
 
-			while((next = primitiveType.item.parent) && next != primitiveType) primitiveType = next;
+			while((next = primitiveType.dependency) && next != primitiveType) primitiveType = next;
 
-			this.type.primitiveType = primitiveType.safeName;
+			this.type.primitiveType = (primitiveType as TypeSpec).safeName;
 		}
 
 		return(this.type);
@@ -172,7 +172,7 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 			head: headRef,
 			proxy: proxy
 		});
-		headRef.member.proxySpec.item.define();
+		headRef.member.proxySpec.tryInit();
 
 		for(var substitute of headRef.member.proxySpec.getSubstitutes()) {
 			if(substitute == headRef.member) {
@@ -190,7 +190,7 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 	}
 
 	addSubstitute(head: MemberSpec, substitute: MemberSpec) {
-		if(this.item.defined && head.containingTypeList.length) {
+		if(this.ready && head.containingTypeList.length) {
 			// The element's proxy type has already been defined
 			// so we need to patch other types containing the element.
 
@@ -208,7 +208,7 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 
 			while(head) {
 				TypeSpec.addSubstituteToProxy(substitute, head.proxySpec.proto.prototype);
-				head = head.item.parent;
+				head = head.dependency as MemberSpec;
 			}
 		}
 
@@ -243,8 +243,6 @@ export class TypeSpec implements Item<ItemBase<TypeSpec>> {
 			TypeSpec.addSubstituteToProxy(substitute, type, member);
 		}
 	}
-
-	item: ItemBase<TypeSpec>;
 
 	namespace: Namespace;
 	// TODO: Is a separate name and safeName needed for anything here?

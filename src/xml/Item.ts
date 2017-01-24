@@ -1,63 +1,74 @@
 // This file is part of cxml, copyright (c) 2015-2017 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
-/** Type or member. */
-
-export interface Item<ItemContent> {
-	define(): void;
-	item: ItemContent;
-}
+import {TypeSpec} from './TypeSpec';
+import {MemberSpec} from './MemberSpec';
 
 /** Type and member dependency helper. Implements Kahn's topological sort. */
 
-export class ItemBase<Type extends Item<ItemBase<Type>>> {
-	/** @param type Type or member instance containing this helper. */
+export class Item {
+	constructor(dependencyNum: number) {
+		this.dependencyNum = dependencyNum;
+	}
 
-	constructor(type: Type) {
-		this.type = type;
+	resolveDependency(specList: Item[]) {
+		if(this.dependencyNum) {
+			this.setDependency(specList[this.dependencyNum]);
+		}
 	}
 
 	/** Set parent type or substituted member. */
 
-	setParent(parent: Type) {
-		this.parent = parent;
-		this.defined = false;
+	setDependency(dependency: Item) {
+		this.dependency = dependency;
+		this.ready = false;
 
-		if(parent.item.defined) {
+		if(dependency.ready) {
 			// Entire namespace for substituted member is already fully defined,
 			// so the substituted member's dependentList won't get processed any more
 			// and we should process this member immediately.
 
-			this.define();
-		} else if(parent != this.type) parent.item.dependentList.push(this.type);
+			this.tryInit();
+		} else if(dependency != this) dependency.dependentList.push(this);
 	}
+
+	init() {}
 
 	/** Topological sort visitor. */
 
-	define() {
-		if(!this.defined) {
-			this.defined = true;
+	tryInit() {
+		if(!this.ready) {
+			this.ready = true;
 
-			this.type.define();
+			this.init();
 		}
 
 		for(var dependent of this.dependentList) {
-			dependent.item.define();
+			dependent.tryInit();
 		}
 
 		this.dependentList = [];
 	}
 
-	/** Type or member. */
-	type: Type;
+	/** Create types and members based on JSON specifications. */
+
+	static initAll(pendingList: Item[]) {
+		for(var spec of pendingList) {
+			// If the spec has a parent, it handles defining the child.
+			if(!spec.dependency || spec.dependency == spec) {
+				spec.tryInit();
+			}
+		}
+	}
+
 	/** Number of parent type or substituted member. */
-	parentNum: number;
+	dependencyNum: number;
 	/** Parent type or substituted member. */
-	parent: Type;
+	dependency: Item;
 
 	/** Track dependents for Kahn's topological sort algorithm. */
-	private dependentList: Type[] = [];
+	private dependentList: Item[] = [];
 
 	/** Visited flag for topological sort. */
-	defined: boolean;
+	ready: boolean;
 }

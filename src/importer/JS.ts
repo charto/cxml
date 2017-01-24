@@ -2,7 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {Namespace, ModuleExports, ImportSpec} from '../xml/Namespace';
-import {RawMemberSpec} from '../xml/Member';
+import {RawMemberSpec} from '../xml/MemberSpec';
 import {RawTypeSpec} from '../xml/TypeSpec';
 import {Context} from '../xml/Context';
 

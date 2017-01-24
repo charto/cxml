@@ -2,7 +2,7 @@
 // Released under the MIT license, see LICENSE.
 
 import {TypeSpec} from './TypeSpec';
-import {MemberSpec} from './Member';
+import {MemberSpec} from './MemberSpec';
 import {Context} from './Context';
 
 export interface ModuleExports {
@@ -110,22 +110,14 @@ export class Namespace {
 		var typeCount = typeSpecList.length;
 
 		while(typeNum < typeCount) {
-			var typeSpec = typeSpecList[typeNum++];
-
-			if(typeSpec.item.parentNum) {
-				typeSpec.item.setParent(typeSpecList[typeSpec.item.parentNum]);
-			}
+			typeSpecList[typeNum++].resolveDependency(typeSpecList);
 		}
 
 		var memberSpecList = this.memberSpecList;
 		var memberCount = memberSpecList.length;
 
 		while(memberNum < memberCount) {
-			var memberSpec = memberSpecList[memberNum++];
-
-			if(memberSpec.item.parentNum) {
-				memberSpec.item.setParent(memberSpecList[memberSpec.item.parentNum]);
-			}
+			memberSpecList[memberNum++].resolveDependency(memberSpecList);
 		}
 	}
 

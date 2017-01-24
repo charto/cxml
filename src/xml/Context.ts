@@ -3,38 +3,29 @@
 
 import {Namespace, ModuleExports} from './Namespace';
 import {TypeSpec, RawTypeSpec} from './TypeSpec';
-import {MemberSpec, RawMemberSpec} from './Member';
-import {Item, ItemBase} from '../xml/Item';
-
-/** Create types and members based on JSON specifications. */
-
-function defineSpecs<Spec extends Item<ItemBase<any>>>(pendingList: Spec[]) {
-	for(var spec of pendingList) {
-		// If the spec has a parent, it handles defining the child.
-		if(!spec.item.parent || spec.item.parent == spec) {
-			spec.item.define();
-		}
-	}
-}
+import {MemberSpec, RawMemberSpec} from './MemberSpec';
+import {Item} from '../xml/Item';
 
 /** XML parser context, holding definitions of all imported namespaces. */
 
 export class Context {
-	getNamespace(name: string) {
-		return(this.namespaceNameTbl[name]);
-	}
+	/** Look up namespace by name. */
+	namespaceByName(name: string) { return(this.namespaceNameTbl[name]); }
+
+	/** Look up namespace by internal numeric surrogate key. */
+	namespaceById(id: number) { return(this.namespaceList[id]); }
 
 	/** Create or look up a namespace by name in URI (URL or URN) format. */
 
 	registerNamespace(name: string) {
 		name = Namespace.sanitize(name);
-		var namespace = this.namespaceNameTbl[name];
+		var namespace = this.namespaceByName(name);
 
 		if(!namespace) {
 			// Create a new namespace.
 
 			var id = this.namespaceKeyNext++;
-			namespace = new Namespace(name, id, this as any as Context);
+			namespace = new Namespace(name, id, this);
 
 			this.namespaceNameTbl[name] = namespace;
 			this.namespaceList[id] = namespace;
@@ -43,17 +34,19 @@ export class Context {
 		return(namespace);
 	}
 
+	/** Copy a namespace from another context. */
+
 	copyNamespace(other: Namespace) {
-		var namespace = this.namespaceList[other.id];
+		let namespace = this.namespaceList[other.id];
 
 		if(namespace) {
 			if(namespace.name != other.name) throw(new Error('Duplicate namespace ID'));
 			return(namespace);
 		}
 
-		if(this.namespaceNameTbl[other.name]) throw(new Error('Duplicate namespace name'));
+		if(this.namespaceByName(other.name)) throw(new Error('Duplicate namespace name'));
 
-		namespace = new this.NamespaceType(other.name, other.id, this as any as Context);
+		namespace = new Namespace(other.name, other.id, this);
 		namespace.initFrom(other);
 
 		this.namespaceNameTbl[other.name] = namespace;
@@ -63,24 +56,6 @@ export class Context {
 
 		return(namespace);
 	}
-
-	/** Look up namespace by internal numeric surrogate key. */
-
-	namespaceById(id: number) {
-		return(this.namespaceList[id]);
-	}
-
-	/** Constructor for namespaces in this context. */
-	private NamespaceType: { new(name: string, id: number, context: Context): Namespace };
-	/** Next available numeric surrogate key for new namespaces. */
-	private namespaceKeyNext = 0;
-	/** List of namespaces indexed by a numeric surrogate key. */
-	protected namespaceList: Namespace[] = [];
-	/** Table of namespaces by name in URI format (URL or URN).  */
-	private namespaceNameTbl: { [name: string]: Namespace } = {};
-
-// --------
-
 
 	/** Mark a namespace as seen and add it to list of pending namespaces. */
 
@@ -138,8 +113,8 @@ export class Context {
 
 		// Link types to their parents.
 
-		for(var exportObj of this.pendingNamespaceList) {
-			var namespace = exportObj._cxml[0];
+		for(let exportObject of this.pendingNamespaceList) {
+			var namespace = exportObject._cxml[0];
 			namespace.link();
 		}
 
@@ -147,8 +122,8 @@ export class Context {
 		// This is effectively Kahn's algorithm for topological sort
 		// (the rest is in the TypeSpec class).
 
-		defineSpecs(this.pendingTypeList);
-		defineSpecs(this.pendingMemberList);
+		Item.initAll(this.pendingTypeList);
+		Item.initAll(this.pendingMemberList);
 
 		for(var typeSpec of this.pendingTypeList) {
 			typeSpec.defineMembers();
@@ -157,7 +132,7 @@ export class Context {
 		this.pendingTypeList = [];
 		this.pendingMemberList = [];
 
-		for(var exportObject of this.pendingNamespaceList) {
+		for(let exportObject of this.pendingNamespaceList) {
 			var namespace = exportObject._cxml[0];
 
 			namespace.exportTypes(exportObject);
@@ -185,6 +160,13 @@ export class Context {
 
 		this.typeList = null;
 	}
+
+	/** Next available numeric surrogate key for new namespaces. */
+	private namespaceKeyNext = 0;
+	/** List of namespaces indexed by a numeric surrogate key. */
+	private namespaceList: Namespace[] = [];
+	/** Table of namespaces by name in URI format (URL or URN).  */
+	private namespaceNameTbl: { [name: string]: Namespace } = {};
 
 	/** List of pending namespaces (not yet registered or waiting for processing). */
 	private pendingNamespaceList: ModuleExports[] = [];
