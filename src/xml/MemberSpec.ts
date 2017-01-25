@@ -1,7 +1,7 @@
 // This file is part of cxml, copyright (c) 2015-2017 BusFaster Ltd.
 // Released under the MIT license, see LICENSE.
 
-import {Namespace} from './Namespace';
+import {NamespaceBase} from './NamespaceBase';
 import {Rule} from '../parser/Rule';
 import {TypeSpec, parseName} from './TypeSpec';
 import {MemberRef} from './MemberRef';
@@ -24,7 +24,7 @@ export class MemberSpec extends Item {
 		this.name = name;
 	}
 
-	static parseSpec(spec: RawMemberSpec, namespace: Namespace) {
+	static parseSpec(spec: RawMemberSpec, namespace: NamespaceBase<any>) {
 		var parts = parseName(spec[0]);
 
 		const member = new MemberSpec(parts.name, spec[3]);
@@ -65,7 +65,7 @@ export class MemberSpec extends Item {
 		}
 
 		if(this.isSubstituted) {
-			this.proxySpec = new TypeSpec('', this.namespace, [0, 0, [], []]);
+			this.proxySpec = new TypeSpec('', this.namespace as any, [0, 0, [], []]);
 			this.proxySpec.substituteList = [];
 			if(!this.isAbstract) this.proxySpec.addSubstitute(this, this);
 		}
@@ -80,11 +80,11 @@ export class MemberSpec extends Item {
 		return(new MemberRef(this, 0, 1));
 	}
 
-	getProxy() {
-		var proxy = this.proxySpec;
+	getProxy(TypeSpec: any) {
+		let proxy = this.proxySpec as any;
 
 		if(!proxy) {
-			const proxy = new TypeSpec();
+			proxy = new TypeSpec();
 
 			proxy.isProxy = true;
 			proxy.containingRef = this.getRef();
@@ -93,8 +93,7 @@ export class MemberSpec extends Item {
 			this.namespace.addType(proxy);
 
 			if(!this.isAbstract) {
-				// TODO
-				// proxy.addChildSpec(this);
+				proxy.addChildSpec(this);
 			}
 		}
 
@@ -102,7 +101,7 @@ export class MemberSpec extends Item {
 	}
 
 	name: string;
-	namespace: Namespace;
+	namespace: NamespaceBase<any>;
 	safeName: string;
 
 	isAbstract: boolean;

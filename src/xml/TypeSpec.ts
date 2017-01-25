@@ -46,7 +46,7 @@ export interface RuleMembers {
 }
 
 function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
-	var ref = MemberRef.parseSpec([substitute, 0, substitute.safeName], substitute.namespace, proxy);
+	var ref = MemberRef.parseSpec([substitute, 0, substitute.safeName], substitute.namespace as any, proxy);
 
 	return(ref);
 }

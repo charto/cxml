@@ -10,6 +10,10 @@ export class NamespaceBase<Context extends ContextBase<any>> {
 		this.context = context;
 	}
 
+	addType(spec: any) {}
+	typeByNum(spec: any): any {}
+	getPrefix() { return(''); }
+
 	initFrom(other: NamespaceBase<any>) {
 		this.schemaUrl = other.schemaUrl;
 		this.short = other.short;
