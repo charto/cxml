@@ -4,45 +4,22 @@
 import {TypeSpec} from './TypeSpec';
 import {MemberSpec} from './MemberSpec';
 import {Context} from './Context';
+import {NamespaceBase} from './NamespaceBase';
 
 export interface ModuleExports {
 	[name: string]: any;
 	_cxml: [ Namespace ];
 }
 
+export interface ImportContent {
+	typeTbl: { [key: string]: TypeSpec },
+	memberTbl: { [key: string]: MemberSpec }
+}
+
 /** Tuple: module exports object, list of imported type names */
 export type ImportSpec = [ ModuleExports, string[], string[] ];
 
-export class Namespace {
-	constructor(name: string, id: number, context: Context) {
-		this.name = name;
-		this.id = id;
-		this.context = context;
-	}
-
-	initFrom(other: Namespace) {
-		this.schemaUrl = other.schemaUrl;
-		this.short = other.short;
-	}
-
-	static sanitize(name: string) {
-		return(name && name.replace(/\/+$/, ''));
-	}
-
-	/** URI identifying the namespace (URN or URL which doesn't need to exist). */
-	name: string;
-	/** Surrogate key, used internally as a unique namespace ID. */
-	id: number;
-	/** Parser context that uses this namespace. */
-	context: Context;
-
-	/** URL address where main schema file was downloaded. */
-	schemaUrl: string;
-	/** Example short name for this namespace. */
-	short: string;
-
-// --------
-
+export class Namespace extends NamespaceBase<Context> {
 	init(importSpecList: ImportSpec[]) {
 		this.importSpecList = importSpecList;
 
@@ -69,14 +46,14 @@ export class Namespace {
 		}
 
 		if(spec.safeName) this.exportTypeTbl[spec.safeName] = spec;
-
-		spec.namespace = this;
+		if(!spec.namespace) spec.namespace = this;
 	}
 
 	addMember(spec: MemberSpec) {
 		this.memberSpecList.push(spec);
 
 		if(spec.name) this.exportMemberTbl[spec.name] = spec;
+		if(!spec.namespace) spec.namespace = this;
 	}
 
 	typeByNum(num: number) {
@@ -143,12 +120,15 @@ export class Namespace {
 
 	getPrefix() { return(this.id + ':'); }
 
+	/** Invisible document element defining the types of XML file root elements. */
 	doc: TypeSpec;
 
 	importSpecList: ImportSpec[];
 	importNamespaceList: Namespace[] = [];
 	exportTypeNameList: string[];
+	/** All types used in the document. */
 	typeSpecList: TypeSpec[] = [];
+	/** All members used in the document. */
 	memberSpecList: MemberSpec[] = [];
 	exportOffset: number;
 

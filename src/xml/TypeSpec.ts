@@ -51,6 +51,15 @@ function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
 	return(ref);
 }
 
+export const enum TypeFlag {
+	/** Type contains text that gets parsed to JavaScript primitives. */
+	primitive = 1,
+	/** Type only contains text, no wrapper object is needed to hold its attributes. */
+	plainPrimitive = 2,
+	/** Type contains text with a list of whitespace-separated items. */
+	list = 4
+}
+
 /** Type specification defining attributes and children. */
 
 export class TypeSpec extends Item {
@@ -105,9 +114,9 @@ export class TypeSpec extends Item {
 			this.rule.childTbl = {};
 		}
 
-		this.rule.isPrimitive = !!(this.flags & TypeSpec.primitiveFlag);
-		this.rule.isPlainPrimitive = !!(this.flags & TypeSpec.plainPrimitiveFlag);
-		this.rule.isList = !!(this.flags & TypeSpec.listFlag);
+		this.rule.isPrimitive = !!(this.flags & TypeFlag.primitive);
+		this.rule.isPlainPrimitive = !!(this.flags & TypeFlag.plainPrimitive);
+		this.rule.isList = !!(this.flags & TypeFlag.list);
 
 		if(this.rule.isPrimitive) {
 			var primitiveType: Item = this;
@@ -218,6 +227,10 @@ export class TypeSpec extends Item {
 		this.substituteList.push(substitute);
 	}
 
+	addMixin(spec: TypeSpec) {
+		this.mixinList.push(spec);
+	}
+
 	/** Remove placeholders from instance prototype. They allow dereferencing
 	  * contents of missing optional child elements without throwing errors.
 	  * @param strict Also remove placeholders for mandatory child elements. */
@@ -258,6 +271,9 @@ export class TypeSpec extends Item {
 	attributeSpecList: RawRefSpec[];
 	substituteList: MemberSpec[];
 
+	/** Other types added as mixins. */
+	mixinList: TypeSpec[];
+
 	optionalList: string[] = [];
 	requiredList: string[] = [];
 
@@ -273,11 +289,4 @@ export class TypeSpec extends Item {
 	private rule: Rule;
 	private proto: RuleClass;
 	private placeHolder: Member;
-
-	/** Type contains text that gets parsed to JavaScript primitives. */
-	static primitiveFlag = 1;
-	/** Type only contains text, no wrapper object is needed to hold its attributes. */
-	static plainPrimitiveFlag = 2;
-	/** Type contains text with a list of whitespace-separated items. */
-	static listFlag = 4;
 }

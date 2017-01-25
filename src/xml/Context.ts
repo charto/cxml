@@ -5,56 +5,13 @@ import {Namespace, ModuleExports} from './Namespace';
 import {TypeSpec, RawTypeSpec} from './TypeSpec';
 import {MemberSpec, RawMemberSpec} from './MemberSpec';
 import {Item} from '../xml/Item';
+import {ContextBase} from './ContextBase';
 
 /** XML parser context, holding definitions of all imported namespaces. */
 
-export class Context {
-	/** Look up namespace by name. */
-	namespaceByName(name: string) { return(this.namespaceNameTbl[name]); }
-
-	/** Look up namespace by internal numeric surrogate key. */
-	namespaceById(id: number) { return(this.namespaceList[id]); }
-
-	/** Create or look up a namespace by name in URI (URL or URN) format. */
-
-	registerNamespace(name: string) {
-		name = Namespace.sanitize(name);
-		var namespace = this.namespaceByName(name);
-
-		if(!namespace) {
-			// Create a new namespace.
-
-			var id = this.namespaceKeyNext++;
-			namespace = new Namespace(name, id, this);
-
-			this.namespaceNameTbl[name] = namespace;
-			this.namespaceList[id] = namespace;
-		}
-
-		return(namespace);
-	}
-
-	/** Copy a namespace from another context. */
-
-	copyNamespace(other: Namespace) {
-		let namespace = this.namespaceList[other.id];
-
-		if(namespace) {
-			if(namespace.name != other.name) throw(new Error('Duplicate namespace ID'));
-			return(namespace);
-		}
-
-		if(this.namespaceByName(other.name)) throw(new Error('Duplicate namespace name'));
-
-		namespace = new Namespace(other.name, other.id, this);
-		namespace.initFrom(other);
-
-		this.namespaceNameTbl[other.name] = namespace;
-		this.namespaceList[other.id] = namespace;
-
-		if(this.namespaceKeyNext <= other.id) this.namespaceKeyNext = other.id + 1;
-
-		return(namespace);
+export class Context extends ContextBase<Namespace> {
+	constructor() {
+		super(Namespace);
 	}
 
 	/** Mark a namespace as seen and add it to list of pending namespaces. */
@@ -160,13 +117,6 @@ export class Context {
 
 		this.typeList = null;
 	}
-
-	/** Next available numeric surrogate key for new namespaces. */
-	private namespaceKeyNext = 0;
-	/** List of namespaces indexed by a numeric surrogate key. */
-	private namespaceList: Namespace[] = [];
-	/** Table of namespaces by name in URI format (URL or URN).  */
-	private namespaceNameTbl: { [name: string]: Namespace } = {};
 
 	/** List of pending namespaces (not yet registered or waiting for processing). */
 	private pendingNamespaceList: ModuleExports[] = [];
