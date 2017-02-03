@@ -8,36 +8,18 @@ import {MemberRef} from '../xml/MemberRef';
 /** Parser state created for each input tag. */
 
 export class State {
-	constructor(parent: State | null, memberRef: MemberRef, type: Rule, item: HandlerInstance) {
+	constructor(
+		parent: State | null,
+		memberRef: MemberRef,
+		type: Rule,
+		item: HandlerInstance,
+		namespaceTbl: { [short: string]: [ Namespace, string ] }
+	) {
 		this.parent = parent;
 		this.memberRef = memberRef;
 		this.rule = type;
 		this.item = item;
-
-		if(parent) {
-			this.namespaceTbl = parent.namespaceTbl;
-		} else {
-			this.namespaceTbl = {};
-		}
-	}
-
-	/** Add a new xmlns prefix recognized inside current tag and its children. */
-
-	addNamespace(short: string, namespace: Namespace) {
-		var key: string;
-		var namespaceTbl = this.namespaceTbl;
-
-		if(this.parent && namespaceTbl == this.parent.namespaceTbl) {
-			namespaceTbl = {};
-
-			for(key of Object.keys(this.parent.namespaceTbl)) {
-				namespaceTbl[key] = this.parent.namespaceTbl[key];
-			}
-
-			this.namespaceTbl = namespaceTbl;
-		}
-
-		namespaceTbl[short] = [ namespace, namespace.getPrefix() ];
+		this.namespaceTbl = namespaceTbl;
 	}
 
 	parent: State | null;

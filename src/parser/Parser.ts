@@ -6,6 +6,7 @@ import * as Promise from 'bluebird';
 import * as sax from 'sax';
 
 import {Context} from '../xml/Context';
+import {Namespace} from '../xml/Namespace';
 import {Rule, RuleClass, HandlerInstance} from './Rule';
 import {MemberRef} from '../xml/MemberRef';
 import {State} from './State';
@@ -90,14 +91,33 @@ export class Parser {
 	) {
 		var xml = sax.createStream(true, { position: true });
 		let rule = (output.constructor as RuleClass).rule;
-
 		var xmlSpace = context.registerNamespace('http://www.w3.org/XML/1998/namespace');
-		var state = new State(null, null, rule, new rule.handler());
+
+		let namespaceTbl: { [short: string]: [ Namespace, string ] } = {
+			'': [rule.namespace, rule.namespace.getPrefix()],
+			'xml': [xmlSpace, xmlSpace.getPrefix()]
+		};
+
+		var state = new State(null, null, rule, new rule.handler(), namespaceTbl);
 		var rootState = state;
 		let parentItem: HandlerInstance;
 
-		state.addNamespace('', rule.namespace);
-		if(xmlSpace) state.addNamespace('xml', xmlSpace);
+		/** Add a new xmlns prefix recognized inside current tag and its children. */
+
+		function addNamespace(short: string, namespace: Namespace) {
+			if(namespaceTbl[short] && namespaceTbl[short][0] == namespace) return;
+
+			if(namespaceTbl == state.namespaceTbl) {
+				// Copy parent namespace table on first write.
+				namespaceTbl = {};
+
+				for(let key of Object.keys(state.namespaceTbl)) {
+					namespaceTbl[key] = state.namespaceTbl[key];
+				}
+			}
+
+			namespaceTbl[short] = [ namespace, namespace.getPrefix() ];
+		}
 
 		xml.on('opentag', (node: sax.Tag) => {
 			var attrTbl = node.attributes;
@@ -107,6 +127,8 @@ export class Parser {
 			var splitter = name.indexOf(':');
 			var item: HandlerInstance = null;
 
+			namespaceTbl = state.namespaceTbl;
+
 			// Read xmlns namespace prefix definitions before parsing node name.
 
 			for(var key of Object.keys(attrTbl)) {
@@ -114,7 +136,7 @@ export class Parser {
 					var nsParts = key.match(/^xmlns(:(.+))?$/);
 
 					if(nsParts) {
-						state.addNamespace(nsParts[2] || '', context.registerNamespace(attrTbl[key]));
+						addNamespace(nsParts[2] || '', context.registerNamespace(attrTbl[key]));
 					}
 				}
 			}
@@ -128,7 +150,7 @@ export class Parser {
 
 			// Add internal surrogate key namespace prefix to node name.
 
-			var nodeNamespace = state.namespaceTbl[nodePrefix];
+			var nodeNamespace = namespaceTbl[nodePrefix];
 			name = nodeNamespace[1] + name;
 
 			var child: MemberRef;
@@ -140,7 +162,7 @@ export class Parser {
 				if(child) {
 					if(child.proxy) {
 						rule = child.proxy.member.rule;
-						state = new State(state, child.proxy, rule, new rule.handler());
+						state = new State(state, child.proxy, rule, new rule.handler(), namespaceTbl);
 					}
 
 					rule = child.member.rule;
@@ -159,7 +181,7 @@ export class Parser {
 						var attrPrefix = key.substr(0, splitter);
 						if(attrPrefix == 'xmlns') continue;
 
-						var attrNamespace = state.namespaceTbl[attrPrefix];
+						var attrNamespace = namespaceTbl[attrPrefix];
 
 						if(attrNamespace) {
 							attr = attrNamespace[1] + key.substr(splitter + 1);
@@ -193,7 +215,7 @@ export class Parser {
 				if(item._before) item._before();
 			}
 
-			state = new State(state, child, rule, item);
+			state = new State(state, child, rule, item, namespaceTbl);
 		});
 
 		xml.on('text', function(text: string) {
