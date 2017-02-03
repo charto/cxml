@@ -12,6 +12,8 @@ export interface HandlerInstance {
 	content?: any;
 	_exists: boolean;
 	_namespace: string;
+	_parent?: HandlerInstance;
+	_name?: string;
 
 	_before?(): void;
 	_after?(): void;

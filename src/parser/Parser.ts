@@ -94,6 +94,7 @@ export class Parser {
 		var xmlSpace = context.registerNamespace('http://www.w3.org/XML/1998/namespace');
 		var state = new State(null, null, rule, new rule.handler());
 		var rootState = state;
+		let parentItem: HandlerInstance;
 
 		state.addNamespace('', rule.namespace);
 		if(xmlSpace) state.addNamespace('xml', xmlSpace);
@@ -176,6 +177,18 @@ export class Parser {
 						item[ref.safeName] = convertPrimitive(attrTbl[key], ref.member.rule);
 					}
 				}
+
+				if(state.parent) {
+					Object.defineProperty(item, '_parent', {
+						enumerable: false,
+						value: state.parent.item
+					});
+				}
+
+				Object.defineProperty(item, '_name', {
+					enumerable: false,
+					value: node.name
+				});
 
 				if(item._before) item._before();
 			}
