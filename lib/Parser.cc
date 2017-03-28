@@ -204,6 +204,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// an element or attribute name, anything else is an error.
 				if(!nameStartCharTbl[c]) return(false);
 
+				// Look for a ":" separator indicating a qualified name (starts
+				// with a namespace prefix). If the entire name doesn't fit in
+				// the input buffer, we first try to parse as a qualified name.
 				for(ahead = 0; ahead < len && nameCharTbl[p[ahead]]; ++ahead) {}
 
 /*
@@ -224,7 +227,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				tokenStart = p - 1;
 				pos = 0;
-				if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
+				if(!cursor.advance(c)) {
+					// TODO: Try to switch to another trie already.
+					goto EMIT_PARTIAL_NAME;
+				}
 
 				state = State :: NAME;
 				break;
@@ -267,7 +273,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				writeToken(tokenType, id, tokenPtr);
 
-pos += p - tokenStart;
 				knownName = true;
 				state = nextState;
 				continue;
@@ -306,6 +311,8 @@ pos += p - tokenStart;
 				state = State :: UNKNOWN_NAME;
 				goto UNKNOWN_NAME;
 
+			// From this part onwards, the name was not found in any applicable
+			// Patricia trie.
 			case State :: UNKNOWN_NAME: UNKNOWN_NAME:
 
 				while(nameCharTbl[c]) {
@@ -344,6 +351,7 @@ pos += p - tokenStart;
 				state = State :: AFTER_ELEMENT_NAME;
 				goto AFTER_ELEMENT_NAME;
 
+			// Inside an element start tag with the name already parsed.
 			case State :: AFTER_ELEMENT_NAME: AFTER_ELEMENT_NAME:
 
 				switch(c) {
@@ -389,6 +397,7 @@ pos += p - tokenStart;
 
 				break;
 
+			// Just read an attribute name, now expecting an equals sign.
 			case State :: AFTER_ATTRIBUTE_NAME: AFTER_ATTRIBUTE_NAME:
 
 				if(c == '=') {
@@ -400,6 +409,8 @@ pos += p - tokenStart;
 
 				break;
 
+			// Just read an attribute name and an equals sign, now expecting
+			// a value surrounded in double quotes.
 			case State :: BEFORE_ATTRIBUTE_VALUE:
 
 				if(c == '"') {
@@ -437,6 +448,8 @@ pos += p - tokenStart;
 
 				break;
 
+			// Just read an attribute beginning "xmlns:". Parse the namespace
+			// prefix it defines.
 			case State :: DEFINE_XMLNS_PREFIX:
 
 				nextState = State :: AFTER_XMLNS_NAME;
@@ -474,6 +487,7 @@ pos += p - tokenStart;
 				// attribute as-is.
 				goto AFTER_ATTRIBUTE_NAME;
 
+			// Tag starting with <! (comment, cdata, entity definition...)
 			case State :: SGML_DECLARATION:
 
 				switch(c) {
@@ -504,6 +518,7 @@ pos += p - tokenStart;
 				}
 				break;
 
+			// Inside a processing instruction with the name already parsed.
 			case State :: AFTER_PROCESSING_NAME: AFTER_PROCESSING_NAME:
 
 				switch(c) {
@@ -540,6 +555,7 @@ pos += p - tokenStart;
 
 				break;
 
+			// Enforce whitespace between processing instruction attributes.
 			case State :: AFTER_PROCESSING_VALUE:
 
 				switch(c) {
