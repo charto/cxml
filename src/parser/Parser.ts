@@ -4,6 +4,8 @@ import * as nbind from 'nbind';
 import * as ParserLib from './Lib';
 
 import { ArrayType } from '../tokenizer/Buffer';
+import { Patricia } from '../tokenizer/Patricia';
+import { TokenSet } from '../tokenizer/TokenSet';
 import { Token } from '../tokenizer/Token';
 import { Namespace } from '../Namespace';
 
@@ -32,6 +34,7 @@ const enum CodeType {
 	CLOSE_ELEMENT_ID,
 	ATTRIBUTE_ID,
 	PROCESSING_ID,
+	XMLNS_ID,
 
 	ATTRIBUTE_START_OFFSET,
 	ATTRIBUTE_END_OFFSET,
@@ -50,19 +53,23 @@ const enum CodeType {
 	UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
 	UNKNOWN_ATTRIBUTE_END_OFFSET,
 	UNKNOWN_PROCESSING_END_OFFSET,
+	UNKNOWN_XMLNS_END_OFFSET,
 
 	PROCESSING_END_TYPE,
 
 	// Recognized prefix from an unrecognized name.
-	PREFIX_NAME_LEN,
-	PREFIX_NAME_ID
+	PARTIAL_NAME_LEN,
+	PARTIAL_NAME_ID
 }
 
 export const enum TokenType {
+	// The order of these must match the corresponding initial members of
+	// CodeType.
 	OPEN_ELEMENT = 0,
 	CLOSE_ELEMENT,
 	ATTRIBUTE,
 	PROCESSING,
+	XMLNS,
 
 	VALUE,
 	TEXT,
@@ -96,34 +103,43 @@ tokenTypeTbl[CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET] = TokenType.UNKNOWN_ATTRIBUT
 tokenTypeTbl[CodeType.UNKNOWN_PROCESSING_END_OFFSET] = TokenType.UNKNOWN_PROCESSING;
 
 export class Parser extends stream.Transform {
-	constructor(config: ParserConfig) {
+	constructor(config: ParserConfig, private tokenSet: TokenSet) {
 		super({ objectMode: true });
+
+		this.prefixSet = new TokenSet();
+		this.prefixTrie = new Patricia();
 
 		this.parser = new lib.Parser(config);
 
 		this.codeBuffer = new Uint32Array(tokenBufferSize);
-		this.parser.setTokenBuffer(this.codeBuffer, () => this.parseTokenBuffer(true));
+		this.parser.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
+		this.parser.setPrefixTrie(this.prefixTrie.encode());
 	}
 
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
 		this.chunk = chunk;
 		this.flush = flush;
 		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
+
+		this.tokenNum = 0;
 		this.parser.parse(chunk as Buffer);
-		this.parseTokenBuffer(false);
+		this.parseCodeBuffer(false);
+
+		this.tokenBuffer[0] = this.tokenNum;
+		this.flush(null, this.tokenBuffer);
 	}
 
-	private parseTokenBuffer(pending: boolean) {
+	private parseCodeBuffer(pending: boolean) {
 		const codeBuffer = this.codeBuffer;
 		const codeCount = codeBuffer[0];
 
 		let codeNum = 0;
 		let partStart = this.partStart;
-		let prefixLen = this.prefixLen;
+		let partialLen = this.partialLen;
 
 		const tokenBuffer = this.tokenBuffer;
-		const tokenList = Token.list;
-		let tokenNum = 0;
+		const tokenList = this.tokenSet.list;
+		let tokenNum = this.tokenNum;
 		let token: Token;
 
 		while(codeNum < codeCount) {
@@ -138,7 +154,14 @@ export class Parser extends stream.Transform {
 				case CodeType.PROCESSING_ID:
 
 					tokenBuffer[++tokenNum] = kind as TokenType;
+					//if(!tokenList[code]) console.error(kind + ' ' + code);
 					tokenBuffer[++tokenNum] = tokenList[code];
+					break;
+
+				case CodeType.XMLNS_ID:
+
+					tokenBuffer[++tokenNum] = TokenType.XMLNS;
+					tokenBuffer[++tokenNum] = this.prefixSet.list[code];
 					break;
 
 				case CodeType.TEXT_START_OFFSET:
@@ -168,15 +191,32 @@ export class Parser extends stream.Transform {
 					partStart = -1;
 					break;
 
-				case CodeType.PREFIX_NAME_LEN:
+				case CodeType.UNKNOWN_XMLNS_END_OFFSET:
 
-					prefixLen = code;
+					// Add the namespace prefix to a separate trie. Incoming
+					// code buffer should have been flushed immediately
+					// after writing this token.
+
+					token = this.prefixSet.add(this.getSlice(partStart, code));
+					this.prefixTrie.insertNode(token);
+					this.parser.setPrefixTrie(this.prefixTrie.encode());
+
+					// TODO: Should instead emit TokenType.XMLNS with the
+					// recently defined prefix token!
+					tokenBuffer[++tokenNum] = TokenType.XMLNS;
+					tokenBuffer[++tokenNum] = token;
+					partStart = -1;
 					break;
 
-				case CodeType.PREFIX_NAME_ID:
+				case CodeType.PARTIAL_NAME_LEN:
+
+					partialLen = code;
+					break;
+
+				case CodeType.PARTIAL_NAME_ID:
 
 					if(!this.partList) this.partList = [];
-					this.partList.push(tokenList[code].name.substr(0, prefixLen));
+					this.partList.push(tokenList[code].name.substr(0, partialLen));
 					this.bufferPartList = null;
 					break;
 
@@ -201,10 +241,8 @@ export class Parser extends stream.Transform {
 		}
 
 		this.partStart = partStart;
-		this.prefixLen = prefixLen;
-		tokenBuffer[0] = tokenNum;
-
-		this.flush(null, tokenBuffer);
+		this.partialLen = partialLen;
+		this.tokenNum = tokenNum;
 	}
 
 	private storeSlice(start: number, end?: number) {
@@ -268,7 +306,12 @@ export class Parser extends stream.Transform {
 	/** Offset to start of text in input buffer, or -1 if not reading text. */
 	private partStart = -1;
 
-	private prefixLen: number;
+	private partialLen: number;
+
+	private tokenNum: number;
+
+	private prefixSet: TokenSet;
+	private prefixTrie: Patricia;
 
 	private parser: ParserLib.Parser;
 	private codeBuffer: Uint32Array;

@@ -5,7 +5,6 @@
 bool PatriciaCursor :: advance(unsigned char c) {
 	const unsigned char *p = ptr;
 	unsigned char delta;
-	found = nullptr;
 
 	// Loop until the current trie branch node contains an entire byte.
 	while(len < 8) {
@@ -21,13 +20,19 @@ bool PatriciaCursor :: advance(unsigned char c) {
 
 			// High bit of associated data value signals no longer strings
 			// with this prefix exist.
-			if(*p & 0x80) return(false);
+			if(*p & 0x80) {
+				ptr = p;
+				return(false);
+			}
 		}
 
 		if(delta) {
 			// If input differs from branch node contents in bits before
 			// the last one, then it was not found in the trie.
-			if(delta > 1) return(false);
+			if(delta > 1) {
+				ptr = p;
+				return(false);
+			}
 
 			// If the last bit differs, find pointer to the second child.
 			// It must exist, otherwise there would be no branch here.
@@ -46,7 +51,10 @@ bool PatriciaCursor :: advance(unsigned char c) {
 
 	// If the node contains a full byte but the input doesn't match,
 	// then it was not found in the trie.
-	if(c != *p++) return(false);
+	if(c != *p++) {
+		ptr = p;
+		return(false);
+	}
 
 	len -= 8;
 
@@ -66,7 +74,27 @@ bool PatriciaCursor :: advance(unsigned char c) {
 	return(true);
 }
 
-unsigned int PatriciaCursor :: findLeaf() {
+bool PatriciaCursor :: reinit(const Patricia &trie) {
+	const unsigned char *p = trie.root;
+	const unsigned char *target = ptr;
+	unsigned char c;
+	PatriciaCursor other;
+
+	other.init(trie);
+
+	// TODO!
+	while(0 && p < target) {
+		// c = ...
+
+		if(!other.advance(c)) return(false);
+	}
+
+	*this = other;
+
+	return(true);
+}
+
+uint32_t PatriciaCursor :: findLeaf() {
 	const unsigned char *p = ptr;
 	uint32_t data;
 

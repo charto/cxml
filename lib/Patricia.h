@@ -27,8 +27,8 @@ public:
 
 	void setRoot(const unsigned char *root) { this->root = root; }
 
-	static constexpr unsigned int notFound = 0x7fffff;
-	static constexpr unsigned int idMask = 0x7fffff;
+	static constexpr uint32_t notFound = 0x7fffff;
+	static constexpr uint32_t idMask = 0x7fffff;
 
 private:
 

@@ -2,26 +2,17 @@ import { ArrayType, concatArray } from './Buffer';
 import { Token } from './Token';
 
 class Node {
-	constructor(token: Token, buf: ArrayType, len: number, first?: Node, second?: Node) {
-		this.token = token;
-		this.buf = buf;
-		this.len = len;
-
-		this.first = first;
-		this.second = second;
-	}
-
-	token: Token | null;
-	buf: ArrayType;
-	len: number;
-
-	first?: Node;
-	second?: Node;
+	constructor(
+		public token: Token | null,
+		public buf: ArrayType,
+		public len: number,
+		public first?: Node,
+		public second?: Node
+	) {}
 }
 
 class PatriciaCursor {
-	constructor(node: Node) {
-		this.node = node;
+	constructor(public node: Node) {
 		this.pos = 0;
 		this.len = node.len;
 	}
@@ -77,7 +68,6 @@ class PatriciaCursor {
 		return(true);
 	}
 
-	node: Node;
 	pos: number;
 	len: number;
 }
@@ -142,7 +132,7 @@ export class Patricia {
 			node.buf = node.buf.slice(0, cursor.pos + (+(bit > 1)));
 			node.len = cursor.pos * 8 + bit - 1;
 		} else if(!rest) {
-			throw(new Error('Duplicates not supported'));
+			throw(new Error('Duplicates not supported: ' + token.name));
 		} else {
 			// The new node only extends an existing node.
 			node.first = rest;
@@ -179,25 +169,10 @@ export class Patricia {
 	}
 
 	encode() {
-		// TODO: Preorder traverse trie and build list of buffers.
-		// NOTE: REMEMBER Data value high bit signals end of the inserted string.
-
-		/*
-		function rec(prefix: string, node: Node) {
-			console.log(prefix + node.buf + ' ' + node.len);
-			prefix += ' ';
-			if(node.first) rec(prefix, node.first);
-			if(node.second) rec(prefix, node.second);
-		}
-
-		console.log('Tree:\n');
-		rec(' ', this.root);
-		*/
-
 		let dataLen = 0;
 		const dataList: ArrayType[] = [];
 
-		function rrec(node: Node) {
+		function encodeNode(node: Node) {
 			const len = node.buf.length + 4;
 			const data = new ArrayType(len);
 
@@ -210,16 +185,16 @@ export class Patricia {
 			data[pos++] = node.len;
 			for(let c of node.buf as any) data[pos++] = c;
 
-			if(node.first) rrec(node.first);
+			if(node.first) encodeNode(node.first);
 
 			let ref: number;
 
 			if(node.second) {
 				ref = dataLen - prevDataLen + 3;
-				rrec(node.second);
+				encodeNode(node.second);
 			} else {
 				ref = node.token!.id || 0;
-				if(!node.first) ref |= 0x800000;
+				if(!node.first) ref |= 0x800000; // See 0x80 in PatriciaCursor.cc
 			}
 
 			data[pos++] = ref >> 16;
@@ -227,11 +202,16 @@ export class Patricia {
 			data[pos++] = ref;
 		}
 
+		const sentinel = Patricia.sentinel;
+
 		// Encode trie contents into a buffer.
-		rrec(this.root);
+		encodeNode(this.root || new Node(sentinel, sentinel.buf, sentinel.buf.length * 8));
 
 		return(concatArray(dataList, dataLen));
 	}
+
+	/** Represents the root of an empty tree. */
+	private static sentinel = new Token('\0', 0x7fffff); // Patricia :: notFound
 
 	private root: Node;
 }

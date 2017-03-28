@@ -22,11 +22,12 @@ public:
 		AFTER_LT,
 		BEFORE_ELEMENT_NAME,
 		EXPECT_ELEMENT_NAME, NAME,
-		BEFORE_PREFIX, UNKNOWN_NAME,
+		EMIT_PARTIAL_NAME, UNKNOWN_NAME,
 		STORE_ELEMENT_NAME, AFTER_ELEMENT_NAME,
 		AFTER_CLOSE_ELEMENT_NAME,
 		AFTER_ATTRIBUTE_NAME,
 		BEFORE_ATTRIBUTE_VALUE, AFTER_ATTRIBUTE_VALUE,
+		DEFINE_XMLNS_PREFIX, AFTER_XMLNS_NAME,
 		SGML_DECLARATION,
 		AFTER_PROCESSING_NAME, AFTER_PROCESSING_VALUE,
 		BEFORE_COMMENT, COMMENT, COMMENT_ENDING,
@@ -36,12 +37,15 @@ public:
 
 	static constexpr unsigned int TOKEN_SHIFT = 5;
 
-	// TODO: cdata??? (no entity parsing on JS side)
+	// TODO: cdata start/end (no entity parsing on JS side)
+	// Namespace shorthand declaration start/end
+	// Namespace URI start / end ??? (could be handled as an attribute value)
 	enum class TokenType : uint32_t {
 		OPEN_ELEMENT_ID = 0,
 		CLOSE_ELEMENT_ID,
 		ATTRIBUTE_ID,
 		PROCESSING_ID,
+		XMLNS_ID,
 
 		ATTRIBUTE_START_OFFSET,
 		ATTRIBUTE_END_OFFSET,
@@ -60,12 +64,13 @@ public:
 		UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
 		UNKNOWN_ATTRIBUTE_END_OFFSET,
 		UNKNOWN_PROCESSING_END_OFFSET,
+		UNKNOWN_XMLNS_END_OFFSET,
 
 		PROCESSING_END_TYPE,
 
-		// Recognized prefix from an unrecognized name.
-		PREFIX_NAME_LEN,
-		PREFIX_NAME_ID
+		// Recognized part from an unrecognized name.
+		PARTIAL_NAME_LEN,
+		PARTIAL_NAME_ID
 	};
 
 	Parser(std::shared_ptr<ParserConfig> config);
@@ -73,6 +78,9 @@ public:
 	~Parser() {
 		delete[] namespaceList;
 	}
+
+	/** Parse a chunk of incoming data. */
+	bool parse(nbind::Buffer chunk);
 
 	void setTokenBuffer(nbind::Buffer tokenBuffer, nbind::cbFunction &flushTokens) {
 		this->flushTokens = std::unique_ptr<nbind::cbFunction>(new nbind::cbFunction(flushTokens));
@@ -82,15 +90,17 @@ public:
 		tokenBufferEnd = tokenList + tokenBuffer.length() / 4;
 	}
 
+	inline void flush(uint32_t *&tokenPtr) {
+		(*flushTokens)();
+		tokenList[0] = 0;
+		tokenPtr = tokenList + 1;
+	}
+
 	/** Output a token. This is the only function writing to memory, so safety
 	  * from code execution exploits depends on this and nothing else. */
 
 	inline void writeToken(TokenType kind, uint32_t token, uint32_t *&tokenPtr) {
-		if(tokenPtr >= tokenBufferEnd) {
-			(*flushTokens)();
-			tokenList[0] = 0;
-			tokenPtr = tokenList + 1;
-		}
+		if(tokenPtr >= tokenBufferEnd) flush(tokenPtr);
 
 		// Buffer content length is stored at its beginning.
 		++tokenList[0];
@@ -100,11 +110,12 @@ public:
 		*tokenPtr++ = static_cast<uint32_t>(kind) + (token << TOKEN_SHIFT);
 	}
 
+	void setPrefixTrie(nbind::Buffer buffer) {
+		prefixBuffer = buffer;
+		prefixTrie.setRoot(buffer.data());
+	}
+
 	void debug(unsigned char c);
-
-	/** Parse a chunk of incoming data. */
-
-	bool parse(nbind::Buffer chunk);
 
 	std::shared_ptr<ParserConfig> config;
 
@@ -122,6 +133,8 @@ public:
 	/** Next state after reading an attribute value. Regular elements and
 	  * processing instructions need different handling. */
 	State afterValueState;
+	/** Flag whether the previously emitted name was found in a trie. */
+	bool knownName;
 
 	/** Expected character for moving to another state. */
 	unsigned char expected;
@@ -134,6 +147,9 @@ public:
 
 	// TODO: Maybe this could be std::function<void ()>
 	std::unique_ptr<nbind::cbFunction> flushTokens;
+
+	Patricia prefixTrie;
+	nbind::Buffer prefixBuffer;
 	nbind::Buffer tokenBuffer;
 	uint32_t *tokenList;
 	const uint32_t *tokenBufferEnd;

@@ -12,6 +12,9 @@ export class Parser extends NBindBase {
 	/** void setTokenBuffer(Buffer, cbFunction &); */
 	setTokenBuffer(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer, p1: (...args: any[]) => any): void;
 
+	/** void setPrefixTrie(Buffer); */
+	setPrefixTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
+
 	/** bool parse(Buffer); */
 	parse(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): boolean;
 }

@@ -8,22 +8,13 @@ declare class TextEncoder {
 }
 
 export class Token {
-	constructor(name: string) {
-		this.name = name;
+	constructor(public name: string, public id: number) {
 		this.buf = (
 			typeof(Buffer) == 'function' ?
 			new Buffer(name) :
 			new TextEncoder('utf-8').encode(name)
 		);
-
-		this.id = Token.idNext++;
-		Token.list[this.id] = this;
 	}
 
-	static idNext = 0;
-	static list: Token[] = [];
-
-	name: string;
 	buf: ArrayType;
-	id?: number;
 }

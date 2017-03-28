@@ -1,11 +1,11 @@
 import { ArrayType, concatArray } from './tokenizer/Buffer';
+import { TokenSet } from './tokenizer/TokenSet';
 import { Token } from './tokenizer/Token';
 import { Patricia } from './tokenizer/Patricia';
 
 export class Namespace {
-	constructor(uri: string, defaultPrefix: string) {
-		this.uri = uri;
-		this.defaultPrefix = defaultPrefix;
+	constructor(tokenSet: TokenSet, public defaultPrefix: string, public uri: string) {
+		this.attributeTrie.insertNode(tokenSet.nsToken);
 	}
 
 	addElementTokens(itemList: Token[]) {
@@ -31,9 +31,6 @@ export class Namespace {
 
 		return(concatArray([ offsetList, elementData, attributeData ], len));
 	}
-
-	uri: string;
-	defaultPrefix: string;
 
 	elementTrie = new Patricia();
 	attributeTrie = new Patricia();
