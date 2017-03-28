@@ -2,16 +2,17 @@ import { Token } from './Token';
 
 export class TokenSet {
 	constructor() {
-		this.nsToken = this.add('xmlns');
+		this.xmlnsToken = this.add('xmlns');
 	}
 
 	add(name: string) {
-		const token = new Token(name, this.list.length);
+		const token = new Token(name, ++this.lastNum);
 
-		this.list.push(token);
+		this.list[token.id] = token;
 		return(token);
 	}
 
-	nsToken: Token;
+	xmlnsToken: Token;
 	list: Token[] = [];
+	lastNum = -1;
 }

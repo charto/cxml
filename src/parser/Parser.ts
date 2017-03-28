@@ -19,9 +19,10 @@ export type RawNamespace = ParserLib.Namespace;
 
 export type TokenBuffer = (number | Token | string)[];
 
-// const tokenBufferSize = 2;
-// const tokenBufferSize = 3;
-const tokenBufferSize = 8192;
+// const codeBufferSize = 2;
+// const codeBufferSize = 3;
+const codeBufferSize = 8192;
+const namespacePrefixTblSize = 256;
 
 const enum TOKEN {
 	SHIFT = 5,
@@ -106,14 +107,18 @@ export class Parser extends stream.Transform {
 	constructor(config: ParserConfig, private tokenSet: TokenSet) {
 		super({ objectMode: true });
 
-		this.prefixSet = new TokenSet();
-		this.prefixTrie = new Patricia();
-
 		this.parser = new lib.Parser(config);
 
-		this.codeBuffer = new Uint32Array(tokenBufferSize);
+		this.codeBuffer = new Uint32Array(codeBufferSize);
 		this.parser.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
-		this.parser.setPrefixTrie(this.prefixTrie.encode());
+
+		this.prefixSet = new TokenSet();
+		this.prefixTrie = new Patricia();
+		this.prefixTrie.insertNode(this.prefixSet.xmlnsToken);
+		this.parser.setPrefixTrie(this.prefixTrie.encode(), 0);
+
+		this.uriTrie = new Patricia();
+		this.parser.setUriTrie(this.uriTrie.encode(), 0);
 	}
 
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
@@ -199,7 +204,13 @@ export class Parser extends stream.Transform {
 
 					token = this.prefixSet.add(this.getSlice(partStart, code));
 					this.prefixTrie.insertNode(token);
-					this.parser.setPrefixTrie(this.prefixTrie.encode());
+					// Pass new trie and ID of last inserted token to C++.
+					this.parser.setPrefixTrie(this.prefixTrie.encode(), token.id);
+
+					if(token.id > namespacePrefixTblSize) {
+						// TODO: report row and column in error messages.
+						throw(new Error('Too many namespace prefixes'));
+					}
 
 					// TODO: Should instead emit TokenType.XMLNS with the
 					// recently defined prefix token!
@@ -312,6 +323,7 @@ export class Parser extends stream.Transform {
 
 	private prefixSet: TokenSet;
 	private prefixTrie: Patricia;
+	private uriTrie: Patricia;
 
 	private parser: ParserLib.Parser;
 	private codeBuffer: Uint32Array;
