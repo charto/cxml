@@ -2,8 +2,8 @@
 
 #include "Parser.h"
 
-#ifndef DEBUG_PREFIX_RECOVERY
-#	define DEBUG_PREFIX_RECOVERY 0
+#ifndef DEBUG_PARTIAL_NAME_RECOVERY
+#	define DEBUG_PARTIAL_NAME_RECOVERY 0
 #endif
 
 unsigned char bom[] = { 0xef, 0xbb, 0xbf, 0 };
@@ -15,6 +15,8 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) : config(config) {
 	namespaceList = new const Namespace *[config->namespaceList.size()];
 	const Namespace **ns = namespaceList;
 
+	// Copy shared namespace pointers from config for faster access.
+	// We hold a shared pointer to the config object ensuring these remain valid.
 	for(auto &nsShared : config->namespaceList) {
 		*ns++ = nsShared.get();
 	}
@@ -206,7 +208,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				tokenStart = p - 1;
 				pos = 0;
-				if(!cursor.advance(c)) goto BEFORE_PREFIX;
+				if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
 
 				// Element name.
 				state = State :: NAME;
@@ -216,8 +218,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for capturing element and attribute names.
 				while(nameCharTbl[c]) {
-					// Match the name, or output the prefix matched so far.
-					if(!cursor.advance(c)) goto BEFORE_PREFIX;
+// TODO: Remove this label.
+RETRY_NAME:
+					// Match the name, or output the partial name matched so far.
+					if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
 
 					// debug(c);
 
@@ -228,18 +232,35 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					c = *p++;
 				}
 
+				if(c == ':') {
+					// Test for an attribute "xmlns:..." defining a namespace
+					// prefix.
+					// TODO: ensure this is inside an element, not a processing
+					// instruction!
+					if(cursor.getData() == config->xmlnsToken) {
+						state = State :: DEFINE_XMLNS_PREFIX;
+						break;
+					}
+
+					// TODO: Reintepret token up to cursor as a namespace prefix.
+					goto RETRY_NAME;
+				}
+
 				id = cursor.getData();
+				if(id == Patricia :: notFound) goto EMIT_PARTIAL_NAME;
+
 				writeToken(tokenType, id, tokenPtr);
 
+				knownName = true;
 				state = nextState;
 				continue;
 
-			case State :: BEFORE_PREFIX: BEFORE_PREFIX:
+			case State :: EMIT_PARTIAL_NAME: EMIT_PARTIAL_NAME:
 
 				// This name was not found in the Patricia trie, but if it was
 				// a partial match then input was already consumed and possibly
 				// lost if the input buffer was drained.
-				// We may need to emit the length of the matched prefix and
+				// We may need to emit the length of the matched part and
 				// any token starting with it, to recover the complete name.
 
 				pos += p - tokenStart;
@@ -247,15 +268,15 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// Test if the number of characters consumed is more than one,
 				// and more than past characters still left in the input buffer.
 				// Otherwise we can still take the other, faster branch.
-				if(pos > 1 && (pos > static_cast<size_t>(p - chunkBuffer) || DEBUG_PREFIX_RECOVERY)) {
+				if(pos > 1 && (pos > static_cast<size_t>(p - chunkBuffer) || DEBUG_PARTIAL_NAME_RECOVERY)) {
 					// NOTE: This is a very rare and complicated edge case.
 					// Test it with the debug flag to run it more often.
 
-					// Emit prefix length.
-					writeToken(TokenType :: PREFIX_NAME_LEN, pos - 1, tokenPtr);
+					// Emit part length.
+					writeToken(TokenType :: PARTIAL_NAME_LEN, pos - 1, tokenPtr);
 					// Emit the first descendant leaf node, which by definition
-					// will begin with this prefix (any descendant leaf would work).
-					writeToken(TokenType :: PREFIX_NAME_ID, cursor.findLeaf(), tokenPtr);
+					// will begin with this name part (any descendant leaf would work).
+					writeToken(TokenType :: PARTIAL_NAME_ID, cursor.findLeaf(), tokenPtr);
 					// Emit the offset of the remaining part of the name.
 					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - 1, tokenPtr);
 				} else {
@@ -266,13 +287,20 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				id = Patricia :: notFound;
 				state = State :: UNKNOWN_NAME;
-				break;
+				goto UNKNOWN_NAME;
 
-			case State :: UNKNOWN_NAME:
+			case State :: UNKNOWN_NAME: UNKNOWN_NAME:
 
 				while(nameCharTbl[c]) {
+// TODO: Remove this label.
+RETRY_UNKNOWN_NAME:
 					if(!--len) return(true);
 					c = *p++;
+				}
+
+				if(c == ':') {
+					// TODO: Error: undeclared namespace prefix.
+					goto RETRY_UNKNOWN_NAME;
 				}
 
 				writeToken(
@@ -285,6 +313,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					tokenPtr
 				);
 
+				knownName = false;
 				state = nextState;
 				continue;
 
@@ -329,7 +358,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 							tokenStart = p - 1;
 							pos = 0;
-							if(!cursor.advance(c)) goto BEFORE_PREFIX;
+							if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
 
 							// Attribute name.
 							state = State :: NAME;
@@ -352,7 +381,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				break;
 
-			case State :: AFTER_ATTRIBUTE_NAME:
+			case State :: AFTER_ATTRIBUTE_NAME: AFTER_ATTRIBUTE_NAME:
 
 				if(c == '=') {
 					state = State :: BEFORE_ATTRIBUTE_VALUE;
@@ -399,6 +428,34 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				}
 
 				break;
+
+			case State :: DEFINE_XMLNS_PREFIX:
+
+				nextState = State :: AFTER_XMLNS_NAME;
+				// Prepare to emit the chosen namespace prefix.
+				tokenType = TokenType :: XMLNS_ID;
+
+				// Prepare Patricia tree cursor for parsing an xmlns prefix.
+				cursor.init(prefixTrie);
+
+				tokenStart = p - 1;
+				pos = 0;
+				if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
+
+				// Prefix name.
+				state = State :: NAME;
+				break;
+
+			case State :: AFTER_XMLNS_NAME:
+
+				// If the name was unrecognized, flush tokens so JavaScript
+				// updates the namespace prefix trie and this tokenizer can
+				// recognize it in the future.
+				if(!knownName) flush(tokenPtr);
+
+				// TODO: need to match namespace URL instead of emitting the
+				// attribute as-is.
+				goto AFTER_ATTRIBUTE_NAME;
 
 			case State :: SGML_DECLARATION:
 
@@ -557,8 +614,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 struct Init {
 	Init() {
 		const char *white = "\r\n\t ";
-		const char *nameStartRanges =  "::__AZaz\x80\xf7";
-		const char *nameRanges = "..--09::__AZaz\x80\xf7";
+		const char *nameStartRanges =  "__AZaz\x80\xf7";
+		const char *nameRanges = "..--09__AZaz\x80\xf7";
 		const char *p;
 		unsigned char c, e;
 
@@ -594,6 +651,7 @@ Init init;
 NBIND_CLASS(Parser) {
 	construct<std::shared_ptr<ParserConfig> >();
 	method(setTokenBuffer);
+	method(setPrefixTrie);
 	method(parse);
 }
 

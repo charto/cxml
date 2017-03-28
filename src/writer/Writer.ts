@@ -111,6 +111,11 @@ export class Writer extends stream.Transform {
 					state = State.PROCESSING;
 					break;
 
+				case TokenType.XMLNS:
+
+					partList[++partNum] = ' xmlns:' + (tokenBuffer[++tokenNum] as Token).name + '=';
+					break;
+
 				case TokenType.UNKNOWN_PROCESSING:
 
 					if(state == State.ELEMENT) partList[++partNum] = '>\n';

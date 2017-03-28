@@ -13,20 +13,26 @@ public:
 	void init(const Patricia &trie) {
 		ptr = trie.root;
 		len = *ptr++;
+
+		found = nullptr;
 	}
+
+	/** Try to match previous input using a different trie. On failure,
+	  * the cursor remains unchanged. */
+	bool reinit(const Patricia &trie);
 
 	/** Advance to the next input character, updating pointer to any associated
 	  * value found. */
 	bool advance(unsigned char c);
 
 	/** Find the ID of any descendant leaf after advance has failed. */
-	unsigned int findLeaf();
+	uint32_t findLeaf();
 
 	/** Get the data value associated with the string.
 	  * Valid values are from 0 to 0x7ffffe and 0x7fffff indicates no data.
 	  * Values are 3 bytes and the highest bit is an internal flag whether
 	  * the trie node has no children. */
-	unsigned int getData();
+	uint32_t getData();
 
 private:
 
