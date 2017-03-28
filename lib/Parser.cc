@@ -23,6 +23,8 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) : config(config) {
 
 	state = State :: BEGIN;
 	pos = 0;
+	row = 0;
+	col = 0;
 }
 
 void Parser :: debug(unsigned char c) {
@@ -54,6 +56,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 	// Read a byte of input.
 	c = *p++;
+	updateRowCol(c);
 
 	/*
 		This loop represents a DFA (deterministic finite automaton) where
@@ -122,6 +125,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 					if(!--len) return(true);
 					c = *p++;
+					updateRowCol(c);
 				}
 
 				writeToken(
@@ -239,6 +243,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						return(true);
 					}
 					c = *p++;
+					updateRowCol(c);
 				}
 
 				if(c == ':') {
@@ -306,6 +311,7 @@ pos += p - tokenStart;
 				while(nameCharTbl[c]) {
 					if(!--len) return(true);
 					c = *p++;
+					updateRowCol(c);
 				}
 
 				if(c == ':') {
@@ -571,6 +577,7 @@ pos += p - tokenStart;
 
 					if(!--len) return(true);
 					c = *p++;
+					updateRowCol(c);
 				}
 
 				expected = '-';
@@ -619,6 +626,7 @@ pos += p - tokenStart;
 		// consuming input) by using "continue".
 		if(!--len) return(true);
 		c = *p++;
+		updateRowCol(c);
 	}
 }
 
@@ -664,6 +672,8 @@ NBIND_CLASS(Parser) {
 	method(setTokenBuffer);
 	method(setPrefixTrie);
 	method(setUriTrie);
+	getter(getRow);
+	getter(getCol);
 	method(parse);
 }
 
