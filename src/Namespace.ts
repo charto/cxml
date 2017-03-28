@@ -5,7 +5,7 @@ import { Patricia } from './tokenizer/Patricia';
 
 export class Namespace {
 	constructor(tokenSet: TokenSet, public defaultPrefix: string, public uri: string) {
-		this.attributeTrie.insertNode(tokenSet.nsToken);
+		this.attributeTrie.insertNode(tokenSet.xmlnsToken);
 	}
 
 	addElementTokens(itemList: Token[]) {

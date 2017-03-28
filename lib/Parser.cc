@@ -40,6 +40,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	// printf("\e[0m\n\nPARSING CHUNK\n\n");
 
 	size_t len = chunk.length();
+	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
 	unsigned char c;
@@ -138,6 +139,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			// character determines what kind of tag.
 			case State :: AFTER_LT:
 
+				trie = &Namespace :: elementTrie;
+
 				switch(c) {
 					// An SGML declaration <! ... > or <![CDATA[ ... ]]>
 					// or a comment <!-- ... -->
@@ -154,10 +157,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						afterValueState = State :: AFTER_PROCESSING_VALUE;
 						tokenType = TokenType :: PROCESSING_ID;
 
-						// Stricter, disallow whitespace after '<?':
-						// state = State :: EXPECT_ELEMENT_NAME;
-						state = State :: BEFORE_ELEMENT_NAME;
-
+						state = State :: BEFORE_NAME;
 						break;
 
 					// A closing element </NAME > (no whitespace after '<').
@@ -165,9 +165,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						nextState = State :: AFTER_CLOSE_ELEMENT_NAME;
 						tokenType = TokenType :: CLOSE_ELEMENT_ID;
 
-						// Stricter, disallow whitespace after '/':
-						// state = State :: EXPECT_ELEMENT_NAME;
-						state = State :: BEFORE_ELEMENT_NAME;
+						state = State :: BEFORE_NAME;
 						break;
 
 					// An element <NAME ... >. May be self-closing.
@@ -176,11 +174,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
 						tokenType = TokenType :: OPEN_ELEMENT_ID;
 
-						// Stricter, disallow whitespace after '<':
-						// state = State :: EXPECT_ELEMENT_NAME;
-						state = State :: BEFORE_ELEMENT_NAME;
+						state = State :: BEFORE_NAME;
 						// Avoid consuming the first character.
-						goto BEFORE_ELEMENT_NAME;
+						goto BEFORE_NAME;
 				}
 
 				break;
@@ -188,29 +184,44 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			// Skip any whitespace before an element name. XML doesn't
 			// actually allow any, so this state could be removed for
 			// stricter parsing.
+			/*
 			case State :: BEFORE_ELEMENT_NAME: BEFORE_ELEMENT_NAME:
 
 				if(whiteCharTbl[c]) break;
 
-				state = State :: EXPECT_ELEMENT_NAME;
-				goto EXPECT_ELEMENT_NAME;
+				state = State :: BEFORE_NAME;
+				goto BEFORE_NAME;
+			*/
 
-			// The current character must be the valid first character of an
-			// element or attribute name, anything else is an error.
-			// Start matching the name to known names in a Patricia trie.
-			case State :: EXPECT_ELEMENT_NAME: EXPECT_ELEMENT_NAME:
+			// Start matching a name to known names in a Patricia trie.
+			case State :: BEFORE_NAME: BEFORE_NAME:
 
-				// Prepare Patricia tree cursor for parsing an element name.
-				// TODO: Use correct namespace ID.
-				cursor.init(namespaceList[0]->elementTrie);
-
+				// The current character must be the valid first character of
+				// an element or attribute name, anything else is an error.
 				if(!nameStartCharTbl[c]) return(false);
+
+				for(ahead = 0; ahead < len && nameCharTbl[p[ahead]]; ++ahead) {}
+
+/*
+				// Prepare Patricia tree cursor for parsing.
+				if(ahead >= len) {
+					// Assume a namespace prefix, because a ":" separator
+					// may be in the next input buffer chunk.
+					cursor.init(prefixTrie);
+				} else if(p[ahead] == ':') {
+					// Name contains ":" so it starts with a namespace prefix.
+					// fprintf(stderr, "PREFIX FOUND: %.*s\n", ahead + 1, p - 1);
+					cursor.init(prefixTrie);
+				} else {
+					// Element or attribute name.
+*/
+					cursor.init(namespaceList[0]->*trie);
+//				}
 
 				tokenStart = p - 1;
 				pos = 0;
 				if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
 
-				// Element name.
 				state = State :: NAME;
 				break;
 
@@ -218,8 +229,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for capturing element and attribute names.
 				while(nameCharTbl[c]) {
-// TODO: Remove this label.
-RETRY_NAME:
 					// Match the name, or output the partial name matched so far.
 					if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
 
@@ -235,15 +244,17 @@ RETRY_NAME:
 				if(c == ':') {
 					// Test for an attribute "xmlns:..." defining a namespace
 					// prefix.
-					// TODO: ensure this is inside an element, not a processing
-					// instruction!
 					if(cursor.getData() == config->xmlnsToken) {
+						// TODO: ensure this is inside an element, not a processing
+						// instruction!
 						state = State :: DEFINE_XMLNS_PREFIX;
 						break;
 					}
 
-					// TODO: Reintepret token up to cursor as a namespace prefix.
-					goto RETRY_NAME;
+					// TODO: If matching a namespace, use it here. Otherwise,
+					// reintepret token up to cursor as a namespace prefix.
+					// cursor.init(namespaceList[0]->*trie);
+					break;
 				}
 
 				id = cursor.getData();
@@ -251,6 +262,7 @@ RETRY_NAME:
 
 				writeToken(tokenType, id, tokenPtr);
 
+pos += p - tokenStart;
 				knownName = true;
 				state = nextState;
 				continue;
@@ -292,15 +304,15 @@ RETRY_NAME:
 			case State :: UNKNOWN_NAME: UNKNOWN_NAME:
 
 				while(nameCharTbl[c]) {
-// TODO: Remove this label.
-RETRY_UNKNOWN_NAME:
 					if(!--len) return(true);
 					c = *p++;
 				}
 
 				if(c == ':') {
-					// TODO: Error: undeclared namespace prefix.
-					goto RETRY_UNKNOWN_NAME;
+					// TODO: Handle a so far undeclared namespace prefix.
+					// It can be valid if there's a corresponding xmlns:...
+					// attribute in the same element.
+					break;
 				}
 
 				writeToken(
@@ -321,7 +333,7 @@ RETRY_UNKNOWN_NAME:
 
 				// Store element name ID (already output) to verify closing element.
 				// TODO: Push to a stack and verify!
-				elementID = id;
+				idElement = id;
 
 				state = State :: AFTER_ELEMENT_NAME;
 				goto AFTER_ELEMENT_NAME;
@@ -331,7 +343,7 @@ RETRY_UNKNOWN_NAME:
 				switch(c) {
 					case '/':
 
-						writeToken(TokenType :: CLOSE_ELEMENT_ID, elementID, tokenPtr);
+						writeToken(TokenType :: CLOSE_ELEMENT_ID, idElement, tokenPtr);
 
 						expected = '>';
 						nextState = State :: BEFORE_TEXT;
@@ -347,26 +359,16 @@ RETRY_UNKNOWN_NAME:
 
 					default:
 
-						if(nameStartCharTbl[c]) {
+						if(whiteCharTbl[c]) break;
+						else {
 							nextState = State :: AFTER_ATTRIBUTE_NAME;
 							tokenType = TokenType :: ATTRIBUTE_ID;
 
-							// Prepare Patricia tree cursor for parsing
-							// an attribute name.
-							// TODO: Use correct namespace ID.
-							cursor.init(namespaceList[0]->attributeTrie);
-
-							tokenStart = p - 1;
-							pos = 0;
-							if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
+							trie = &Namespace :: attributeTrie;
 
 							// Attribute name.
-							state = State :: NAME;
-							break;
-						} else if(whiteCharTbl[c]) {
-							break;
-						} else {
-							return(false);
+							state = State :: BEFORE_NAME;
+							goto BEFORE_NAME;
 						}
 				}
 
@@ -451,7 +453,16 @@ RETRY_UNKNOWN_NAME:
 				// If the name was unrecognized, flush tokens so JavaScript
 				// updates the namespace prefix trie and this tokenizer can
 				// recognize it in the future.
-				if(!knownName) flush(tokenPtr);
+				if(!knownName) {
+					flush(tokenPtr);
+					// Assume JavaScript passed inserted token ID to
+					// setPrefixTrie which sets idLast.
+					id = idLast;
+				}
+
+				// Store index of namespace prefix in prefix mapping table,
+				// because it's about to be (re)mapped.
+				idPrefix = id;
 
 				// TODO: need to match namespace URL instead of emitting the
 				// attribute as-is.
@@ -652,6 +663,7 @@ NBIND_CLASS(Parser) {
 	construct<std::shared_ptr<ParserConfig> >();
 	method(setTokenBuffer);
 	method(setPrefixTrie);
+	method(setUriTrie);
 	method(parse);
 }
 

@@ -8,11 +8,26 @@
 #include "PatriciaCursor.h"
 #include "ParserConfig.h"
 
+struct ParserState {
+
+	/** Flag whether the opening tag had a namespace prefix. */
+	bool isQualified;
+	/** Namespace of this element. */
+	Namespace *nsElement;
+	/** Default xmlns before entering this element. */
+	Namespace *nsOuterDefault;
+	/** Number of new xmlns mappings made by this element. */
+	uint32_t xmlnsMapCount;
+
+};
+
 /** Fast streaming XML parser. */
 
 class Parser {
 
 public:
+
+	static constexpr uint32_t namespacePrefixTblSize = 256;
 
 	/** Parser states. */
 
@@ -20,8 +35,7 @@ public:
 		BEGIN,
 		BEFORE_TEXT, TEXT,
 		AFTER_LT,
-		BEFORE_ELEMENT_NAME,
-		EXPECT_ELEMENT_NAME, NAME,
+		BEFORE_NAME, NAME,
 		EMIT_PARTIAL_NAME, UNKNOWN_NAME,
 		STORE_ELEMENT_NAME, AFTER_ELEMENT_NAME,
 		AFTER_CLOSE_ELEMENT_NAME,
@@ -110,9 +124,16 @@ public:
 		*tokenPtr++ = static_cast<uint32_t>(kind) + (token << TOKEN_SHIFT);
 	}
 
-	void setPrefixTrie(nbind::Buffer buffer) {
+	void setPrefixTrie(nbind::Buffer buffer, uint32_t id) {
 		prefixBuffer = buffer;
 		prefixTrie.setRoot(buffer.data());
+		idLast = id;
+	}
+
+	void setUriTrie(nbind::Buffer buffer, uint32_t id) {
+		uriBuffer = buffer;
+		uriTrie.setRoot(buffer.data());
+		idLast = id;
 	}
 
 	void debug(unsigned char c);
@@ -121,6 +142,8 @@ public:
 
 	/** Namespace list copied from config, which owns it. */
 	const Namespace **namespaceList;
+
+	Namespace *namespacePrefixTbl[namespacePrefixTblSize];
 
 	PatriciaCursor cursor;
 
@@ -141,15 +164,25 @@ public:
 
 	size_t pos;
 
-	uint32_t elementID;
+	uint32_t row;
+	uint32_t col;
+
+	uint32_t idLast;
+	uint32_t idPrefix;
+
+	uint32_t idElement;
 	TokenType tokenType;
 	const unsigned char *tokenStart;
 
 	// TODO: Maybe this could be std::function<void ()>
 	std::unique_ptr<nbind::cbFunction> flushTokens;
 
+	Patricia Namespace :: *trie;
+
 	Patricia prefixTrie;
+	Patricia uriTrie;
 	nbind::Buffer prefixBuffer;
+	nbind::Buffer uriBuffer;
 	nbind::Buffer tokenBuffer;
 	uint32_t *tokenList;
 	const uint32_t *tokenBufferEnd;
