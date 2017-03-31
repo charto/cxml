@@ -226,9 +226,8 @@ export class Parser extends stream.Transform {
 
 				case CodeType.PARTIAL_NAME_ID:
 
-					if(!this.partList) this.partList = [];
-					this.partList.push(tokenList[code].name.substr(0, partialLen));
-					this.bufferPartList = null;
+					this.bufferPartList = [ tokenList[code].buf.slice(0, partialLen) as any ];
+					this.partList = [ this.bufferPartList ];
 					break;
 
 				case CodeType.PROCESSING_END_TYPE:
