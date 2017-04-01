@@ -11,6 +11,12 @@ class Node {
 	) {}
 }
 
+/** Maximum number of bits per node (number must fit in 1 byte). */
+const MAX_LEN = 255; // Test edge cases by using smaller numbers (>= 8) here!
+
+/** Must equal Patricia :: notFound on C++ side. */
+const NOT_FOUND = 0x7fffff;
+
 class PatriciaCursor {
 	constructor(public node: Node) {
 		this.pos = 0;
@@ -74,8 +80,6 @@ class PatriciaCursor {
 
 export class Patricia {
 	insertNode(token: Token) {
-		// TODO: Split all nodes longer than 32 bytes.
-
 		let pos = 0;
 		let root = this.root;
 
@@ -168,50 +172,81 @@ export class Patricia {
 		}
 	}
 
-	encode() {
-		let dataLen = 0;
-		const dataList: ArrayType[] = [];
+	private static encodeNode(node: Node, dataList: ArrayType[]) {
+		let len = node.len;
+		let partLen: number;
+		let byteLen: number;
+		let totalByteLen = 0;
+		let posIn = -1;
+		let posOut: number;
 
-		function encodeNode(node: Node) {
-			const len = node.buf.length + 4;
-			const data = new ArrayType(len);
+		while(len) {
+			partLen = len;
+			if(partLen > MAX_LEN) partLen = MAX_LEN & ~7;
+
+			// Convert bit to byte length rounding up, add 1 byte for length
+			// header and 3 bytes for reference
+			// (token ID or offset to second child).
+			byteLen = (partLen + 7) >> 3;
+			const data = new ArrayType(byteLen + 4);
 
 			dataList.push(data);
-			dataLen += len;
-			let prevDataLen = dataLen;
+			totalByteLen += byteLen + 4;
 
-			let pos = 0;
+			posOut = 0;
 
-			data[pos++] = node.len;
-			for(let c of node.buf as any) data[pos++] = c;
-
-			if(node.first) encodeNode(node.first);
+			data[posOut] = partLen;
+			while(posOut < byteLen) data[++posOut] = node.buf[++posIn];
 
 			let ref: number;
 
-			if(node.second) {
-				ref = dataLen - prevDataLen + 3;
-				encodeNode(node.second);
+			if(len > MAX_LEN) {
+				ref = NOT_FOUND;
 			} else {
-				ref = node.token!.id || 0;
-				if(!node.first) ref |= 0x800000; // See 0x80 in PatriciaCursor.cc
+				let nextTotalLen = 0;
+				if(node.first) nextTotalLen += Patricia.encodeNode(node.first, dataList);
+
+				if(node.second) {
+					ref = nextTotalLen + 3;
+					nextTotalLen += Patricia.encodeNode(node.second, dataList);
+				} else {
+					ref = node.token!.id || 0;
+					if(!node.first) ref |= 0x800000; // See 0x80 in PatriciaCursor.cc
+				}
+
+				totalByteLen += nextTotalLen;
 			}
 
-			data[pos++] = ref >> 16;
-			data[pos++] = ref >> 8;
-			data[pos++] = ref;
+			data[++posOut] = ref >> 16;
+			data[++posOut] = ref >> 8;
+			data[++posOut] = ref;
+
+			len -= partLen;
 		}
 
-		const sentinel = Patricia.sentinel;
+		return(totalByteLen);
+	}
+
+	encode() {
+		const dataList: ArrayType[] = [];
 
 		// Encode trie contents into a buffer.
-		encodeNode(this.root || new Node(sentinel, sentinel.buf, sentinel.buf.length * 8));
+		const dataLen = Patricia.encodeNode(
+			this.root || Patricia.sentinel,
+			dataList
+		);
 
 		return(concatArray(dataList, dataLen));
 	}
 
+	private static emptyToken = new Token('\0', NOT_FOUND);
+
 	/** Represents the root of an empty tree. */
-	private static sentinel = new Token('\0', 0x7fffff); // Patricia :: notFound
+	private static sentinel = new Node(
+		Patricia.emptyToken,
+		Patricia.emptyToken.buf,
+		Patricia.emptyToken.buf.length * 8
+	);
 
 	private root: Node;
 }
