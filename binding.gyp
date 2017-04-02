@@ -5,8 +5,9 @@
 				"auto.gypi"
 			],
 			"sources": [
-				"lib/Namespace.cc",
+				"lib/Patricia.cc",
 				"lib/PatriciaCursor.cc",
+				"lib/Namespace.cc",
 				"lib/ParserConfig.cc",
 				"lib/Parser.cc"
 			]

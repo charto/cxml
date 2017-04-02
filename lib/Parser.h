@@ -125,18 +125,17 @@ public:
 	}
 
 	void setPrefixTrie(nbind::Buffer buffer, uint32_t id) {
-		prefixBuffer = buffer;
-		prefixTrie.setRoot(buffer.data());
+		prefixTrie.setBuffer(buffer);
 		idLast = id;
 	}
 
 	void setUriTrie(nbind::Buffer buffer, uint32_t id) {
-		uriBuffer = buffer;
-		uriTrie.setRoot(buffer.data());
+		uriTrie.setBuffer(buffer);
 		idLast = id;
 	}
 
-	/* Branchless cursor position update based on UTF-8 input byte. */
+	/** Branchless cursor position update based on UTF-8 input byte. Assumes
+	  * each codepoint is a separate character printed left to right. */
 	inline void updateRowCol(unsigned char c) {
 		col = (
 			// If c is a tab, round col up to just before the next tab stop.
@@ -201,8 +200,6 @@ public:
 
 	Patricia prefixTrie;
 	Patricia uriTrie;
-	nbind::Buffer prefixBuffer;
-	nbind::Buffer uriBuffer;
 	nbind::Buffer tokenBuffer;
 	uint32_t *tokenList;
 	const uint32_t *tokenBufferEnd;
