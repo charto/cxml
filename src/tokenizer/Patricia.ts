@@ -105,19 +105,18 @@ export class Patricia {
 		}
 
 		if(cursor.len) {
-			let bit: number;
+			let bit = 0;
 
 			if(rest) {
-				const c = token.buf[pos] ^ node.buf[cursor.pos];
-				bit = 0;
+				let c = token.buf[pos] ^ node.buf[cursor.pos];
 
-				while(bit++ < 8) {
-					if((c >> (8 - bit)) & 1) break;
+				while(!(c & 0x80)) {
+					c <<= 1;
+					++bit;
 				}
 			} else {
 				// The new node is a prefix of this node.
 				// Cut this node at a byte boundary.
-				bit = 1;
 			}
 
 			// Split the node.
@@ -133,8 +132,8 @@ export class Patricia {
 			node.second = rest;
 
 			node.token = rest ? null : token;
-			node.buf = node.buf.slice(0, cursor.pos + (+(bit > 1)));
-			node.len = cursor.pos * 8 + bit - 1;
+			node.buf = node.buf.slice(0, cursor.pos + ((bit + 7) >> 3));
+			node.len = cursor.pos * 8 + bit;
 		} else if(!rest) {
 			throw(new Error('Duplicates not supported: ' + token.name));
 		} else {

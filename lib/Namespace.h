@@ -8,15 +8,15 @@ class Namespace {
 
 public:
 
-	Namespace(nbind::Buffer buffer);
+	void setElementTrie(nbind::Buffer buffer) {
+		elementTrie.setBuffer(buffer);
+	}
+
+	void setAttributeTrie(nbind::Buffer buffer) {
+		attributeTrie.setBuffer(buffer);
+	}
 
 	Patricia elementTrie;
 	Patricia attributeTrie;
-
-private:
-
-	/** Handle to the JavaScript buffer with inserted data,
-	  * to prevent garbage collecting it too early. */
-	nbind::Buffer buffer;
 
 };

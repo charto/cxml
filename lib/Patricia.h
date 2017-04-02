@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nbind/api.h>
+
 /*
 	A trie node contains data and 4 extra bytes:
 
@@ -27,6 +29,13 @@ public:
 
 	void setRoot(const unsigned char *root) { this->root = root; }
 
+	void setBuffer(nbind::Buffer buffer) {
+		this->buffer = buffer;
+		root = buffer.data();
+	}
+
+	uint32_t find(const char *needle);
+
 	static constexpr uint32_t notFound = 0x7fffff;
 	static constexpr uint32_t idMask = 0x7fffff;
 
@@ -34,5 +43,9 @@ private:
 
 	/** A separate tree root for each possible initial character. */
 	const unsigned char *root;
+
+	/** Handle to the JavaScript buffer with inserted data,
+	  * to prevent garbage collecting it too early. */
+	nbind::Buffer buffer;
 
 };

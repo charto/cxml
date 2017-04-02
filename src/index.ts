@@ -5,7 +5,7 @@ import { Token } from './tokenizer/Token';
 import { Namespace } from './Namespace';
 
 import { ElementSpec } from './schema/ElementSpec';
-import { Parser, ParserConfig, RawNamespace } from './parser/Parser';
+import { Parser, ParserConfig } from './parser/Parser';
 import { Writer } from './writer/Writer';
 
 const tokenSet = new TokenSet();
@@ -14,7 +14,7 @@ const ns = new Namespace(tokenSet, 'xml', 'http://www.w3.org/XML/1998/namespace'
 ns.addElementTokens([ tokenSet.add('xml') ]);
 
 const config = new ParserConfig();
-config.addNamespace(new RawNamespace(ns.encode()));
+config.addNamespace(ns.encode());
 
 const xml = new Parser(config, tokenSet);
 

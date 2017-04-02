@@ -3,6 +3,8 @@ import { TokenSet } from './tokenizer/TokenSet';
 import { Token } from './tokenizer/Token';
 import { Patricia } from './tokenizer/Patricia';
 
+import { RawNamespace } from './parser/Parser';
+
 export class Namespace {
 	constructor(tokenSet: TokenSet, public defaultPrefix: string, public uri: string) {
 		this.attributeTrie.insertNode(tokenSet.xmlnsToken);
@@ -16,20 +18,13 @@ export class Namespace {
 		this.attributeTrie.insertList(itemList);
 	}
 
-	encode() {
-		const offsetList = new ArrayType(3);
-		const elementData = this.elementTrie.encode();
-		const attributeData = this.attributeTrie.encode();
+	encode(): RawNamespace {
+		const result = new RawNamespace();
 
-		let len = offsetList.length + elementData.length;
+		result.setElementTrie(this.elementTrie.encode());
+		result.setAttributeTrie(this.attributeTrie.encode());
 
-		offsetList[0] = len >> 16;
-		offsetList[1] = len >> 8;
-		offsetList[2] = len;
-
-		len += attributeData.length;
-
-		return(concatArray([ offsetList, elementData, attributeData ], len));
+		return(result);
 	}
 
 	elementTrie = new Patricia();
