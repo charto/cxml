@@ -19,7 +19,7 @@ public:
 
 	/** Try to match previous input using a different trie. On failure,
 	  * the cursor remains unchanged. */
-	bool reinit(const Patricia &trie);
+	bool transfer(const Patricia &trie);
 
 	/** Advance to the next input character, updating pointer to any associated
 	  * value found. */
