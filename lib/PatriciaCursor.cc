@@ -74,7 +74,7 @@ bool PatriciaCursor :: advance(unsigned char c) {
 	return(true);
 }
 
-bool PatriciaCursor :: reinit(const Patricia &trie) {
+bool PatriciaCursor :: transfer(const Patricia &trie) {
 	const unsigned char *p = trie.root;
 	const unsigned char *target = ptr;
 	unsigned char c;

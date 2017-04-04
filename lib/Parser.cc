@@ -27,6 +27,24 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) : config(config) {
 	col = 0;
 }
 
+/** Branchless cursor position update based on UTF-8 input byte. Assumes
+  * each codepoint is a separate character printed left to right. */
+inline void Parser :: updateRowCol(unsigned char c) {
+	col = (
+		// If c is a tab, round col up to just before the next tab stop.
+		(col | ((c != '\t') - 1 & 7)) +
+		// Then increment col if c is not a UTF-8 continuation byte.
+		((c & 0xc0) != 0x80)        // Equals: (( (c >> 6) | ~(c >> 7) ) & 1)
+	) & (
+		// Finally set col to zero if c is a line feed.
+		(c == '\n') - 1             // Equals: (( (uint32_t(c) - '\n' - 1) &
+									//           ~(uint32_t(c) - '\n'    )   ) >> 31) - 1
+	);
+
+	// Increment row if c is a line feed.
+	row += (c == '\n');
+}
+
 void Parser :: debug(unsigned char c) {
 	// unsigned int color = static_cast<unsigned int>(state);
 	// printf("\e[%d;%dm%c", (color & 8) >> 3, 30 + (color & 7), c);
@@ -68,7 +86,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 		additional tighter inner loop for speed.
 
 		Some duplicated states are avoided using the nextState variable,
-		which allows execution to jump to a shared state and back.
+		which allows execution to jump to a common state and back again.
 	*/
 
 	while(1) {
@@ -197,6 +215,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				goto BEFORE_NAME;
 			*/
 
+			// -----------------------------------------
+			// Element and attribute name parsing begins
+			// -----------------------------------------
+
 			// Start matching a name to known names in a Patricia trie.
 			case State :: BEFORE_NAME: BEFORE_NAME:
 
@@ -207,6 +229,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// Look for a ":" separator indicating a qualified name (starts
 				// with a namespace prefix). If the entire name doesn't fit in
 				// the input buffer, we first try to parse as a qualified name.
+				// This is an optional lookup to avoid later reprocessing.
 				for(ahead = 0; ahead < len && nameCharTbl[p[ahead]]; ++ahead) {}
 
 /*
@@ -303,7 +326,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - 1, tokenPtr);
 				} else {
 					// The consumed part of the name still remains in the
-					// input buffer. Just emit its starting offset.
+					// input buffer. Simply emit its starting offset.
 					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - pos, tokenPtr);
 				}
 
@@ -341,6 +364,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				knownName = false;
 				state = nextState;
 				continue;
+
+			// ---------------------------------------
+			// Element and attribute name parsing ends
+			// ---------------------------------------
 
 			case State :: STORE_ELEMENT_NAME:
 
@@ -397,7 +424,11 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				break;
 
-			// Just read an attribute name, now expecting an equals sign.
+			// ------------------------------
+			// Attribute value parsing begins
+			// ------------------------------
+
+			// Finished reading an attribute name, now expecting an equals sign.
 			case State :: AFTER_ATTRIBUTE_NAME: AFTER_ATTRIBUTE_NAME:
 
 				if(c == '=') {
@@ -409,8 +440,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				break;
 
-			// Just read an attribute name and an equals sign, now expecting
-			// a value surrounded in double quotes.
+			// Finished reading an attribute name and an equals sign,
+			// now expecting a value surrounded in double quotes.
 			case State :: BEFORE_ATTRIBUTE_VALUE:
 
 				if(c == '"') {
@@ -448,8 +479,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				break;
 
-			// Just read an attribute beginning "xmlns:". Parse the namespace
-			// prefix it defines.
+			// Finished reading read an attribute name beginning "xmlns:".
+			// Parse the namespace prefix it defines.
 			case State :: DEFINE_XMLNS_PREFIX:
 
 				nextState = State :: AFTER_XMLNS_NAME;
@@ -486,6 +517,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// TODO: need to match namespace URL instead of emitting the
 				// attribute as-is.
 				goto AFTER_ATTRIBUTE_NAME;
+
+			// ----------------------------
+			// Attribute value parsing ends
+			// ----------------------------
 
 			// Tag starting with <! (comment, cdata, entity definition...)
 			case State :: SGML_DECLARATION:
