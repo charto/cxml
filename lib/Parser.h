@@ -35,8 +35,7 @@ public:
 		BEGIN,
 		BEFORE_TEXT, TEXT,
 		AFTER_LT,
-		BEFORE_NAME, NAME,
-		EMIT_PARTIAL_NAME, UNKNOWN_NAME,
+		BEFORE_NAME, NAME, UNKNOWN_NAME,
 		STORE_ELEMENT_NAME, AFTER_ELEMENT_NAME,
 		AFTER_CLOSE_ELEMENT_NAME,
 		AFTER_ATTRIBUTE_NAME,
@@ -133,6 +132,8 @@ public:
 		uriTrie.setBuffer(buffer);
 		idLast = id;
 	}
+
+	inline void emitPartialName(const unsigned char *chunkBuffer, const unsigned char *p, uint32_t *&tokenPtr);
 
 	inline void updateRowCol(unsigned char c);
 
