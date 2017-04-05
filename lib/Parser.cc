@@ -6,7 +6,6 @@
 #	define DEBUG_PARTIAL_NAME_RECOVERY 0
 #endif
 
-unsigned char bom[] = { 0xef, 0xbb, 0xbf, 0 };
 unsigned char whiteCharTbl[256];
 unsigned char nameStartCharTbl[256];
 unsigned char nameCharTbl[256];
@@ -21,7 +20,11 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) : config(config) {
 		*ns++ = nsShared.get();
 	}
 
-	state = State :: BEGIN;
+	state = State :: MATCH;
+	pattern = "\xef\xbb\xbf\0";
+	matchState = State :: BEFORE_TEXT;
+	noMatchState = State :: BEFORE_TEXT;
+	partialMatchState = State :: ERROR;
 	pos = 0;
 	row = 0;
 	col = 0;
@@ -63,7 +66,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
-	unsigned char c;
+	unsigned char c, d;
 	uint32_t id;
 
 	// Indicate that no tokens inside the chunk were found yet.
@@ -85,31 +88,39 @@ bool Parser :: parse(nbind::Buffer chunk) {
 		Element and attribute names and values, text and comments use an
 		additional tighter inner loop for speed.
 
-		Some duplicated states are avoided using the nextState variable,
-		which allows execution to jump to a common state and back again.
+		Some duplicated states are avoided using the after<Name>State variables,
+		which allow execution to jump to a common state and back again.
 	*/
 
 	while(1) {
 		switch(state) {
-			// Parser start state at the beginning of input.
-			// Recognizes a UTF-8 BOM.
-			case State :: BEGIN:
 
-				if(c == bom[pos]) {
+			// Parser start state at the beginning of input,
+			// when pattern is a UTF-8 BOM.
+			case State :: MATCH:
+			case State :: MATCH_SPARSE: MATCH_SPARSE:
+
+				d = pattern[pos];
+
+				if(!d) {
+					state = matchState;
+					pos = 0;
+					continue;
+				} else if(c == d) {
 					++pos;
 					break;
-				} else if(pos > 0 && pos < 3) {
-					// Invalid bom
-					return(false);
+				} else if(whiteCharTbl[c] && state == State :: MATCH_SPARSE) {
+					break;
 				} else {
-					state = State :: BEFORE_TEXT;
-					goto BEFORE_TEXT;
+					state = pos ? partialMatchState : noMatchState;
+					pos = 0;
+					continue;
 				}
 
 			// State at the beginning of input after a possible UTF-8 BOM,
 			// or after any closing tag.
 			// Skip whitespace and then read text up to an opening tag.
-			case State :: BEFORE_TEXT: BEFORE_TEXT:
+			case State :: BEFORE_TEXT:
 
 				if(whiteCharTbl[c]) break;
 
@@ -118,27 +129,24 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					break;
 				}
 
-				expected = '<';
-				nextState = State :: AFTER_LT;
+				textEndChar = '<';
+				afterTextState = State :: AFTER_LT;
 
-				tokenType = TokenType :: TEXT_START_OFFSET;
+				textTokenType = TokenType :: TEXT_START_OFFSET;
 				state = State :: TEXT;
 				// Avoid consuming the first character.
 				goto TEXT;
 
-			// Read text, which can be an attribute value or a text node.
-			// The variable "expected" set by a preceding state controls
-			// which character terminates the text and moves to nextState.
-			// Values are terminated by a '"' and text nodes by a '<'
-			// character.
+			// Read text, which can be an attribute value or a text node,
+			// until textEndChar (defined by a preceding state) is found.
 			// TODO: Detect and handle numbers in a special way for speed?
 			case State :: TEXT: TEXT:
 
-				writeToken(tokenType, p - chunkBuffer - 1, tokenPtr);
+				writeToken(textTokenType, p - chunkBuffer - 1, tokenPtr);
 
 				// Fast inner loop for capturing text between elements
 				// and in attribute values.
-				while(c != expected) {
+				while(c != textEndChar) {
 					// debug(c);
 
 					if(!--len) return(true);
@@ -149,12 +157,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				writeToken(
 					// End token ID is always one higher than the corresponding
 					// start token ID.
-					static_cast<TokenType>(static_cast<uint32_t>(tokenType) + 1),
+					static_cast<TokenType>(static_cast<uint32_t>(textTokenType) + 1),
 					p - chunkBuffer - 1,
 					tokenPtr
 				);
 
-				state = nextState;
+				state = afterTextState;
 				break;
 
 			// The previous character was a '<' starting a tag. The current
@@ -175,26 +183,26 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// instruction.
 					case '?':
 
-						nextState = State :: AFTER_PROCESSING_NAME;
+						afterNameState = State :: AFTER_PROCESSING_NAME;
 						afterValueState = State :: AFTER_PROCESSING_VALUE;
-						tokenType = TokenType :: PROCESSING_ID;
+						nameTokenType = TokenType :: PROCESSING_ID;
 
 						state = State :: BEFORE_NAME;
 						break;
 
 					// A closing element </NAME > (no whitespace after '<').
 					case '/':
-						nextState = State :: AFTER_CLOSE_ELEMENT_NAME;
-						tokenType = TokenType :: CLOSE_ELEMENT_ID;
+						afterNameState = State :: AFTER_CLOSE_ELEMENT_NAME;
+						nameTokenType = TokenType :: CLOSE_ELEMENT_ID;
 
 						state = State :: BEFORE_NAME;
 						break;
 
 					// An element <NAME ... >. May be self-closing.
 					default:
-						nextState = State :: STORE_ELEMENT_NAME;
+						afterNameState = State :: STORE_ELEMENT_NAME;
 						afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
-						tokenType = TokenType :: OPEN_ELEMENT_ID;
+						nameTokenType = TokenType :: OPEN_ELEMENT_ID;
 
 						state = State :: BEFORE_NAME;
 						// Avoid consuming the first character.
@@ -249,7 +257,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 //				}
 
 				tokenStart = p - 1;
-				pos = 0;
 
 				state = State :: NAME;
 				goto NAME;
@@ -289,18 +296,26 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					id = cursor.getData();
 
 					if(id != Patricia :: notFound) {
-						writeToken(tokenType, id, tokenPtr);
+						writeToken(nameTokenType, id, tokenPtr);
 
 						knownName = true;
-						state = nextState;
+						pos = 0;
+						state = afterNameState;
 						continue;
 					}
 				}
 
-				// If name is longer, output the partial name matched so far.
-				emitPartialName(chunkBuffer, p, tokenPtr);
+				pos += p - tokenStart;
+
+				// This name was not found in the Patricia trie, but if it was
+				// a partial match then input was already consumed and possibly
+				// list if the input buffer was drained. We may need to emit the
+				// length of the matched part and any token starting with it,
+				// to recover the complete name.
+				emitPartialName(p, static_cast<size_t>(p - chunkBuffer), tokenPtr);
 
 				id = Patricia :: notFound;
+				pos = 0;
 				state = State :: UNKNOWN_NAME;
 				goto UNKNOWN_NAME;
 
@@ -325,14 +340,14 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					static_cast<TokenType>(
 						static_cast<uint32_t>(TokenType :: UNKNOWN_OPEN_ELEMENT_END_OFFSET) -
 						static_cast<uint32_t>(TokenType :: OPEN_ELEMENT_ID) +
-						static_cast<uint32_t>(tokenType)
+						static_cast<uint32_t>(nameTokenType)
 					),
 					p - chunkBuffer - 1,
 					tokenPtr
 				);
 
 				knownName = false;
-				state = nextState;
+				state = afterNameState;
 				continue;
 
 			// ---------------------------------------
@@ -372,13 +387,24 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 						if(whiteCharTbl[c]) break;
 						else {
-							nextState = State :: AFTER_ATTRIBUTE_NAME;
-							tokenType = TokenType :: ATTRIBUTE_ID;
-
+							// First read an attribute name.
+							state = State :: BEFORE_NAME;
+							nameTokenType = TokenType :: ATTRIBUTE_ID;
 							trie = &Namespace :: attributeTrie;
 
+							// Then equals sign and opening double quote.
+							afterNameState = State :: MATCH_SPARSE;
+							pattern = "=\"";
+							noMatchState = State :: ERROR;
+							partialMatchState = State :: ERROR;
+
+							// Finally text content up to closing double quote.
+							matchState = State :: TEXT;
+							textTokenType = TokenType :: ATTRIBUTE_START_OFFSET;
+							textEndChar = '"';
+							afterTextState = afterValueState;
+
 							// Attribute name.
-							state = State :: BEFORE_NAME;
 							goto BEFORE_NAME;
 						}
 				}
@@ -397,34 +423,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			// ------------------------------
 			// Attribute value parsing begins
 			// ------------------------------
-
-			// Finished reading an attribute name, now expecting an equals sign.
-			case State :: AFTER_ATTRIBUTE_NAME: AFTER_ATTRIBUTE_NAME:
-
-				if(c == '=') {
-					state = State :: BEFORE_ATTRIBUTE_VALUE;
-					break;
-				} else if(!whiteCharTbl[c]) {
-					return(false);
-				}
-
-				break;
-
-			// Finished reading an attribute name and an equals sign,
-			// now expecting a value surrounded in double quotes.
-			case State :: BEFORE_ATTRIBUTE_VALUE:
-
-				if(c == '"') {
-					expected = '"';
-					nextState = afterValueState;
-
-					tokenType = TokenType :: ATTRIBUTE_START_OFFSET;
-					state = State :: TEXT;
-				} else if(!whiteCharTbl[c]) {
-					return(false);
-				}
-
-				break;
 
 			// Enforce whitespace between attributes.
 			case State :: AFTER_ATTRIBUTE_VALUE:
@@ -453,15 +451,14 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			// Parse the namespace prefix it defines.
 			case State :: DEFINE_XMLNS_PREFIX:
 
-				nextState = State :: AFTER_XMLNS_NAME;
+				afterNameState = State :: AFTER_XMLNS_NAME;
 				// Prepare to emit the chosen namespace prefix.
-				tokenType = TokenType :: XMLNS_ID;
+				nameTokenType = TokenType :: XMLNS_ID;
 
 				// Prepare Patricia tree cursor for parsing an xmlns prefix.
 				cursor.init(prefixTrie);
 
 				tokenStart = p - 1;
-				pos = 0;
 
 				// Prefix name.
 				state = State :: NAME;
@@ -485,7 +482,18 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// TODO: need to match namespace URL instead of emitting the
 				// attribute as-is.
-				goto AFTER_ATTRIBUTE_NAME;
+
+				state = State :: MATCH_SPARSE;
+				pattern = "=\"";
+				noMatchState = State :: ERROR;
+				partialMatchState = State :: ERROR;
+
+				matchState = State :: TEXT;
+				textTokenType = TokenType :: ATTRIBUTE_START_OFFSET;
+				textEndChar = '"';
+				afterTextState = afterValueState;
+
+				goto MATCH_SPARSE;
 
 			// ----------------------------
 			// Attribute value parsing ends
@@ -650,18 +658,11 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	}
 }
 
-inline void Parser :: emitPartialName(const unsigned char *chunkBuffer, const unsigned char *p, uint32_t *&tokenPtr) {
-	// This name was not found in the Patricia trie, but if it was a partial
-	// match then input was already consumed and possibly list if the input
-	// buffer was drained. We may need to emit the length of the matched part
-	// and any token starting with it, to recover the complete name.
-
-	pos += p - tokenStart;
-
+inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uint32_t *&tokenPtr) {
 	// Test if the number of characters consumed is more than one,
 	// and more than past characters still left in the input buffer.
 	// Otherwise we can still take the other, faster branch.
-	if(pos > 1 && (pos > static_cast<size_t>(p - chunkBuffer) || DEBUG_PARTIAL_NAME_RECOVERY)) {
+	if(pos > 1 && (pos > offset || DEBUG_PARTIAL_NAME_RECOVERY)) {
 		// NOTE: This is a very rare and complicated edge case.
 		// Test it with the debug flag to run it more often.
 
@@ -671,11 +672,11 @@ inline void Parser :: emitPartialName(const unsigned char *chunkBuffer, const un
 		// will begin with this name part (any descendant leaf would work).
 		writeToken(TokenType :: PARTIAL_NAME_ID, cursor.findLeaf(), tokenPtr);
 		// Emit the offset of the remaining part of the name.
-		writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - 1, tokenPtr);
+		writeToken(TokenType :: UNKNOWN_START_OFFSET, offset - 1, tokenPtr);
 	} else {
 		// The consumed part of the name still remains in the
 		// input buffer. Simply emit its starting offset.
-		writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - pos, tokenPtr);
+		writeToken(TokenType :: UNKNOWN_START_OFFSET, offset - pos, tokenPtr);
 	}
 }
 
