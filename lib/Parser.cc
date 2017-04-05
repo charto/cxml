@@ -250,21 +250,14 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				tokenStart = p - 1;
 				pos = 0;
-				if(!cursor.advance(c)) {
-					// TODO: Try to switch to another trie already.
-					goto EMIT_PARTIAL_NAME;
-				}
 
 				state = State :: NAME;
-				break;
+				goto NAME;
 
-			case State :: NAME:
+			case State :: NAME: NAME:
 
-				// Fast inner loop for capturing element and attribute names.
-				while(nameCharTbl[c]) {
-					// Match the name, or output the partial name matched so far.
-					if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
-
+				// Fast inner loop for matching to known element and attribute names.
+				while(cursor.advance(c)) {
 					// debug(c);
 
 					if(!--len) {
@@ -291,44 +284,21 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					break;
 				}
 
-				id = cursor.getData();
-				if(id == Patricia :: notFound) goto EMIT_PARTIAL_NAME;
+				if(!nameCharTbl[c]) {
+					// If the whole name was matched, get associated reference.
+					id = cursor.getData();
 
-				writeToken(tokenType, id, tokenPtr);
+					if(id != Patricia :: notFound) {
+						writeToken(tokenType, id, tokenPtr);
 
-				knownName = true;
-				state = nextState;
-				continue;
-
-			case State :: EMIT_PARTIAL_NAME: EMIT_PARTIAL_NAME:
-
-				// This name was not found in the Patricia trie, but if it was
-				// a partial match then input was already consumed and possibly
-				// lost if the input buffer was drained.
-				// We may need to emit the length of the matched part and
-				// any token starting with it, to recover the complete name.
-
-				pos += p - tokenStart;
-
-				// Test if the number of characters consumed is more than one,
-				// and more than past characters still left in the input buffer.
-				// Otherwise we can still take the other, faster branch.
-				if(pos > 1 && (pos > static_cast<size_t>(p - chunkBuffer) || DEBUG_PARTIAL_NAME_RECOVERY)) {
-					// NOTE: This is a very rare and complicated edge case.
-					// Test it with the debug flag to run it more often.
-
-					// Emit part length.
-					writeToken(TokenType :: PARTIAL_NAME_LEN, pos - 1, tokenPtr);
-					// Emit the first descendant leaf node, which by definition
-					// will begin with this name part (any descendant leaf would work).
-					writeToken(TokenType :: PARTIAL_NAME_ID, cursor.findLeaf(), tokenPtr);
-					// Emit the offset of the remaining part of the name.
-					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - 1, tokenPtr);
-				} else {
-					// The consumed part of the name still remains in the
-					// input buffer. Simply emit its starting offset.
-					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - pos, tokenPtr);
+						knownName = true;
+						state = nextState;
+						continue;
+					}
 				}
+
+				// If name is longer, output the partial name matched so far.
+				emitPartialName(chunkBuffer, p, tokenPtr);
 
 				id = Patricia :: notFound;
 				state = State :: UNKNOWN_NAME;
@@ -492,11 +462,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				tokenStart = p - 1;
 				pos = 0;
-				if(!cursor.advance(c)) goto EMIT_PARTIAL_NAME;
 
 				// Prefix name.
 				state = State :: NAME;
-				break;
+				goto NAME;
 
 			case State :: AFTER_XMLNS_NAME:
 
@@ -678,6 +647,35 @@ bool Parser :: parse(nbind::Buffer chunk) {
 		if(!--len) return(true);
 		c = *p++;
 		updateRowCol(c);
+	}
+}
+
+inline void Parser :: emitPartialName(const unsigned char *chunkBuffer, const unsigned char *p, uint32_t *&tokenPtr) {
+	// This name was not found in the Patricia trie, but if it was a partial
+	// match then input was already consumed and possibly list if the input
+	// buffer was drained. We may need to emit the length of the matched part
+	// and any token starting with it, to recover the complete name.
+
+	pos += p - tokenStart;
+
+	// Test if the number of characters consumed is more than one,
+	// and more than past characters still left in the input buffer.
+	// Otherwise we can still take the other, faster branch.
+	if(pos > 1 && (pos > static_cast<size_t>(p - chunkBuffer) || DEBUG_PARTIAL_NAME_RECOVERY)) {
+		// NOTE: This is a very rare and complicated edge case.
+		// Test it with the debug flag to run it more often.
+
+		// Emit part length.
+		writeToken(TokenType :: PARTIAL_NAME_LEN, pos - 1, tokenPtr);
+		// Emit the first descendant leaf node, which by definition
+		// will begin with this name part (any descendant leaf would work).
+		writeToken(TokenType :: PARTIAL_NAME_ID, cursor.findLeaf(), tokenPtr);
+		// Emit the offset of the remaining part of the name.
+		writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - 1, tokenPtr);
+	} else {
+		// The consumed part of the name still remains in the
+		// input buffer. Simply emit its starting offset.
+		writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer - pos, tokenPtr);
 	}
 }
 
