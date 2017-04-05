@@ -33,12 +33,12 @@ public:
 
 	enum class State : uint32_t {
 		BEGIN,
+		MATCH, MATCH_SPARSE,
 		BEFORE_TEXT, TEXT,
 		AFTER_LT,
 		BEFORE_NAME, NAME, UNKNOWN_NAME,
 		STORE_ELEMENT_NAME, AFTER_ELEMENT_NAME,
 		AFTER_CLOSE_ELEMENT_NAME,
-		AFTER_ATTRIBUTE_NAME,
 		BEFORE_ATTRIBUTE_VALUE, AFTER_ATTRIBUTE_VALUE,
 		DEFINE_XMLNS_PREFIX, AFTER_XMLNS_NAME,
 		SGML_DECLARATION,
@@ -133,7 +133,7 @@ public:
 		idLast = id;
 	}
 
-	inline void emitPartialName(const unsigned char *chunkBuffer, const unsigned char *p, uint32_t *&tokenPtr);
+	inline void emitPartialName(const unsigned char *p, size_t offset, uint32_t *&tokenPtr);
 
 	inline void updateRowCol(unsigned char c);
 
@@ -151,7 +151,14 @@ public:
 
 	PatriciaCursor cursor;
 
+	const char *pattern;
+
 	State state;
+	State matchState;
+	State noMatchState;
+	State partialMatchState;
+	State afterNameState;
+	State afterTextState;
 	/** Next state after reading an element, attribute or processing instruction
 	  * name, a text node or an attribute value. */
 	State nextState;
@@ -162,6 +169,8 @@ public:
 	State afterValueState;
 	/** Flag whether the previously emitted name was found in a trie. */
 	bool knownName;
+
+	unsigned char textEndChar;
 
 	/** Expected character for moving to another state. */
 	unsigned char expected;
@@ -175,7 +184,9 @@ public:
 	uint32_t idPrefix;
 
 	uint32_t idElement;
-	TokenType tokenType;
+
+	TokenType nameTokenType;
+	TokenType textTokenType;
 	const unsigned char *tokenStart;
 
 	// TODO: Maybe this could be std::function<void ()>
