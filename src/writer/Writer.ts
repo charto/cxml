@@ -136,7 +136,7 @@ export class Writer extends stream.Transform {
 
 				case TokenType.COMMENT:
 
-					partList[++partNum] = indent + '<!--' + tokenBuffer[++tokenNum] + '>\n';
+					partList[++partNum] = indent + '<!--' + tokenBuffer[++tokenNum] + '\n';
 					break;
 
 				default:

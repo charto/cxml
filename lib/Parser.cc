@@ -608,27 +608,24 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					updateRowCol(c);
 				}
 
-				expected = '-';
-				nextState = State :: COMMENT_ENDING;
-				otherState = State :: COMMENT;
+				pattern = "->";
+				matchState = State :: AFTER_COMMENT;
+				noMatchState = State :: COMMENT;
+				partialMatchState = State :: COMMENT;
 
-				state = State :: EXPECT;
+				state = State :: MATCH;
 				break;
 
-			// Note: the terminating "--" is included in the output byte range.
-			case State :: COMMENT_ENDING:
+			// Note: the terminating "-->" is included in the output byte range.
+			case State :: AFTER_COMMENT:
 
-				if(c == '>') {
-					writeToken(
-						TokenType :: COMMENT_END_OFFSET,
-						p - chunkBuffer - 1,
-						tokenPtr
-					);
-					state = State :: BEFORE_TEXT;
-				} else {
-					state = State :: COMMENT;
-				}
+				writeToken(
+					TokenType :: COMMENT_END_OFFSET,
+					p - chunkBuffer - 1,
+					tokenPtr
+				);
 
+				state = State :: BEFORE_TEXT;
 				break;
 
 			case State :: EXPECT:
