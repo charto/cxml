@@ -36,11 +36,12 @@ public:
 		MATCH, MATCH_SPARSE,
 		BEFORE_TEXT, TEXT,
 		AFTER_LT,
-		BEFORE_NAME, NAME, UNKNOWN_NAME,
+		BEFORE_NAME, MATCH_TRIE, NAME, UNKNOWN_NAME,
 		STORE_ELEMENT_NAME, AFTER_ELEMENT_NAME,
 		AFTER_CLOSE_ELEMENT_NAME,
 		BEFORE_ATTRIBUTE_VALUE, AFTER_ATTRIBUTE_VALUE,
 		DEFINE_XMLNS_PREFIX, AFTER_XMLNS_NAME,
+		BEFORE_VALUE, VALUE, UNKNOWN_VALUE, AFTER_XMLNS_URI,
 		SGML_DECLARATION,
 		AFTER_PROCESSING_NAME, AFTER_PROCESSING_VALUE,
 		BEFORE_COMMENT, COMMENT, AFTER_COMMENT,
@@ -59,6 +60,7 @@ public:
 		ATTRIBUTE_ID,
 		PROCESSING_ID,
 		XMLNS_ID,
+		URI_ID,
 
 		ATTRIBUTE_START_OFFSET,
 		ATTRIBUTE_END_OFFSET,
@@ -78,6 +80,7 @@ public:
 		UNKNOWN_ATTRIBUTE_END_OFFSET,
 		UNKNOWN_PROCESSING_END_OFFSET,
 		UNKNOWN_XMLNS_END_OFFSET,
+		UNKNOWN_URI_END_OFFSET,
 
 		PROCESSING_END_TYPE,
 
@@ -159,6 +162,7 @@ public:
 	State partialMatchState;
 	State afterNameState;
 	State afterTextState;
+	State afterMatchTrieState;
 	/** Next state after reading an element, attribute or processing instruction
 	  * name, a text node or an attribute value. */
 	State nextState;
@@ -187,6 +191,7 @@ public:
 
 	TokenType nameTokenType;
 	TokenType textTokenType;
+	TokenType valueTokenType;
 	const unsigned char *tokenStart;
 
 	// TODO: Maybe this could be std::function<void ()>
