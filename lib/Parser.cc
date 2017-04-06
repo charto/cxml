@@ -109,7 +109,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				} else if(c == d) {
 					++pos;
 					break;
-				} else if(whiteCharTbl[c] && state == State :: MATCH_SPARSE) {
+				} else if(state == State :: MATCH_SPARSE && whiteCharTbl[c]) {
 					break;
 				} else {
 					state = pos ? partialMatchState : noMatchState;
@@ -146,6 +146,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for capturing text between elements
 				// and in attribute values.
+				// TODO: disallow invalid characters!
+				// while(valueCharTbl[c]) {
 				while(c != textEndChar) {
 					// debug(c);
 
@@ -258,10 +260,11 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				tokenStart = p - 1;
 
-				state = State :: NAME;
-				goto NAME;
+				state = State :: MATCH_TRIE;
+				afterMatchTrieState = State :: NAME;
+				goto MATCH_TRIE;
 
-			case State :: NAME: NAME:
+			case State :: MATCH_TRIE: MATCH_TRIE:
 
 				// Fast inner loop for matching to known element and attribute names.
 				while(cursor.advance(c)) {
@@ -274,6 +277,11 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					c = *p++;
 					updateRowCol(c);
 				}
+
+				state = afterMatchTrieState;
+				continue;
+
+			case State :: NAME:
 
 				if(c == ':') {
 					// Test for an attribute "xmlns:..." defining a namespace
@@ -302,6 +310,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						pos = 0;
 						state = afterNameState;
 						continue;
+					} else {
+						// TODO: What now? Emit partial name?
 					}
 				}
 
@@ -425,7 +435,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			// ------------------------------
 
 			// Enforce whitespace between attributes.
-			case State :: AFTER_ATTRIBUTE_VALUE:
+			case State :: AFTER_ATTRIBUTE_VALUE: AFTER_ATTRIBUTE_VALUE:
 
 				switch(c) {
 					case '/':
@@ -455,14 +465,15 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// Prepare to emit the chosen namespace prefix.
 				nameTokenType = TokenType :: XMLNS_ID;
 
-				// Prepare Patricia tree cursor for parsing an xmlns prefix.
-				cursor.init(prefixTrie);
-
 				tokenStart = p - 1;
 
-				// Prefix name.
-				state = State :: NAME;
-				goto NAME;
+				// Prepare Patricia tree cursor for parsing an xmlns prefix.
+				state = State :: MATCH_TRIE;
+				cursor.init(prefixTrie);
+
+				// TODO: Better use a state without handling of the : char.
+				afterMatchTrieState = State :: NAME;
+				goto MATCH_TRIE;
 
 			case State :: AFTER_XMLNS_NAME:
 
@@ -476,8 +487,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					id = idLast;
 				}
 
-				// Store index of namespace prefix in prefix mapping table,
-				// because it's about to be (re)mapped.
+				// Store index of namespace prefix in prefix mapping table
+				// for assigning a new namespace uri.
 				idPrefix = id;
 
 				// TODO: need to match namespace URL instead of emitting the
@@ -488,12 +499,99 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				noMatchState = State :: ERROR;
 				partialMatchState = State :: ERROR;
 
-				matchState = State :: TEXT;
-				textTokenType = TokenType :: ATTRIBUTE_START_OFFSET;
-				textEndChar = '"';
-				afterTextState = afterValueState;
+				matchState = State :: BEFORE_VALUE;
+				cursor.init(uriTrie);
+				valueTokenType = TokenType :: URI_ID;
+				// valueEndChar = '"';
+
+				// TODO: Make sure we're not inside a processing instruction!
+				afterValueState = State :: AFTER_XMLNS_URI;
 
 				goto MATCH_SPARSE;
+
+			case State :: BEFORE_VALUE:
+
+				tokenStart = p - 1;
+
+				state = State :: MATCH_TRIE;
+				afterMatchTrieState = State :: VALUE;
+				goto MATCH_TRIE;
+
+			// Parse a value that should match a known set. Similar to
+			// State :: NAME but reads up to and consumes a final double quote.
+			case State :: VALUE:
+
+				if(c == '"') {
+					// If the whole value was matched, get associated reference.
+					id = cursor.getData();
+
+					if(id != Patricia :: notFound) {
+						writeToken(valueTokenType, id, tokenPtr);
+
+						knownName = true;
+						pos = 0;
+						state = afterValueState;
+						break;
+					} else {
+						// TODO: What now? Emit partial name?
+					}
+				}
+
+				pos += p - tokenStart;
+
+				emitPartialName(p, static_cast<size_t>(p - chunkBuffer), tokenPtr);
+
+				id = Patricia :: notFound;
+				pos = 0;
+				state = State :: UNKNOWN_VALUE;
+				goto UNKNOWN_VALUE;
+
+			case State :: UNKNOWN_VALUE: UNKNOWN_VALUE:
+
+				// TODO: disallow invalid characters!
+				// while(valueCharTbl[c]) {
+				while(c != '"') {
+					if(!--len) return(true);
+					c = *p++;
+					updateRowCol(c);
+				}
+
+				if(c != '"') {
+					return(false);
+				}
+
+				writeToken(
+					static_cast<TokenType>(
+						static_cast<uint32_t>(TokenType :: UNKNOWN_OPEN_ELEMENT_END_OFFSET) -
+						static_cast<uint32_t>(TokenType :: OPEN_ELEMENT_ID) +
+						static_cast<uint32_t>(valueTokenType)
+					),
+					p - chunkBuffer - 1,
+					tokenPtr
+				);
+
+				knownName = false;
+				state = afterValueState;
+				break;
+
+			case State :: AFTER_XMLNS_URI:
+
+				// If the value was unrecognized, flush tokens so JavaScript
+				// updates the uri trie and this tokenizer can recognize it
+				// in the future.
+				if(!knownName) {
+					flush(tokenPtr);
+					// Assume JavaScript passed inserted token ID to
+					// setPrefixTrie which sets idLast.
+					id = idLast;
+				}
+
+				// Store index of namespace prefix in prefix mapping table
+				// for assigning a new namespace uri.
+				idPrefix = id;
+
+				state = State :: AFTER_ATTRIBUTE_VALUE;
+				goto AFTER_ATTRIBUTE_VALUE;
 
 			// ----------------------------
 			// Attribute value parsing ends

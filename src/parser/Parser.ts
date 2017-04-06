@@ -22,7 +22,7 @@ export type TokenBuffer = (number | Token | string)[];
 // const codeBufferSize = 2;
 // const codeBufferSize = 3;
 const codeBufferSize = 8192;
-const namespacePrefixTblSize = 256;
+const dynamicTokenTblSize = 256;
 
 const enum TOKEN {
 	SHIFT = 5,
@@ -36,6 +36,7 @@ const enum CodeType {
 	ATTRIBUTE_ID,
 	PROCESSING_ID,
 	XMLNS_ID,
+	URI_ID,
 
 	ATTRIBUTE_START_OFFSET,
 	ATTRIBUTE_END_OFFSET,
@@ -55,6 +56,7 @@ const enum CodeType {
 	UNKNOWN_ATTRIBUTE_END_OFFSET,
 	UNKNOWN_PROCESSING_END_OFFSET,
 	UNKNOWN_XMLNS_END_OFFSET,
+	UNKNOWN_URI_END_OFFSET,
 
 	PROCESSING_END_TYPE,
 
@@ -71,6 +73,7 @@ export const enum TokenType {
 	ATTRIBUTE,
 	PROCESSING,
 	XMLNS,
+	URI,
 
 	VALUE,
 	TEXT,
@@ -102,6 +105,8 @@ tokenTypeTbl[CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_OPEN_
 tokenTypeTbl[CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_CLOSE_ELEMENT;
 tokenTypeTbl[CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET] = TokenType.UNKNOWN_ATTRIBUTE;
 tokenTypeTbl[CodeType.UNKNOWN_PROCESSING_END_OFFSET] = TokenType.UNKNOWN_PROCESSING;
+tokenTypeTbl[CodeType.UNKNOWN_XMLNS_END_OFFSET] = TokenType.XMLNS;
+tokenTypeTbl[CodeType.UNKNOWN_URI_END_OFFSET] = TokenType.URI;
 
 export class Parser extends stream.Transform {
 	constructor(config: ParserConfig, private tokenSet: TokenSet) {
@@ -117,6 +122,7 @@ export class Parser extends stream.Transform {
 		this.prefixTrie.insertNode(this.prefixSet.xmlnsToken);
 		this.parser.setPrefixTrie(this.prefixTrie.encode(), 0);
 
+		this.uriSet = new TokenSet();
 		this.uriTrie = new Patricia();
 		this.parser.setUriTrie(this.uriTrie.encode(), 0);
 	}
@@ -169,6 +175,12 @@ export class Parser extends stream.Transform {
 					tokenBuffer[++tokenNum] = this.prefixSet.list[code];
 					break;
 
+				case CodeType.URI_ID:
+
+					tokenBuffer[++tokenNum] = TokenType.URI;
+					tokenBuffer[++tokenNum] = this.uriSet.list[code];
+					break;
+
 				case CodeType.TEXT_START_OFFSET:
 				case CodeType.ATTRIBUTE_START_OFFSET:
 				case CodeType.COMMENT_START_OFFSET:
@@ -197,24 +209,32 @@ export class Parser extends stream.Transform {
 					break;
 
 				case CodeType.UNKNOWN_XMLNS_END_OFFSET:
+				case CodeType.UNKNOWN_URI_END_OFFSET:
 
-					// Add the namespace prefix to a separate trie. Incoming
-					// code buffer should have been flushed immediately
+					// Add the namespace prefix or URI to a separate trie.
+					// Incoming code buffer should have been flushed immediately
 					// after writing this token.
 
-					token = this.prefixSet.add(this.getSlice(partStart, code));
-					this.prefixTrie.insertNode(token);
-					// Pass new trie and ID of last inserted token to C++.
-					this.parser.setPrefixTrie(this.prefixTrie.encode(), token.id);
-
-					if(token.id > namespacePrefixTblSize) {
-						// TODO: report row and column in error messages.
-						throw(new Error('Too many namespace prefixes'));
+					if(kind == CodeType.UNKNOWN_XMLNS_END_OFFSET) {
+						token = this.prefixSet.add(this.getSlice(partStart, code));
+						// console.log('Add dynamic prefix ' + token.name);
+						this.prefixTrie.insertNode(token);
+						// Pass new trie and ID of last inserted token to C++.
+						this.parser.setPrefixTrie(this.prefixTrie.encode(), token.id);
+					} else {
+						token = this.uriSet.add(this.getSlice(partStart, code));
+						// console.log('Add dynamic uri ' + token.name);
+						this.uriTrie.insertNode(token);
+						// Pass new trie and ID of last inserted token to C++.
+						this.parser.setUriTrie(this.uriTrie.encode(), token.id);
 					}
 
-					// TODO: Should instead emit TokenType.XMLNS with the
-					// recently defined prefix token!
-					tokenBuffer[++tokenNum] = TokenType.XMLNS;
+					if(token.id > dynamicTokenTblSize) {
+						// TODO: report row and column in error messages.
+						throw(new Error('Too many different xmlns prefixes or URIs'));
+					}
+
+					tokenBuffer[++tokenNum] = tokenTypeTbl[kind];
 					tokenBuffer[++tokenNum] = token;
 					partStart = -1;
 					break;
@@ -322,6 +342,7 @@ export class Parser extends stream.Transform {
 
 	private prefixSet: TokenSet;
 	private prefixTrie: Patricia;
+	private uriSet: TokenSet;
 	private uriTrie: Patricia;
 
 	private parser: ParserLib.Parser;
