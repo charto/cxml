@@ -7,6 +7,7 @@
 #endif
 
 unsigned char whiteCharTbl[256];
+unsigned char valueCharTbl[256];
 unsigned char nameStartCharTbl[256];
 unsigned char nameCharTbl[256];
 
@@ -146,9 +147,30 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for capturing text between elements
 				// and in attribute values.
-				// TODO: disallow invalid characters!
-				// while(valueCharTbl[c]) {
-				while(c != textEndChar) {
+				while(1) {
+					if(!valueCharTbl[c]) {
+						if(c == textEndChar) break;
+
+						switch(c) {
+							case '&':
+
+								// TODO: handle entities here?
+								break;
+
+							case '"':
+							case '<':
+							case '>':
+
+								// TODO: Stricter parsing would ban these.
+								break;
+
+							default:
+
+								// Disallow nonsense bytes.
+								return(false);
+						}
+					}
+
 					// debug(c);
 
 					if(!--len) return(true);
@@ -501,7 +523,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				matchState = State :: BEFORE_VALUE;
 				cursor.init(uriTrie);
 				valueTokenType = TokenType :: URI_ID;
-				// valueEndChar = '"';
 
 				afterValueState = State :: AFTER_XMLNS_URI;
 
@@ -546,16 +567,32 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 			case State :: UNKNOWN_VALUE: UNKNOWN_VALUE:
 
-				// TODO: disallow invalid characters!
-				// while(valueCharTbl[c]) {
-				while(c != '"') {
+				while(1) {
+					if(!valueCharTbl[c]) {
+						if(c == '"') break;
+
+						switch(c) {
+							case '&':
+
+								// TODO: Handle entities.
+								break;
+
+							case '<':
+							case '>':
+
+								// TODO: Stricter parsing would ban these.
+								break;
+
+							default:
+
+								// Disallow nonsense bytes.
+								return(false);
+						}
+					}
+
 					if(!--len) return(true);
 					c = *p++;
 					updateRowCol(c);
-				}
-
-				if(c != '"') {
-					return(false);
 				}
 
 				writeToken(
@@ -776,19 +813,33 @@ inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uin
 struct Init {
 	Init() {
 		const char *white = "\r\n\t ";
+		const char *valueBan = "\"&<>\x7f";
 		const char *nameStartRanges =  "__AZaz\x80\xf7";
 		const char *nameRanges = "..--09__AZaz\x80\xf7";
 		const char *p;
 		unsigned char c, e;
 
-		for(unsigned int i = 0; i < 256; ++i) {
+		for(unsigned int i = 0; i <= 0xff; ++i) {
 			whiteCharTbl[i] = 0;
+			valueCharTbl[i] = 0;
 			nameStartCharTbl[i] = 0;
 			nameCharTbl[i] = 0;
 		}
 
+		for(unsigned int i = ' '; i <= 0xf7; ++i) {
+			valueCharTbl[i] = 1;
+		}
+
 		p = white;
-		while((c = *p++)) whiteCharTbl[c] = 1;
+		while((c = *p++)) {
+			whiteCharTbl[c] = 1;
+			valueCharTbl[c] = 1;
+		}
+
+		p = valueBan;
+		while((c = *p++)) {
+			valueCharTbl[c] = 0;
+		}
 
 		p = nameStartRanges;
 		while((c = *p++)) {
