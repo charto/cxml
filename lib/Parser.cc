@@ -49,13 +49,6 @@ inline void Parser :: updateRowCol(unsigned char c) {
 	row += (c == '\n');
 }
 
-void Parser :: debug(unsigned char c) {
-	// unsigned int color = static_cast<unsigned int>(state);
-	// printf("\e[%d;%dm%c", (color & 8) >> 3, 30 + (color & 7), c);
-	// signed int bytes = printf("\e[%d;%dm%c", (color & 8) >> 3, 30 + (color & 7), c);
-	// putchar(c);
-}
-
 /** Parse a chunk of incoming data.
   * For security from buffer overflow attacks, memory writes are only done in
   * writeToken which should be foolproof. */
@@ -170,8 +163,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 								return(false);
 						}
 					}
-
-					// debug(c);
 
 					if(!--len) return(true);
 					c = *p++;
@@ -293,8 +284,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for matching to known element and attribute names.
 				while(cursor.advance(c)) {
-					// debug(c);
-
 					if(!--len) {
 						pos += p - tokenStart;
 						return(true);
@@ -734,8 +723,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for skipping comments.
 				while(c != '-') {
-					// debug(c);
-
 					if(!--len) return(true);
 					c = *p++;
 					updateRowCol(c);
@@ -776,8 +763,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				break;
 		}
-
-		// debug(c);
 
 		// Only read the next character at the end of the loop, to allow
 		// reprocessing the same character (changing states without
