@@ -3,7 +3,7 @@ import { TokenSet } from './tokenizer/TokenSet';
 import { Token } from './tokenizer/Token';
 import { Patricia } from './tokenizer/Patricia';
 
-import { NativeNamespace } from './parser/ParserLib';
+import { NativeNamespace, NativeConfig } from './parser/ParserLib';
 
 export class Namespace {
 	constructor(tokenSet: TokenSet, public defaultPrefix: string, public uri: string) {
@@ -20,11 +20,11 @@ export class Namespace {
 		this.attributeTrie.insertList(itemList);
 	}
 
-	encode(): NativeNamespace {
+	addToConfig(config: NativeConfig) {
 		this.native.setElementTrie(this.elementTrie.encode());
 		this.native.setAttributeTrie(this.attributeTrie.encode());
 
-		return(this.native);
+		config.addNamespace(this.native);
 	}
 
 	private elementTrie = new Patricia();

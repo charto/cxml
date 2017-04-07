@@ -614,7 +614,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					id = idLast;
 				}
 
-				// namespacePrefixTbl[idPrefix] = namespaceList[id];
+				// TODO: need a map "foo" from a URI token to a namespace.
+				// See addNamespace in ParserConfig.ts. Then we can do:
+				// namespacePrefixTbl[idPrefix] = namespaceList[foo[id]];
 
 				state = State :: AFTER_ATTRIBUTE_VALUE;
 				goto AFTER_ATTRIBUTE_VALUE;
