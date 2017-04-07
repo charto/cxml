@@ -3,7 +3,7 @@
 
 ParserConfig :: ParserConfig() {}
 
-void ParserConfig :: addNamespace(const std::shared_ptr<Namespace> ns) {
+uint32_t ParserConfig :: addNamespace(const std::shared_ptr<Namespace> ns) {
 	namespaceList.push_back(ns);
 
 	if(xmlnsToken == Patricia :: notFound) {
@@ -17,6 +17,8 @@ void ParserConfig :: addNamespace(const std::shared_ptr<Namespace> ns) {
 
 		xmlnsToken = xmlnsCursor.getData();
 	}
+
+	return(namespaceList.size() - 1);
 }
 
 #include <nbind/nbind.h>

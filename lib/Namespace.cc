@@ -5,7 +5,7 @@
 #ifdef NBIND_CLASS
 
 NBIND_CLASS(Namespace) {
-	construct<>();
+	construct<std::string>();
 	method(setElementTrie);
 	method(setAttributeTrie);
 	// TODO:
