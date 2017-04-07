@@ -49,6 +49,12 @@ public:
 		ERROR
 	};
 
+	enum class TagType : uint32_t {
+		ELEMENT,
+		SGML_DECLARATION,
+		PROCESSING
+	};
+
 	static constexpr unsigned int TOKEN_SHIFT = 5;
 
 	// TODO: cdata start/end (no entity parsing on JS side)
@@ -173,6 +179,8 @@ public:
 	State afterValueState;
 	/** Flag whether the previously emitted name was found in a trie. */
 	bool knownName;
+
+	TagType tagType;
 
 	unsigned char textEndChar;
 

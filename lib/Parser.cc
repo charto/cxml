@@ -178,6 +178,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// or a comment <!-- ... -->
 					case '!':
 
+						tagType = TagType :: SGML_DECLARATION;
 						state = State :: SGML_DECLARATION;
 						break;
 
@@ -189,6 +190,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						afterValueState = State :: AFTER_PROCESSING_VALUE;
 						nameTokenType = TokenType :: PROCESSING_ID;
 
+						tagType = TagType :: PROCESSING;
 						state = State :: BEFORE_NAME;
 						break;
 
@@ -206,6 +208,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
 						nameTokenType = TokenType :: OPEN_ELEMENT_ID;
 
+						tagType = TagType :: ELEMENT;
 						state = State :: BEFORE_NAME;
 						// Avoid consuming the first character.
 						goto BEFORE_NAME;
@@ -286,9 +289,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				if(c == ':') {
 					// Test for an attribute "xmlns:..." defining a namespace
 					// prefix.
-					if(cursor.getData() == config->xmlnsToken) {
-						// TODO: ensure this is inside an element, not a processing
-						// instruction!
+					if(cursor.getData() == config->xmlnsToken && tagType == TagType :: ELEMENT) {
 						state = State :: DEFINE_XMLNS_PREFIX;
 						break;
 					}
@@ -311,7 +312,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						state = afterNameState;
 						continue;
 					} else {
-						// TODO: What now? Emit partial name?
+						// TODO: Verify emitting partial name works in this case.
 					}
 				}
 
@@ -488,12 +489,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				}
 
 				// Store index of namespace prefix in prefix mapping table
-				// for assigning a new namespace uri.
+				// for assigning a new namespace URI.
 				idPrefix = id;
 
-				// TODO: need to match namespace URL instead of emitting the
-				// attribute as-is.
-
+				// Match equals sign and namespace URI in double quotes.
 				state = State :: MATCH_SPARSE;
 				pattern = "=\"";
 				noMatchState = State :: ERROR;
@@ -504,7 +503,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				valueTokenType = TokenType :: URI_ID;
 				// valueEndChar = '"';
 
-				// TODO: Make sure we're not inside a processing instruction!
 				afterValueState = State :: AFTER_XMLNS_URI;
 
 				goto MATCH_SPARSE;
@@ -533,7 +531,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						state = afterValueState;
 						break;
 					} else {
-						// TODO: What now? Emit partial name?
+						// TODO: Verify emitting partial name works in this case.
 					}
 				}
 
