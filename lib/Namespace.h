@@ -16,7 +16,14 @@ public:
 		attributeTrie.setBuffer(buffer);
 	}
 
+	// TODO:
+	// void setValueTrie(nbind::Buffer buffer) {
+		// valueTrie.setBuffer(buffer);
+	// }
+
 	Patricia elementTrie;
 	Patricia attributeTrie;
+	// TODO:
+	// Patricia valueTrie;
 
 };

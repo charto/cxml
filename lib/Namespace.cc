@@ -8,6 +8,8 @@ NBIND_CLASS(Namespace) {
 	construct<>();
 	method(setElementTrie);
 	method(setAttributeTrie);
+	// TODO:
+	// method(setValueTrie);
 }
 
 #endif
