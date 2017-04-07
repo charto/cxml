@@ -100,6 +100,30 @@ tokenTypeTbl[CodeType.UNKNOWN_PROCESSING_END_OFFSET] = TokenType.UNKNOWN_PROCESS
 tokenTypeTbl[CodeType.UNKNOWN_XMLNS_END_OFFSET] = TokenType.XMLNS;
 tokenTypeTbl[CodeType.UNKNOWN_URI_END_OFFSET] = TokenType.URI;
 
+class TokenPackage {
+	constructor(
+		public native: NativeParser,
+		public tokenSet: TokenSet,
+		public trie: Patricia
+	) {}
+
+	add(name: string) {
+		if(!this.isCloned) {
+			// Copy tree on first write.
+			this.tokenSet = this.tokenSet.clone();
+			this.trie = this.trie.clone();
+			this.isCloned = true;
+		}
+
+		const token = this.tokenSet.add(name);
+		this.trie.insertNode(token);
+
+		return(token);
+	}
+
+	isCloned = false;
+}
+
 export class Parser extends stream.Transform {
 	constructor(config: ParserConfig, private tokenSet: TokenSet) {
 		super({ objectMode: true });
@@ -109,14 +133,13 @@ export class Parser extends stream.Transform {
 		this.codeBuffer = new Uint32Array(codeBufferSize);
 		this.native.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 
-		this.prefixSet = new TokenSet();
-		this.prefixTrie = new Patricia();
-		this.prefixTrie.insertNode(this.prefixSet.xmlnsToken);
-		this.native.setPrefixTrie(this.prefixTrie.encode(), 0);
+		this.prefixes = new TokenPackage(this.native, config.prefixSet, config.prefixTrie);
+		this.native.setPrefixTrie(this.prefixes.trie.encode(), 0);
+		this.prefixList = this.prefixes.tokenSet.list;
 
-		this.uriSet = new TokenSet();
-		this.uriTrie = new Patricia();
-		this.native.setUriTrie(this.uriTrie.encode(), 0);
+		this.uris = new TokenPackage(this.native, config.uriSet, config.uriTrie);
+		this.native.setUriTrie(this.uris.trie.encode(), 0);
+		this.uriList = this.uris.tokenSet.list;
 	}
 
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
@@ -164,13 +187,13 @@ export class Parser extends stream.Transform {
 				case CodeType.XMLNS_ID:
 
 					tokenBuffer[++tokenNum] = TokenType.XMLNS;
-					tokenBuffer[++tokenNum] = this.prefixSet.list[code];
+					tokenBuffer[++tokenNum] = this.prefixList[code];
 					break;
 
 				case CodeType.URI_ID:
 
 					tokenBuffer[++tokenNum] = TokenType.URI;
-					tokenBuffer[++tokenNum] = this.uriSet.list[code];
+					tokenBuffer[++tokenNum] = this.uriList[code];
 					break;
 
 				case CodeType.TEXT_START_OFFSET:
@@ -208,17 +231,15 @@ export class Parser extends stream.Transform {
 					// after writing this token.
 
 					if(kind == CodeType.UNKNOWN_XMLNS_END_OFFSET) {
-						token = this.prefixSet.add(this.getSlice(partStart, code));
-						// console.log('Add dynamic prefix ' + token.name);
-						this.prefixTrie.insertNode(token);
+						token = this.prefixes.add(this.getSlice(partStart, code));
 						// Pass new trie and ID of last inserted token to C++.
-						this.native.setPrefixTrie(this.prefixTrie.encode(), token.id);
+						this.native.setPrefixTrie(this.prefixes.trie.encode(), token.id);
+						this.prefixList = this.prefixes.tokenSet.list;
 					} else {
-						token = this.uriSet.add(this.getSlice(partStart, code));
-						// console.log('Add dynamic uri ' + token.name);
-						this.uriTrie.insertNode(token);
+						token = this.uris.add(this.getSlice(partStart, code));
 						// Pass new trie and ID of last inserted token to C++.
-						this.native.setUriTrie(this.uriTrie.encode(), token.id);
+						this.native.setUriTrie(this.uris.trie.encode(), token.id);
+						this.uriList = this.uris.tokenSet.list;
 					}
 
 					if(token.id > dynamicTokenTblSize) {
@@ -332,10 +353,10 @@ export class Parser extends stream.Transform {
 
 	private tokenNum: number;
 
-	private prefixSet: TokenSet;
-	private prefixTrie: Patricia;
-	private uriSet: TokenSet;
-	private uriTrie: Patricia;
+	private prefixes: TokenPackage;
+	private prefixList: Token[];
+	private uris: TokenPackage;
+	private uriList: Token[];
 
 	private native: NativeParser;
 	private codeBuffer: Uint32Array;

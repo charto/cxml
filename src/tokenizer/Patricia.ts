@@ -9,6 +9,18 @@ class Node {
 		public first?: Node,
 		public second?: Node
 	) {}
+
+	clone(): Node {
+		const other = new Node(
+			this.token,
+			this.buf,
+			this.len,
+			this.first && this.first.clone(),
+			this.second && this.second.clone()
+		);
+
+		return(other);
+	}
 }
 
 /** Maximum number of bits per node (number must fit in 1 byte). */
@@ -79,6 +91,14 @@ class PatriciaCursor {
 }
 
 export class Patricia {
+	clone() {
+		const other = new Patricia();
+
+		other.root = this.root.clone();
+
+		return(other);
+	}
+
 	insertNode(token: Token) {
 		let pos = 0;
 		let root = this.root;
