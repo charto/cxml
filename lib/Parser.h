@@ -149,8 +149,6 @@ public:
 	inline uint32_t getRow() { return(row); }
 	inline uint32_t getCol() { return(col); }
 
-	void debug(unsigned char c);
-
 	std::shared_ptr<ParserConfig> config;
 
 	/** Namespace list copied from config, which owns it. */
