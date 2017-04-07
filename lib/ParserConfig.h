@@ -14,7 +14,7 @@ public:
 
 	ParserConfig();
 
-	void addNamespace(const std::shared_ptr<Namespace> ns);
+	uint32_t addNamespace(const std::shared_ptr<Namespace> ns);
 
 private:
 

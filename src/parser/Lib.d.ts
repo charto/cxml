@@ -1,8 +1,8 @@
 export class NBindBase { free?(): void }
 
 export class Namespace extends NBindBase {
-	/** Namespace(); */
-	constructor();
+	/** Namespace(std::string); */
+	constructor(p0: string);
 
 	/** void setElementTrie(Buffer); */
 	setElementTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
@@ -38,8 +38,8 @@ export class ParserConfig extends NBindBase {
 	/** ParserConfig(); */
 	constructor();
 
-	/** void addNamespace(std::shared_ptr<Namespace>); */
-	addNamespace(p0: Namespace): void;
+	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
+	addNamespace(p0: Namespace): number;
 }
 
 export class Patricia extends NBindBase {
