@@ -11,14 +11,18 @@ unsigned char valueCharTbl[256];
 unsigned char nameStartCharTbl[256];
 unsigned char nameCharTbl[256];
 
-Parser :: Parser(std::shared_ptr<ParserConfig> config) : config(config) {
+Parser :: Parser(std::shared_ptr<ParserConfig> config) :
+	config(config),
+	prefixTrie(config->prefixTrie),
+	uriTrie(config->uriTrie)
+{
 	namespaceList = new const Namespace *[config->namespaceList.size()];
-	const Namespace **ns = namespaceList;
+	const Namespace **nsCursor = namespaceList;
 
 	// Copy shared namespace pointers from config for faster access.
 	// We hold a shared pointer to the config object ensuring these remain valid.
 	for(auto &nsShared : config->namespaceList) {
-		*ns++ = nsShared.get();
+		*nsCursor++ = nsShared.get();
 	}
 
 	state = State :: MATCH;
@@ -610,9 +614,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					id = idLast;
 				}
 
-				// Store index of namespace prefix in prefix mapping table
-				// for assigning a new namespace uri.
-				idPrefix = id;
+				// namespacePrefixTbl[idPrefix] = namespaceList[id];
 
 				state = State :: AFTER_ATTRIBUTE_VALUE;
 				goto AFTER_ATTRIBUTE_VALUE;

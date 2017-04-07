@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <memory>
 
 #include <nbind/api.h>
@@ -142,6 +143,10 @@ public:
 		idLast = id;
 	}
 
+	void addNamespace(const std::shared_ptr<Namespace> ns) {
+		extraNamespaceList.push_back(ns);
+	}
+
 	inline void emitPartialName(const unsigned char *p, size_t offset, uint32_t *&tokenPtr);
 
 	inline void updateRowCol(unsigned char c);
@@ -154,7 +159,9 @@ public:
 	/** Namespace list copied from config, which owns it. */
 	const Namespace **namespaceList;
 
-	Namespace *namespacePrefixTbl[namespacePrefixTblSize];
+	const Namespace *namespacePrefixTbl[namespacePrefixTblSize];
+
+	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
 
 	PatriciaCursor cursor;
 
