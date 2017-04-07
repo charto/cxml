@@ -25,8 +25,6 @@ class Patricia {
 
 public:
 
-	Patricia() {}
-
 	void setRoot(const unsigned char *root) { this->root = root; }
 
 	void setBuffer(nbind::Buffer buffer) {

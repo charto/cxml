@@ -3,10 +3,12 @@ import { TokenSet } from './tokenizer/TokenSet';
 import { Token } from './tokenizer/Token';
 import { Patricia } from './tokenizer/Patricia';
 
-import { RawNamespace } from './parser/Parser';
+import { NativeNamespace } from './parser/ParserLib';
 
 export class Namespace {
 	constructor(tokenSet: TokenSet, public defaultPrefix: string, public uri: string) {
+		this.native = new NativeNamespace(this.uri);
+
 		this.attributeTrie.insertNode(tokenSet.xmlnsToken);
 	}
 
@@ -18,15 +20,15 @@ export class Namespace {
 		this.attributeTrie.insertList(itemList);
 	}
 
-	encode(): RawNamespace {
-		const result = new RawNamespace();
+	encode(): NativeNamespace {
+		this.native.setElementTrie(this.elementTrie.encode());
+		this.native.setAttributeTrie(this.attributeTrie.encode());
 
-		result.setElementTrie(this.elementTrie.encode());
-		result.setAttributeTrie(this.attributeTrie.encode());
-
-		return(result);
+		return(this.native);
 	}
 
-	elementTrie = new Patricia();
-	attributeTrie = new Patricia();
+	private elementTrie = new Patricia();
+	private attributeTrie = new Patricia();
+
+	private native: NativeNamespace;
 }

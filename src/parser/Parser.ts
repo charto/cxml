@@ -1,7 +1,4 @@
-import * as path from 'path';
 import * as stream from 'stream';
-import * as nbind from 'nbind';
-import * as ParserLib from './Lib';
 
 import { ArrayType } from '../tokenizer/Buffer';
 import { Patricia } from '../tokenizer/Patricia';
@@ -9,13 +6,8 @@ import { TokenSet } from '../tokenizer/TokenSet';
 import { Token } from '../tokenizer/Token';
 import { Namespace } from '../Namespace';
 
-const lib = nbind.init<typeof ParserLib>(path.resolve(__dirname, '../..')).lib;
-
-export const ParserConfig = lib.ParserConfig;
-export type ParserConfig = ParserLib.ParserConfig;
-
-export const RawNamespace = lib.Namespace;
-export type RawNamespace = ParserLib.Namespace;
+import { NativeParser } from './ParserLib';
+import { ParserConfig } from './ParserConfig';
 
 export type TokenBuffer = (number | Token | string)[];
 
@@ -112,19 +104,19 @@ export class Parser extends stream.Transform {
 	constructor(config: ParserConfig, private tokenSet: TokenSet) {
 		super({ objectMode: true });
 
-		this.parser = new lib.Parser(config);
+		this.native = config.createNativeParser();
 
 		this.codeBuffer = new Uint32Array(codeBufferSize);
-		this.parser.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
+		this.native.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 
 		this.prefixSet = new TokenSet();
 		this.prefixTrie = new Patricia();
 		this.prefixTrie.insertNode(this.prefixSet.xmlnsToken);
-		this.parser.setPrefixTrie(this.prefixTrie.encode(), 0);
+		this.native.setPrefixTrie(this.prefixTrie.encode(), 0);
 
 		this.uriSet = new TokenSet();
 		this.uriTrie = new Patricia();
-		this.parser.setUriTrie(this.uriTrie.encode(), 0);
+		this.native.setUriTrie(this.uriTrie.encode(), 0);
 	}
 
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
@@ -133,7 +125,7 @@ export class Parser extends stream.Transform {
 		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
 
 		this.tokenNum = 0;
-		this.parser.parse(chunk as Buffer);
+		this.native.parse(chunk as Buffer);
 		this.parseCodeBuffer(false);
 
 		this.tokenBuffer[0] = this.tokenNum;
@@ -220,13 +212,13 @@ export class Parser extends stream.Transform {
 						// console.log('Add dynamic prefix ' + token.name);
 						this.prefixTrie.insertNode(token);
 						// Pass new trie and ID of last inserted token to C++.
-						this.parser.setPrefixTrie(this.prefixTrie.encode(), token.id);
+						this.native.setPrefixTrie(this.prefixTrie.encode(), token.id);
 					} else {
 						token = this.uriSet.add(this.getSlice(partStart, code));
 						// console.log('Add dynamic uri ' + token.name);
 						this.uriTrie.insertNode(token);
 						// Pass new trie and ID of last inserted token to C++.
-						this.parser.setUriTrie(this.uriTrie.encode(), token.id);
+						this.native.setUriTrie(this.uriTrie.encode(), token.id);
 					}
 
 					if(token.id > dynamicTokenTblSize) {
@@ -345,7 +337,7 @@ export class Parser extends stream.Transform {
 	private uriSet: TokenSet;
 	private uriTrie: Patricia;
 
-	private parser: ParserLib.Parser;
+	private native: NativeParser;
 	private codeBuffer: Uint32Array;
 	private tokenBuffer: TokenBuffer = [];
 }

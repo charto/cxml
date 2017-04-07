@@ -14,6 +14,14 @@ public:
 
 	ParserConfig();
 
+	void setPrefixTrie(nbind::Buffer buffer) {
+		prefixTrie.setBuffer(buffer);
+	}
+
+	void setUriTrie(nbind::Buffer buffer) {
+		uriTrie.setBuffer(buffer);
+	}
+
 	uint32_t addNamespace(const std::shared_ptr<Namespace> ns);
 
 private:
@@ -21,5 +29,8 @@ private:
 	std::vector<const std::shared_ptr<Namespace>> namespaceList;
 
 	uint32_t xmlnsToken = Patricia :: notFound;
+
+	Patricia prefixTrie;
+	Patricia uriTrie;
 
 };
