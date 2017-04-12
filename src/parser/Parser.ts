@@ -236,7 +236,17 @@ export class Parser extends stream.Transform {
 						this.native.setPrefixTrie(this.prefixes.trie.encode(), token.id);
 						this.prefixList = this.prefixes.tokenSet.list;
 					} else {
-						token = this.uris.add(this.getSlice(partStart, code));
+						let uri = this.getSlice(partStart, code);
+
+						token = this.uris.add(uri);
+
+						this.native.addUri(
+							token.id,
+							this.native.addNamespace(
+								new Namespace(this.tokenSet, '', uri).getNative()
+							)
+						);
+
 						// Pass new trie and ID of last inserted token to C++.
 						this.native.setUriTrie(this.uris.trie.encode(), token.id);
 						this.uriList = this.uris.tokenSet.list;

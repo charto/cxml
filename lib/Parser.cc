@@ -13,18 +13,10 @@ unsigned char nameCharTbl[256];
 
 Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 	config(config),
+	namespaceByUriToken(config->namespaceByUriToken),
 	prefixTrie(config->prefixTrie),
 	uriTrie(config->uriTrie)
 {
-	namespaceList = new const Namespace *[config->namespaceList.size()];
-	const Namespace **nsCursor = namespaceList;
-
-	// Copy shared namespace pointers from config for faster access.
-	// We hold a shared pointer to the config object ensuring these remain valid.
-	for(auto &nsShared : config->namespaceList) {
-		*nsCursor++ = nsShared.get();
-	}
-
 	state = State :: MATCH;
 	pattern = "\xef\xbb\xbf\0";
 	matchState = State :: BEFORE_TEXT;
@@ -53,6 +45,20 @@ inline void Parser :: updateRowCol(unsigned char c) {
 	row += (c == '\n');
 }
 
+bool Parser :: addUri(uint32_t uri, uint32_t ns) {
+	if(ns < extraNamespaceList.size()) {
+		if(uri >= namespaceByUriToken.size()) {
+			namespaceByUriToken.resize(uri + 1);
+		}
+
+		namespaceByUriToken[uri] = extraNamespaceList[ns].get();
+
+		return(true);
+	}
+
+	return(false);
+}
+
 /** Parse a chunk of incoming data.
   * For security from buffer overflow attacks, memory writes are only done in
   * writeToken which should be foolproof. */
@@ -65,7 +71,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
 	unsigned char c, d;
-	uint32_t id;
 
 	// Indicate that no tokens inside the chunk were found yet.
 	tokenList[0] = 0;
@@ -275,7 +280,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				} else {
 					// Element or attribute name.
 */
-					cursor.init(namespaceList[0]->*trie);
+					cursor.init(config->namespaceList[0].get()->*trie);
 //				}
 
 				tokenStart = p - 1;
@@ -317,10 +322,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				if(!nameCharTbl[c]) {
 					// If the whole name was matched, get associated reference.
-					id = cursor.getData();
+					idToken = cursor.getData();
 
-					if(id != Patricia :: notFound) {
-						writeToken(nameTokenType, id, tokenPtr);
+					if(idToken != Patricia :: notFound) {
+						writeToken(nameTokenType, idToken, tokenPtr);
 
 						knownName = true;
 						pos = 0;
@@ -340,7 +345,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// to recover the complete name.
 				emitPartialName(p, static_cast<size_t>(p - chunkBuffer), tokenPtr);
 
-				id = Patricia :: notFound;
+				idToken = Patricia :: notFound;
 				pos = 0;
 				state = State :: UNKNOWN_NAME;
 				goto UNKNOWN_NAME;
@@ -384,7 +389,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Store element name ID (already output) to verify closing element.
 				// TODO: Push to a stack and verify!
-				idElement = id;
+				idElement = idToken;
 
 				state = State :: AFTER_ELEMENT_NAME;
 				goto AFTER_ELEMENT_NAME;
@@ -500,12 +505,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					flush(tokenPtr);
 					// Assume JavaScript passed inserted token ID to
 					// setPrefixTrie which sets idLast.
-					id = idLast;
+					idToken = idLast;
 				}
 
 				// Store index of namespace prefix in prefix mapping table
 				// for assigning a new namespace URI.
-				idPrefix = id;
+				idPrefix = idToken;
 
 				// Match equals sign and namespace URI in double quotes.
 				state = State :: MATCH_SPARSE;
@@ -535,10 +540,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				if(c == '"') {
 					// If the whole value was matched, get associated reference.
-					id = cursor.getData();
+					idToken = cursor.getData();
 
-					if(id != Patricia :: notFound) {
-						writeToken(valueTokenType, id, tokenPtr);
+					if(idToken != Patricia :: notFound) {
+						writeToken(valueTokenType, idToken, tokenPtr);
 
 						knownName = true;
 						pos = 0;
@@ -553,7 +558,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				emitPartialName(p, static_cast<size_t>(p - chunkBuffer), tokenPtr);
 
-				id = Patricia :: notFound;
+				idToken = Patricia :: notFound;
 				pos = 0;
 				state = State :: UNKNOWN_VALUE;
 				goto UNKNOWN_VALUE;
@@ -611,12 +616,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					flush(tokenPtr);
 					// Assume JavaScript passed inserted token ID to
 					// setPrefixTrie which sets idLast.
-					id = idLast;
+					idToken = idLast;
 				}
 
-				// TODO: need a map "foo" from a URI token to a namespace.
-				// See addNamespace in ParserConfig.ts. Then we can do:
-				// namespacePrefixTbl[idPrefix] = namespaceList[foo[id]];
+				namespacePrefixTbl[idPrefix] = namespaceByUriToken[idToken];
+
+				afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
 
 				state = State :: AFTER_ATTRIBUTE_VALUE;
 				goto AFTER_ATTRIBUTE_VALUE;
@@ -852,6 +857,8 @@ Init init;
 
 NBIND_CLASS(Parser) {
 	construct<std::shared_ptr<ParserConfig> >();
+	method(addNamespace);
+	method(addUri);
 	method(setTokenBuffer);
 	method(setPrefixTrie);
 	method(setUriTrie);

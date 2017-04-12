@@ -24,9 +24,12 @@ public:
 
 	uint32_t addNamespace(const std::shared_ptr<Namespace> ns);
 
+	bool addUri(uint32_t uri, uint32_t ns);
+
 private:
 
 	std::vector<const std::shared_ptr<Namespace>> namespaceList;
+	std::vector<const Namespace *> namespaceByUriToken;
 
 	uint32_t xmlnsToken = Patricia :: notFound;
 
