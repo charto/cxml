@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <memory>
 
 #include <nbind/api.h>
 
@@ -98,10 +97,6 @@ public:
 
 	Parser(std::shared_ptr<ParserConfig> config);
 
-	~Parser() {
-		delete[] namespaceList;
-	}
-
 	/** Parse a chunk of incoming data. */
 	bool parse(nbind::Buffer chunk);
 
@@ -143,9 +138,12 @@ public:
 		idLast = id;
 	}
 
-	void addNamespace(const std::shared_ptr<Namespace> ns) {
+	uint32_t addNamespace(const std::shared_ptr<Namespace> ns) {
 		extraNamespaceList.push_back(ns);
+		return(extraNamespaceList.size() - 1);
 	}
+
+	bool addUri(uint32_t uri, uint32_t ns);
 
 	inline void emitPartialName(const unsigned char *p, size_t offset, uint32_t *&tokenPtr);
 
@@ -156,12 +154,11 @@ public:
 
 	std::shared_ptr<ParserConfig> config;
 
-	/** Namespace list copied from config, which owns it. */
-	const Namespace **namespaceList;
-
 	const Namespace *namespacePrefixTbl[namespacePrefixTblSize];
 
 	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
+
+	std::vector<const Namespace *> namespaceByUriToken;
 
 	PatriciaCursor cursor;
 
@@ -197,6 +194,7 @@ public:
 	uint32_t row;
 	uint32_t col;
 
+	uint32_t idToken;
 	uint32_t idLast;
 	uint32_t idPrefix;
 

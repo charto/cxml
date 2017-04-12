@@ -15,6 +15,12 @@ export class Parser extends NBindBase {
 	/** Parser(std::shared_ptr<ParserConfig>); */
 	constructor(p0: ParserConfig);
 
+	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
+	addNamespace(p0: Namespace): number;
+
+	/** bool addUri(uint32_t, uint32_t); */
+	addUri(p0: number, p1: number): boolean;
+
 	/** void setTokenBuffer(Buffer, cbFunction &); */
 	setTokenBuffer(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer, p1: (...args: any[]) => any): void;
 
@@ -40,6 +46,9 @@ export class ParserConfig extends NBindBase {
 
 	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
 	addNamespace(p0: Namespace): number;
+
+	/** bool addUri(uint32_t, uint32_t); */
+	addUri(p0: number, p1: number): boolean;
 }
 
 export class Patricia extends NBindBase {

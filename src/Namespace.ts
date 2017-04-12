@@ -20,11 +20,13 @@ export class Namespace {
 		this.attributeTrie.insertList(itemList);
 	}
 
-	addToConfig(config: NativeConfig) {
+	/** Register namespace contents with native code library. */
+
+	getNative(): NativeNamespace {
 		this.native.setElementTrie(this.elementTrie.encode());
 		this.native.setAttributeTrie(this.attributeTrie.encode());
 
-		config.addNamespace(this.native);
+		return(this.native);
 	}
 
 	private elementTrie = new Patricia();
