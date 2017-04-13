@@ -306,25 +306,30 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 			case State :: NAME:
 
-				if(c == ':') {
-					// Test for an attribute "xmlns:..." defining a namespace
-					// prefix.
-					if(cursor.getData() == config->xmlnsToken && tagType == TagType :: ELEMENT) {
-						state = State :: DEFINE_XMLNS_PREFIX;
-						break;
-					}
-
-					// TODO: If matching a namespace, use it here. Otherwise,
-					// reintepret token up to cursor as a namespace prefix.
-					// cursor.init(namespaceList[0]->*trie);
-					break;
-				}
-
 				if(!nameCharTbl[c]) {
 					// If the whole name was matched, get associated reference.
 					idToken = cursor.getData();
 
+					// Test for an attribute "xmlns:..." defining a namespace
+					// prefix.
+					if(idToken == config->xmlnsToken && tagType == TagType :: ELEMENT) {
+						if(c == ':') {
+							state = State :: DEFINE_XMLNS_PREFIX;
+							break;
+						} else {
+							// Prepare to set default namespace.
+							afterNameState = State :: AFTER_XMLNS_NAME;
+						}
+					}
+
 					if(idToken != Patricia :: notFound) {
+						if(c == ':') {
+							// TODO: If matching a namespace, use it here. Otherwise,
+							// reintepret token up to cursor as a namespace prefix.
+							// cursor.init(namespaceList[0]->*trie);
+							break;
+						}
+
 						writeToken(nameTokenType, idToken, tokenPtr);
 
 						knownName = true;
