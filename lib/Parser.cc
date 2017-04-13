@@ -317,7 +317,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							state = State :: DEFINE_XMLNS_PREFIX;
 							break;
 						} else {
-							// Prepare to set default namespace.
+							// Prepare to set default namespace, handled like an
+							// otherwise illegal prefix definition xmlns:xmlns.
 							afterNameState = State :: AFTER_XMLNS_NAME;
 						}
 					}
@@ -483,13 +484,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				break;
 
-			// Finished reading read an attribute name beginning "xmlns:".
+			// Finished reading an attribute name beginning "xmlns:".
 			// Parse the namespace prefix it defines.
 			case State :: DEFINE_XMLNS_PREFIX:
-
-				afterNameState = State :: AFTER_XMLNS_NAME;
-				// Prepare to emit the chosen namespace prefix.
-				nameTokenType = TokenType :: XMLNS_ID;
 
 				tokenStart = p - 1;
 
@@ -499,6 +496,11 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// TODO: Better use a state without handling of the : char.
 				afterMatchTrieState = State :: NAME;
+
+				afterNameState = State :: AFTER_XMLNS_NAME;
+				// Prepare to emit the chosen namespace prefix.
+				nameTokenType = TokenType :: XMLNS_ID;
+
 				goto MATCH_TRIE;
 
 			case State :: AFTER_XMLNS_NAME:
