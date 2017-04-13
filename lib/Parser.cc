@@ -805,47 +805,29 @@ inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uin
 }
 
 struct Init {
-	Init() {
-		const char *white = "\r\n\t ";
-		const char *valueBan = "\"&<>\x7f";
-		const char *nameStartRanges =  "__AZaz\x80\xf7";
-		const char *nameRanges = "..--09__AZaz\x80\xf7";
-		const char *p;
-		unsigned char c, e;
+	void setRange(unsigned char *tbl, const char *ranges, unsigned char flag) {
+		unsigned char c, last;
 
+		while((c = *ranges++)) {
+			last = *ranges++;
+			while(c <= last) tbl[c++] = flag;
+		}
+	}
+
+	Init() {
 		for(unsigned int i = 0; i <= 0xff; ++i) {
 			whiteCharTbl[i] = 0;
-			valueCharTbl[i] = 0;
+			valueCharTbl[i] = (i >= ' ' && i <= 0xf7);
 			nameStartCharTbl[i] = 0;
 			nameCharTbl[i] = 0;
 		}
 
-		for(unsigned int i = ' '; i <= 0xf7; ++i) {
-			valueCharTbl[i] = 1;
-		}
+		for(unsigned char c : "\r\n\t ")   c && (valueCharTbl[c] = 1, whiteCharTbl[c] = 1);
 
-		p = white;
-		while((c = *p++)) {
-			whiteCharTbl[c] = 1;
-			valueCharTbl[c] = 1;
-		}
+		for(unsigned char c : "\"&<>\x7f") c && (valueCharTbl[c] = 0);
 
-		p = valueBan;
-		while((c = *p++)) {
-			valueCharTbl[c] = 0;
-		}
-
-		p = nameStartRanges;
-		while((c = *p++)) {
-			e = *p++;
-			while(c <= e) nameStartCharTbl[c++] = 1;
-		}
-
-		p = nameRanges;
-		while((c = *p++)) {
-			e = *p++;
-			while(c <= e) nameCharTbl[c++] = 1;
-		}
+		setRange(nameStartCharTbl,  "__AZaz\x80\xf7", 1);
+		setRange(nameCharTbl, "..--09__AZaz\x80\xf7", 1);
 	}
 };
 
