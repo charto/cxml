@@ -240,6 +240,7 @@ export class Parser extends stream.Transform {
 
 						token = this.uris.add(uri);
 
+						// Create a new namespace for the unrecognized URI.
 						this.native.addUri(
 							token.id,
 							this.native.addNamespace(

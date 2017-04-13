@@ -18,7 +18,6 @@ export class Writer extends stream.Transform {
 	_transform(tokenBuffer: TokenBuffer, enc: string, flush: (err: any, chunk: Buffer) => void) {
 		let tokenNum = 0;
 		let tokenCount = tokenBuffer[0];
-		let token: Token;
 
 		let partList: string[] = [];
 		let partNum = -1;
