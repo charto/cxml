@@ -1,3 +1,4 @@
+import { Namespace } from '../Namespace';
 import { ArrayType } from './Buffer';
 
 declare class TextEncoder {
@@ -8,13 +9,23 @@ declare class TextEncoder {
 }
 
 export class Token {
-	constructor(public name: string, public id: number) {
+	constructor(public name: string, public ns?: Namespace) {
 		this.buf = (
 			typeof(Buffer) == 'function' ?
 			new Buffer(name) :
 			new TextEncoder('utf-8').encode(name)
 		);
 	}
+
+	static nextKey = 0;
+
+	// TODO: Should be an empty string instead.
+	static empty = new Token('\0');
+
+	static xmlns = new Token('xmlns');
+
+	/** Unique key for storing sets of tokens. */
+	key = '' + (++Token.nextKey);
 
 	buf: ArrayType;
 }

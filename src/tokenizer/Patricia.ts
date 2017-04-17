@@ -1,5 +1,6 @@
 import { ArrayType, concatArray } from './Buffer';
 import { Token } from './Token';
+import { TokenSet } from './TokenSet';
 
 class Node {
 	constructor(
@@ -27,7 +28,7 @@ class Node {
 const MAX_LEN = 255; // Test edge cases by using smaller numbers (>= 8) here!
 
 /** Must equal Patricia :: notFound on C++ side. */
-const NOT_FOUND = 0x7fffff;
+export const NOT_FOUND = 0x7fffff;
 
 class PatriciaCursor {
 	constructor(public node: Node) {
@@ -103,6 +104,10 @@ export class Patricia {
 		let pos = 0;
 		let root = this.root;
 
+		if(!token.name) {
+			throw(new Error('Empty strings not supported'));
+		}
+
 		if(!root) {
 			root = new Node(token, token.buf, token.buf.length * 8);
 			this.root = root;
@@ -164,10 +169,6 @@ export class Patricia {
 
 	insertList(tokenList: Token[]) {
 		for(let token of tokenList) {
-			if(!token.name) {
-				throw(new Error('Empty strings not supported'));
-			}
-
 			this.insertNode(token);
 		}
 
@@ -191,7 +192,11 @@ export class Patricia {
 		}
 	}
 
-	private static encodeNode(node: Node, dataList: ArrayType[]) {
+	private static encodeNode(
+		node: Node,
+		tokenSet: TokenSet,
+		dataList: ArrayType[]
+	) {
 		let len = node.len;
 		let partLen: number;
 		let byteLen: number;
@@ -223,13 +228,14 @@ export class Patricia {
 				ref = NOT_FOUND;
 			} else {
 				let nextTotalLen = 0;
-				if(node.first) nextTotalLen += Patricia.encodeNode(node.first, dataList);
+				if(node.first) nextTotalLen += Patricia.encodeNode(node.first, tokenSet, dataList);
 
 				if(node.second) {
 					ref = nextTotalLen + 3;
-					nextTotalLen += Patricia.encodeNode(node.second, dataList);
+					nextTotalLen += Patricia.encodeNode(node.second, tokenSet, dataList);
 				} else {
-					ref = node.token!.id || 0;
+					// ref = tokenSet.encode(node.token!) || 0;
+					ref = tokenSet.encode(node.token!);
 					if(!node.first) ref |= 0x800000; // See 0x80 in PatriciaCursor.cc
 				}
 
@@ -246,25 +252,24 @@ export class Patricia {
 		return(totalByteLen);
 	}
 
-	encode() {
+	encode(tokenSet: TokenSet) {
 		const dataList: ArrayType[] = [];
 
 		// Encode trie contents into a buffer.
 		const dataLen = Patricia.encodeNode(
 			this.root || Patricia.sentinel,
+			tokenSet,
 			dataList
 		);
 
 		return(concatArray(dataList, dataLen));
 	}
 
-	private static emptyToken = new Token('\0', NOT_FOUND);
-
 	/** Represents the root of an empty tree. */
 	private static sentinel = new Node(
-		Patricia.emptyToken,
-		Patricia.emptyToken.buf,
-		Patricia.emptyToken.buf.length * 8
+		Token.empty,
+		Token.empty.buf,
+		Token.empty.buf.length * 8
 	);
 
 	private root: Node;

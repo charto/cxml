@@ -2,13 +2,15 @@ import * as ParserLib from './Lib';
 
 import { Patricia } from '../tokenizer/Patricia';
 import { TokenSet } from '../tokenizer/TokenSet';
+import { Token } from '../tokenizer/Token';
 import { Namespace } from '../Namespace';
 
 import { NativeConfig, NativeParser } from './ParserLib';
 
 export class ParserConfig {
 	constructor() {
-		this.prefixTrie.insertNode(this.prefixSet.xmlnsToken);
+		this.addPrefix(Token.xmlns);
+		this.tokenSet.add(Token.xmlns);
 	}
 
 	createNativeParser() {
@@ -16,17 +18,20 @@ export class ParserConfig {
 	}
 
 	addNamespace(ns: Namespace) {
-		this.addUri(ns.uri, ns, this.native.addNamespace(ns.getNative()));
+		this.addUri(ns.uri, ns, this.native.addNamespace(ns.getNative(this.tokenSet)));
 	}
 
-	addUri(uri: string, ns: Namespace, id?: number) {
-		const uriToken = this.uriSet.add(uri);
+	addUri(uri: string, ns: Namespace, idNamespace?: number) {
+		if(!uri) return;
+
+		const uriToken = new Token(uri);
+		const idUri = this.uriSet.add(uriToken);
 		let spec = this.namespaceTbl[ns.uri];
 
 		if(spec && spec.ns == ns) {
-			id = spec.id;
-		} else if(typeof(id) == 'number') {
-			spec = { id, ns };
+			idNamespace = spec.id;
+		} else if(typeof(idNamespace) == 'number') {
+			spec = { id: idNamespace, ns };
 			this.namespaceTbl[uri] = spec;
 		} else {
 			throw(new Error('Invalid namespace or missing ID'));
@@ -35,11 +40,18 @@ export class ParserConfig {
 		// Map the URI token ID to the namespace in native code.
 		// See Parser.cc assignment to namespacePrefixTbl.
 
-		this.native.addUri(uriToken.id, id);
+		this.native.addUri(idUri, idNamespace);
 
 		this.uriTrie.insertNode(uriToken);
 	}
 
+	addPrefix(token: Token) {
+		this.prefixSet.add(token);
+		this.prefixTrie.insertNode(token);
+		this.native.setPrefixTrie(this.prefixTrie.encode(this.prefixSet));
+	}
+
+	tokenSet = new TokenSet();
 	prefixSet = new TokenSet();
 	prefixTrie = new Patricia();
 	uriSet = new TokenSet();
