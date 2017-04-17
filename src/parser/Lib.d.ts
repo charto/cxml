@@ -44,6 +44,9 @@ export class ParserConfig extends NBindBase {
 	/** ParserConfig(); */
 	constructor();
 
+	/** void setPrefixTrie(Buffer); */
+	setPrefixTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
+
 	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
 	addNamespace(p0: Namespace): number;
 

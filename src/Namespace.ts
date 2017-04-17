@@ -6,10 +6,10 @@ import { Patricia } from './tokenizer/Patricia';
 import { NativeNamespace, NativeConfig } from './parser/ParserLib';
 
 export class Namespace {
-	constructor(tokenSet: TokenSet, public defaultPrefix: string, public uri: string) {
+	constructor(public defaultPrefix: string, public uri: string) {
 		this.native = new NativeNamespace(this.uri);
 
-		this.attributeTrie.insertNode(tokenSet.xmlnsToken);
+		this.attributeTrie.insertNode(Token.xmlns);
 	}
 
 	addElementTokens(itemList: Token[]) {
@@ -22,9 +22,9 @@ export class Namespace {
 
 	/** Register namespace contents with native code library. */
 
-	getNative(): NativeNamespace {
-		this.native.setElementTrie(this.elementTrie.encode());
-		this.native.setAttributeTrie(this.attributeTrie.encode());
+	getNative(tokenSet: TokenSet): NativeNamespace {
+		this.native.setElementTrie(this.elementTrie.encode(tokenSet));
+		this.native.setAttributeTrie(this.attributeTrie.encode(tokenSet));
 
 		return(this.native);
 	}

@@ -14,9 +14,7 @@ public:
 
 	ParserConfig();
 
-	void setPrefixTrie(nbind::Buffer buffer) {
-		prefixTrie.setBuffer(buffer);
-	}
+	void setPrefixTrie(nbind::Buffer buffer);
 
 	void setUriTrie(nbind::Buffer buffer) {
 		uriTrie.setBuffer(buffer);
