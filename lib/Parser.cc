@@ -25,6 +25,10 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 	pos = 0;
 	row = 0;
 	col = 0;
+
+	for(unsigned int i = 0; i < namespacePrefixTblSize; ++i) {
+		namespacePrefixTbl[i] = nullptr;
+	}
 }
 
 /** Branchless cursor position update based on UTF-8 input byte. Assumes
@@ -70,6 +74,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
+	const Namespace *ns;
 	unsigned char c, d;
 
 	// Indicate that no tokens inside the chunk were found yet.
@@ -213,6 +218,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						nameTokenType = TokenType :: PROCESSING_ID;
 
 						tagType = TagType :: PROCESSING;
+						matchTarget = MatchTarget :: PROCESSING;
 						state = State :: BEFORE_NAME;
 						break;
 
@@ -221,6 +227,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						afterNameState = State :: AFTER_CLOSE_ELEMENT_NAME;
 						nameTokenType = TokenType :: CLOSE_ELEMENT_ID;
 
+						matchTarget = MatchTarget :: ELEMENT;
 						state = State :: BEFORE_NAME;
 						break;
 
@@ -231,6 +238,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						nameTokenType = TokenType :: OPEN_ELEMENT_ID;
 
 						tagType = TagType :: ELEMENT;
+						matchTarget = MatchTarget :: ELEMENT;
 						state = State :: BEFORE_NAME;
 						// Avoid consuming the first character.
 						goto BEFORE_NAME;
@@ -267,21 +275,31 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// This is an optional lookup to avoid later reprocessing.
 				for(ahead = 0; ahead < len && nameCharTbl[p[ahead]]; ++ahead) {}
 
-/*
 				// Prepare Patricia tree cursor for parsing.
-				if(ahead >= len) {
-					// Assume a namespace prefix, because a ":" separator
-					// may be in the next input buffer chunk.
-					cursor.init(prefixTrie);
-				} else if(p[ahead] == ':') {
-					// Name contains ":" so it starts with a namespace prefix.
-					// fprintf(stderr, "PREFIX FOUND: %.*s\n", ahead + 1, p - 1);
+				if(ahead >= len || p[ahead] == ':') {
+					// If the input ran out, assume the name contains a colon
+					// in the next input buffer chunk. If a colon is found, the
+					// name starts with a namespace prefix.
+
+					matchTarget = MatchTarget :: NAMESPACE;
 					cursor.init(prefixTrie);
 				} else {
 					// Element or attribute name.
-*/
-					cursor.init(config->namespaceList[0].get()->*trie);
-//				}
+					// TODO: By default, attributes belong to the same namespace as their parent element.
+					ns = namespacePrefixTbl[config->xmlnsToken];
+
+					if(!ns) {
+						// No default namespace is defined, so this element
+						// cannot be matched with anything.
+						writeToken(TokenType :: UNKNOWN_START_OFFSET, p - 1 - chunkBuffer, tokenPtr);
+
+						idToken = Patricia :: notFound;
+						state = State :: UNKNOWN_NAME;
+						goto UNKNOWN_NAME;
+					}
+
+					cursor.init(ns->*trie);
+				}
 
 				tokenStart = p - 1;
 
@@ -324,11 +342,36 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					}
 
 					if(idToken != Patricia :: notFound) {
-						if(c == ':') {
-							// TODO: If matching a namespace, use it here. Otherwise,
-							// reintepret token up to cursor as a namespace prefix.
-							// cursor.init(namespaceList[0]->*trie);
+						if(c == ':' && tagType == TagType :: ELEMENT) {
+							// If matching a namespace, use it.
+							if(matchTarget == MatchTarget :: NAMESPACE) {
+								if(idToken >= namespacePrefixTblSize) return(false);
+
+								ns = namespacePrefixTbl[idToken];
+
+								if(ns == nullptr) {
+									// TODO: Not an error if prefix is
+									// defined in this element.
+									return(false);
+								}
+
+								matchTarget = (
+									nameTokenType == TokenType :: ATTRIBUTE_ID ?
+									MatchTarget :: ATTRIBUTE :
+									MatchTarget :: ELEMENT
+								);
+
+								cursor.init(ns->*trie);
+								// TODO: Start matching the name again!
+							} else {
+								// TODO: Reintepret token up to cursor as a
+								// namespace prefix.
+							}
 							break;
+						} else if(matchTarget == MatchTarget :: NAMESPACE) {
+							// TODO: Reintepret token up to cursor as an
+							// element or attribute name according to
+							// nameTokenType.
 						}
 
 						writeToken(nameTokenType, idToken, tokenPtr);
@@ -426,6 +469,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						else {
 							// First read an attribute name.
 							state = State :: BEFORE_NAME;
+							matchTarget = MatchTarget :: ATTRIBUTE;
 							nameTokenType = TokenType :: ATTRIBUTE_ID;
 							trie = &Namespace :: attributeTrie;
 
@@ -797,11 +841,15 @@ inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uin
 		// NOTE: This is a very rare and complicated edge case.
 		// Test it with the debug flag to run it more often.
 
-		// Emit part length.
-		writeToken(TokenType :: PARTIAL_NAME_LEN, pos - 1, tokenPtr);
-		// Emit the first descendant leaf node, which by definition
-		// will begin with this name part (any descendant leaf would work).
-		writeToken(TokenType :: PARTIAL_NAME_ID, cursor.findLeaf(), tokenPtr);
+		uint32_t id = cursor.findLeaf();
+
+		if(id != Patricia :: notFound) {
+			// Emit part length.
+			writeToken(TokenType :: PARTIAL_NAME_LEN, pos - 1, tokenPtr);
+			// Emit the first descendant leaf node, which by definition
+			// will begin with this name part (any descendant leaf would work).
+			writeToken(TokenType :: PARTIAL_NAME_ID, id, tokenPtr);
+		}
 		// Emit the offset of the remaining part of the name.
 		writeToken(TokenType :: UNKNOWN_START_OFFSET, offset - 1, tokenPtr);
 	} else {
