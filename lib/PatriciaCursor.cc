@@ -114,7 +114,7 @@ uint32_t PatriciaCursor :: findLeaf() {
 		found = p;
 		data = getData();
 		// After splitting nodes at 32 chars, avoid returning a split node.
-	} while(data == Patricia :: notFound);
+	} while(data == Patricia :: notFound && !(*p & 0x80));
 
 	ptr = p;
 	return(data);

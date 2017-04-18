@@ -55,6 +55,13 @@ public:
 		PROCESSING
 	};
 
+	enum class MatchTarget : uint32_t {
+		NAMESPACE,
+		ELEMENT,
+		ATTRIBUTE,
+		PROCESSING
+	};
+
 	static constexpr unsigned int TOKEN_SHIFT = 5;
 
 	// TODO: cdata start/end (no entity parsing on JS side)
@@ -183,6 +190,7 @@ public:
 	bool knownName;
 
 	TagType tagType;
+	MatchTarget matchTarget;
 
 	unsigned char textEndChar;
 
