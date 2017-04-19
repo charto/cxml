@@ -72,6 +72,7 @@ public:
 		CLOSE_ELEMENT_ID,
 		ATTRIBUTE_ID,
 		PROCESSING_ID,
+		PREFIX_ID,
 		XMLNS_ID,
 		URI_ID,
 
@@ -95,14 +96,17 @@ public:
 		UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
 		UNKNOWN_ATTRIBUTE_END_OFFSET,
 		UNKNOWN_PROCESSING_END_OFFSET,
+		UNKNOWN_PREFIX_END_OFFSET,
 		UNKNOWN_XMLNS_END_OFFSET,
 		UNKNOWN_URI_END_OFFSET,
 
 		PROCESSING_END_TYPE,
 
 		// Recognized part from an unrecognized name.
-		PARTIAL_LEN,
-		PARTIAL_NAME_ID
+		PARTIAL_URI_ID,
+		PARTIAL_PREFIX_ID,
+		PARTIAL_NAME_ID,
+		PARTIAL_LEN
 	};
 
 	Parser(std::shared_ptr<ParserConfig> config);
@@ -155,7 +159,12 @@ public:
 
 	bool addUri(uint32_t uri, uint32_t ns);
 
-	inline void emitPartialName(const unsigned char *p, size_t offset, uint32_t *&tokenPtr);
+	inline void emitPartialName(
+		const unsigned char *p,
+		size_t offset,
+		TokenType tokenType,
+		uint32_t *&tokenPtr
+	);
 
 	inline void updateRowCol(unsigned char c);
 
