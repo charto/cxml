@@ -449,7 +449,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				switch(c) {
 					case '/':
 
-						writeToken(TokenType :: CLOSE_ELEMENT_ID, idElement, tokenPtr);
+						writeToken(TokenType :: CLOSED_ELEMENT_EMITTED, idElement, tokenPtr);
 
 						expected = '>';
 						nextState = State :: BEFORE_TEXT;
@@ -459,6 +459,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						break;
 
 					case '>':
+
+						writeToken(TokenType :: ELEMENT_EMITTED, idElement, tokenPtr);
 
 						state = State :: BEFORE_TEXT;
 						break;
