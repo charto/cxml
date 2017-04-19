@@ -30,6 +30,9 @@ const enum CodeType {
 	XMLNS_ID,
 	URI_ID,
 
+	ELEMENT_EMITTED,
+	CLOSED_ELEMENT_EMITTED,
+
 	ATTRIBUTE_START_OFFSET,
 	ATTRIBUTE_END_OFFSET,
 
@@ -58,14 +61,17 @@ const enum CodeType {
 }
 
 export const enum TokenType {
-	// The order of these must match the corresponding initial members of
-	// CodeType.
+	// The placement of these must match equivalents in CodeType.
 	OPEN_ELEMENT = 0,
 	CLOSE_ELEMENT,
 	ATTRIBUTE,
 	PROCESSING,
 	XMLNS,
 	URI,
+
+	// The placement of these must match equivalents in CodeType.
+	ELEMENT_EMITTED,
+	CLOSED_ELEMENT_EMITTED,
 
 	VALUE,
 	TEXT,
@@ -199,6 +205,12 @@ export class Parser extends stream.Transform {
 
 					tokenBuffer[++tokenNum] = TokenType.URI;
 					tokenBuffer[++tokenNum] = this.uriList[code];
+					break;
+
+				case CodeType.ELEMENT_EMITTED:
+				case CodeType.CLOSED_ELEMENT_EMITTED:
+
+					tokenBuffer[++tokenNum] = kind as TokenType;
 					break;
 
 				case CodeType.TEXT_START_OFFSET:

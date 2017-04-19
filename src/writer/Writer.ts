@@ -15,23 +15,17 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	_transform(tokenBuffer: TokenBuffer, enc: string, flush: (err: any, chunk: Buffer) => void) {
-		let tokenNum = 0;
-		let tokenCount = tokenBuffer[0];
-
-		let partList: string[] = [];
-		let partNum = -1;
-
+	transform(tokenBuffer: TokenBuffer, tokenNum: number, tokenCount: number, partList: string[], partNum: number) {
 		let state = this.state;
 		let indent = this.indent;
+
+		if(indent == '') tokenCount = 1;
 
 		while(tokenNum < tokenCount) {
 
 			switch(tokenBuffer[++tokenNum] as TokenType) {
 
 				case TokenType.OPEN_ELEMENT:
-
-					if(state == State.ELEMENT) partList[++partNum] = '>\n';
 
 					partList[++partNum] = indent + '<' + (tokenBuffer[++tokenNum] as Token).name;
 					indent += '\t';
@@ -41,8 +35,6 @@ export class Writer extends stream.Transform {
 
 				case TokenType.UNKNOWN_OPEN_ELEMENT:
 
-					if(state == State.ELEMENT) partList[++partNum] = '>\n';
-
 					partList[++partNum] = indent + '<' + tokenBuffer[++tokenNum];
 					indent += '\t';
 
@@ -51,30 +43,35 @@ export class Writer extends stream.Transform {
 
 				case TokenType.CLOSE_ELEMENT:
 
-					indent = indent.substr(1);
+					indent = indent.substr(0, indent.length - 1);
 
-					if(state == State.ELEMENT) {
-						partList[++partNum] = '/>\n';
-						++tokenNum;
-					} else {
-						if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-						partList[++partNum] = '</' + (tokenBuffer[++tokenNum] as Token).name + '>\n'
-					}
+					if(state != State.AFTER_TEXT) partList[++partNum] = indent;
+					partList[++partNum] = '</' + (tokenBuffer[++tokenNum] as Token).name + '>'
 
 					state = State.TEXT;
 					break;
 
 				case TokenType.UNKNOWN_CLOSE_ELEMENT:
 
-					indent = indent.substr(1);
+					indent = indent.substr(0, indent.length - 1);
 
-					if(state == State.ELEMENT) {
-						partList[++partNum] = '/>\n';
-						++tokenNum;
-					} else {
-						if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-						partList[++partNum] = '</' + tokenBuffer[++tokenNum] + '>\n'
-					}
+					if(state != State.AFTER_TEXT) partList[++partNum] = indent;
+					partList[++partNum] = '</' + tokenBuffer[++tokenNum] + '>'
+
+					state = State.TEXT;
+					break;
+
+				case TokenType.CLOSED_ELEMENT_EMITTED:
+
+					indent = indent.substr(0, indent.length - 1);
+					partList[++partNum] = '/>';
+
+					state = State.TEXT;
+					break;
+
+				case TokenType.ELEMENT_EMITTED:
+
+					partList[++partNum] = '>';
 
 					state = State.TEXT;
 					break;
@@ -96,7 +93,6 @@ export class Writer extends stream.Transform {
 
 				case TokenType.TEXT:
 
-					if(state == State.ELEMENT) partList[++partNum] = '>';
 					partList[++partNum] = tokenBuffer[++tokenNum] as string;
 
 					state = State.AFTER_TEXT;
@@ -104,8 +100,7 @@ export class Writer extends stream.Transform {
 
 				case TokenType.PROCESSING:
 
-					if(state == State.ELEMENT) partList[++partNum] = '>\n';
-					partList[++partNum] = '<?' + (tokenBuffer[++tokenNum] as Token).name;
+					partList[++partNum] = indent + '<?' + (tokenBuffer[++tokenNum] as Token).name;
 
 					state = State.PROCESSING;
 					break;
@@ -122,25 +117,24 @@ export class Writer extends stream.Transform {
 
 				case TokenType.UNKNOWN_PROCESSING:
 
-					if(state == State.ELEMENT) partList[++partNum] = '>\n';
-					partList[++partNum] = '<?' + tokenBuffer[++tokenNum];
+					partList[++partNum] = indent + '<?' + tokenBuffer[++tokenNum];
 
 					state = State.PROCESSING;
 					break;
 
 				case TokenType.XML_PROCESSING_END:
 
-					partList[++partNum] = '?>\n';
+					partList[++partNum] = '?>';
 					break;
 
 				case TokenType.SGML_PROCESSING_END:
 
-					partList[++partNum] = '>\n';
+					partList[++partNum] = '>';
 					break;
 
 				case TokenType.COMMENT:
 
-					partList[++partNum] = indent + '<!--' + tokenBuffer[++tokenNum] + '\n';
+					partList[++partNum] = indent + '<!--' + tokenBuffer[++tokenNum];
 					break;
 
 				default:
@@ -150,12 +144,34 @@ export class Writer extends stream.Transform {
 			}
 		}
 
-		flush(null, new Buffer(partList.join('')));
-
 		this.state = state;
 		this.indent = indent;
+
+		return([ tokenNum, partNum ]);
 	}
 
+	_transform(tokenBuffer: TokenBuffer, enc: string, flush: (err: any, chunk: Buffer) => void) {
+		let tokenNum = 0;
+		let tokenCount = tokenBuffer[0] as number;
+		let partList: string[] = [];
+		let partNum = -1;
+
+		if(!this.chunkCount) {
+			[ tokenNum, partNum ] = this.transform(tokenBuffer, tokenNum, 1, partList, partNum);
+			this.indent = '\n' + this.indent;
+		}
+
+		this.transform(tokenBuffer, tokenNum, tokenCount, partList, partNum);
+		flush(null, new Buffer(partList.join('')));
+
+		++this.chunkCount;
+	}
+
+	_flush( flush: (err: any, chunk: Buffer) => void) {
+		flush(null, new Buffer('\n'));
+	}
+
+	private chunkCount = 0;
 	private state = State.TEXT as State;
 	private indent = '';
 
