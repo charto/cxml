@@ -36,8 +36,8 @@ const enum CodeType {
 	ELEMENT_EMITTED,
 	CLOSED_ELEMENT_EMITTED,
 
-	ATTRIBUTE_START_OFFSET,
-	ATTRIBUTE_END_OFFSET,
+	VALUE_START_OFFSET,
+	VALUE_END_OFFSET,
 
 	TEXT_START_OFFSET,
 	TEXT_END_OFFSET,
@@ -102,7 +102,7 @@ let tokenTypeTbl: TokenType[] = [];
 // tokenTypeTbl[CodeType.ATTRIBUTE_ID] = TokenType.ATTRIBUTE;
 // tokenTypeTbl[CodeType.PROCESSING_ID] = TokenType.PROCESSING;
 
-tokenTypeTbl[CodeType.ATTRIBUTE_END_OFFSET] = TokenType.VALUE;
+tokenTypeTbl[CodeType.VALUE_END_OFFSET] = TokenType.VALUE;
 tokenTypeTbl[CodeType.TEXT_END_OFFSET] = TokenType.TEXT;
 tokenTypeTbl[CodeType.COMMENT_END_OFFSET] = TokenType.COMMENT;
 
@@ -271,7 +271,7 @@ export class Parser extends stream.Transform {
 					break;
 
 				case CodeType.TEXT_START_OFFSET:
-				case CodeType.ATTRIBUTE_START_OFFSET:
+				case CodeType.VALUE_START_OFFSET:
 				case CodeType.COMMENT_START_OFFSET:
 				case CodeType.UNKNOWN_START_OFFSET:
 
@@ -285,7 +285,7 @@ export class Parser extends stream.Transform {
 					partStart = -1;
 					break;
 
-				case CodeType.ATTRIBUTE_END_OFFSET:
+				case CodeType.VALUE_END_OFFSET:
 				case CodeType.TEXT_END_OFFSET:
 				case CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET:
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
