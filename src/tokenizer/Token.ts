@@ -10,6 +10,8 @@ declare class TextEncoder {
 
 export class Token {
 	constructor(public name: string, public ns?: Namespace) {
+		if(name == 'xmlns') Token.xmlns = this;
+
 		this.buf = (
 			typeof(Buffer) == 'function' ?
 			new Buffer(name) :
@@ -22,7 +24,7 @@ export class Token {
 	// TODO: Should be an empty string instead.
 	static empty = new Token('\0');
 
-	static xmlns = new Token('xmlns');
+	static xmlns: Token;
 
 	/** Unique key for storing sets of tokens. */
 	key = '' + (++Token.nextKey);

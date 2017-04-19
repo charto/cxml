@@ -146,6 +146,7 @@ export class Parser extends stream.Transform {
 		this.native = config.createNativeParser();
 
 		this.tokenSet = config.tokenSet;
+		this.namespaceList = config.namespaceList.slice(0);
 
 		this.codeBuffer = new Uint32Array(codeBufferSize);
 		this.native.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
@@ -204,7 +205,9 @@ export class Parser extends stream.Transform {
 		let partialList = tokenList;
 		let tokenNum = this.tokenNum;
 		let token: Token;
-		let id = 0;
+		let ns: Namespace;
+		let idToken: number;
+		let idNamespace: number;
 
 		while(codeNum < codeCount) {
 			let code = codeBuffer[++codeNum];
@@ -222,10 +225,22 @@ export class Parser extends stream.Transform {
 					target[++tokenNum] = tokenList[code];
 					break;
 
+				case CodeType.PREFIX_ID:
+
+					this.latestPrefix = this.prefixList[code];
+
+					this.markUnresolved(tokenNum);
+					target = this.target;
+					tokenNum = this.tokenNum;
+
+					break;
+
 				case CodeType.XMLNS_ID:
 
+					this.latestPrefix = this.prefixList[code];
+
 					target[++tokenNum] = TokenType.XMLNS;
-					target[++tokenNum] = this.prefixList[code];
+					target[++tokenNum] = this.latestPrefix;
 					break;
 
 				case CodeType.URI_ID:
@@ -293,50 +308,52 @@ export class Parser extends stream.Transform {
 					if(kind == CodeType.UNKNOWN_URI_END_OFFSET) {
 						let uri = this.getSlice(partStart, code);
 
-						[ token, id ] = this.uris.add(uri);
+						[ token, idToken ] = this.uris.add(uri);
 
-						if(id > dynamicTokenTblSize) {
+						if(idToken > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
 							throw(new Error('Too many different xmlns URIs'));
 						}
 
 						// Create a new namespace for the unrecognized URI.
-						this.native.addUri(
-							id,
-							this.native.addNamespace(
-								new Namespace('', uri).getNative(this.tokenSet)
-							)
+						ns = new Namespace(this.latestPrefix.name, uri);
+						idNamespace = this.native.addNamespace(
+							ns.getNative(this.tokenSet)
 						);
 
+						this.namespaceList[idNamespace] = ns;
+						this.native.addUri(idToken, idNamespace);
+
 						// Pass new trie and ID of last inserted token to C++.
-						this.native.setUriTrie(this.uris.trie.encode(this.uris.tokenSet), id);
+						this.native.setUriTrie(
+							this.uris.trie.encode(this.uris.tokenSet),
+							idToken
+						);
 						this.uriList = this.uris.tokenSet.list;
 					} else {
-						[ token, id ] = this.prefixes.add(this.getSlice(partStart, code));
+						[ token, idToken ] = this.prefixes.add(
+							this.getSlice(partStart, code)
+						);
 
-						if(id > dynamicTokenTblSize) {
+						this.latestPrefix = token;
+
+						if(idToken > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
 							throw(new Error('Too many different xmlns prefixes'));
 						}
 
 						// Pass new trie and ID of last inserted token to C++.
-						this.native.setPrefixTrie(this.prefixes.trie.encode(this.prefixes.tokenSet), id);
+						this.native.setPrefixTrie(
+							this.prefixes.trie.encode(this.prefixes.tokenSet),
+							idToken
+						);
 						this.prefixList = this.prefixes.tokenSet.list;
 					}
 
 					if(kind == CodeType.UNKNOWN_PREFIX_END_OFFSET) {
-						// Buffer everything following an element or attribute
-						// with an unknown namespace prefix, for resolving and
-						// emitting after the prefix is defined.
-						if(this.target != this.resolveBuffer) {
-							this.target = this.resolveBuffer;
-							this.emitTokenNum = tokenNum;
-							this.tokenNum = 0;
-
-							target = this.target;
-							tokenNum = this.tokenNum;
-						}
-						this.resolveOffsetList.push(this.target.length);
+						this.markUnresolved(tokenNum);
+						target = this.target;
+						tokenNum = this.tokenNum;
 					}
 
 					target[++tokenNum] = tokenTypeTbl[kind];
@@ -394,6 +411,18 @@ export class Parser extends stream.Transform {
 		this.tokenNum = tokenNum;
 	}
 
+	/** Buffer everything following an element or attribute with an unknown
+	  * namespace prefix, for resolving and emitting after the prefix is defined. */
+	private markUnresolved(tokenNum: number) {
+		if(this.target != this.resolveBuffer) {
+			this.target = this.resolveBuffer;
+			this.emitTokenNum = tokenNum;
+			this.tokenNum = 0;
+		}
+
+		this.resolveOffsetList.push(this.target.length);
+	}
+
 	private storeSlice(start: number, end?: number) {
 		if(!this.partList) this.partList = [];
 
@@ -443,6 +472,7 @@ export class Parser extends stream.Transform {
 		).replace(/\r\n?|\n\r/g, '\n'));
 	}
 
+	namespaceList: Namespace[];
 	private tokenSet: TokenSet;
 
 	/** Current input buffer. */
@@ -464,6 +494,7 @@ export class Parser extends stream.Transform {
 	/** Offset to latest token in tokenBuffer when it's not the target. */
 	private emitTokenNum: number;
 
+	private latestPrefix: Token;
 	private prefixes: TokenPackage;
 	private prefixList: Token[];
 	private uris: TokenPackage;

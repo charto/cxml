@@ -6,8 +6,10 @@ import { Patricia } from './tokenizer/Patricia';
 import { NativeNamespace, NativeConfig } from './parser/ParserLib';
 
 export class Namespace {
-	constructor(public defaultPrefix: string, public uri: string) {
-		this.native = new NativeNamespace(this.uri);
+	constructor(prefix: string, uri: string) {
+		this.uri = new Token(uri);
+		this.prefix = new Token(prefix);
+		this.native = new NativeNamespace(uri);
 
 		this.attributeTrie.insertNode(Token.xmlns);
 	}
@@ -28,6 +30,9 @@ export class Namespace {
 
 		return(this.native);
 	}
+
+	public uri: Token;
+	public prefix: Token;
 
 	private elementTrie = new Patricia();
 	private attributeTrie = new Patricia();
