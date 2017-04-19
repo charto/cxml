@@ -27,7 +27,7 @@ public:
 private:
 
 	std::vector<const std::shared_ptr<Namespace>> namespaceList;
-	std::vector<const Namespace *> namespaceByUriToken;
+	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 
 	uint32_t xmlnsToken = Patricia :: notFound;
 

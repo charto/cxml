@@ -27,7 +27,7 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 	col = 0;
 
 	for(unsigned int i = 0; i < namespacePrefixTblSize; ++i) {
-		namespacePrefixTbl[i] = nullptr;
+		namespacePrefixTbl[i] = std::make_pair(0, nullptr);
 	}
 }
 
@@ -50,14 +50,14 @@ inline void Parser :: updateRowCol(unsigned char c) {
 }
 
 bool Parser :: addUri(uint32_t uri, uint32_t ns) {
-	ns -= config->namespaceList.size();
+	uint32_t nsExtra = ns - config->namespaceList.size();
 
-	if(ns < extraNamespaceList.size()) {
+	if(nsExtra < extraNamespaceList.size()) {
 		if(uri >= namespaceByUriToken.size()) {
 			namespaceByUriToken.resize(uri + 1);
 		}
 
-		namespaceByUriToken[uri] = extraNamespaceList[ns].get();
+		namespaceByUriToken[uri] = std::make_pair(ns, extraNamespaceList[nsExtra].get());
 
 		return(true);
 	}
@@ -289,7 +289,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// TODO: By default, attributes belong to the same namespace as their parent element.
 					ns = namespacePrefixTbl[config->xmlnsToken];
 
-					if(!ns) {
+					if(ns.second == nullptr) {
 						// No default namespace is defined, so this element
 						// cannot be matched with anything.
 						writeToken(TokenType :: UNKNOWN_START_OFFSET, p - 1 - chunkBuffer, tokenPtr);
@@ -299,7 +299,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						goto UNKNOWN_NAME;
 					}
 
-					cursor.init(ns->*trie);
+					cursor.init(ns.second->*trie);
 				}
 
 				tokenStart = p - 1;
@@ -356,13 +356,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 								ns = namespacePrefixTbl[idToken];
 
-								if(ns == nullptr) {
+								if(ns.second == nullptr) {
 									// Found a known but undeclared namespace
 									// prefix, valid if declared with an xmlns
 									// attribute in the same element.
 
 									writeToken(TokenType :: PREFIX_ID, idToken, tokenPtr);
-
 									writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
 
 									idToken = Patricia :: notFound;
@@ -372,7 +371,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 								pos = 0;
 								tokenStart = p;
-								cursor.init(ns->*trie);
+								cursor.init(ns.second->*trie);
 
 								break;
 							} else {
@@ -399,11 +398,14 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				pos += p - tokenStart;
 
-				// This name was not found in the Patricia trie, but if it was
-				// a partial match then input was already consumed and possibly
-				// list if the input buffer was drained. We may need to emit the
-				// length of the matched part and any token starting with it,
-				// to recover the complete name.
+				if(ns.second != nullptr) {
+					// Name was unknown, so emit its namespace.
+					// TODO: "ns" variable is incorrect if set earlier by an
+					// unrelated xmlns attribute!
+					writeToken(TokenType :: NAMESPACE_ID, ns.first, tokenPtr);
+				}
+
+				// For partial matches, emit the matched prefix.
 				emitPartialName(
 					p,
 					static_cast<size_t>(p - chunkBuffer),
@@ -444,7 +446,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					flush(tokenPtr);
 
 					// Namespace is unknown so prepare to emit the name.
-					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - 1 - chunkBuffer, tokenPtr);
+					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
 					break;
 				}
 

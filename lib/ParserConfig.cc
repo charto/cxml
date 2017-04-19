@@ -30,7 +30,7 @@ bool ParserConfig :: addUri(uint32_t uri, uint32_t ns) {
 			namespaceByUriToken.resize(uri + 1);
 		}
 
-		namespaceByUriToken[uri] = namespaceList[ns].get();
+		namespaceByUriToken[uri] = std::make_pair(ns, namespaceList[ns].get());
 
 		return(true);
 	}
