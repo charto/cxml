@@ -25,7 +25,8 @@ public:
 	  * value found. */
 	bool advance(unsigned char c);
 
-	/** Find the ID of any descendant leaf after advance has failed. */
+	/** Find the ID of the (lexicographically) first descendant leaf
+	  * after advance has failed. The cursor position is unchanged. */
 	uint32_t findLeaf();
 
 	/** Get the data value associated with the string.
