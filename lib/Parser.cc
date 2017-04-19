@@ -50,6 +50,8 @@ inline void Parser :: updateRowCol(unsigned char c) {
 }
 
 bool Parser :: addUri(uint32_t uri, uint32_t ns) {
+	ns -= config->namespaceList.size();
+
 	if(ns < extraNamespaceList.size()) {
 		if(uri >= namespaceByUriToken.size()) {
 			namespaceByUriToken.resize(uri + 1);
@@ -74,7 +76,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
-	const Namespace *ns;
 	unsigned char c, d;
 
 	// Indicate that no tokens inside the chunk were found yet.
@@ -347,22 +348,33 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							if(matchTarget == MatchTarget :: NAMESPACE) {
 								if(idToken >= namespacePrefixTblSize) return(false);
 
-								ns = namespacePrefixTbl[idToken];
-
-								if(ns == nullptr) {
-									// TODO: Not an error if prefix is
-									// defined in this element.
-									return(false);
-								}
-
 								matchTarget = (
 									nameTokenType == TokenType :: ATTRIBUTE_ID ?
 									MatchTarget :: ATTRIBUTE :
 									MatchTarget :: ELEMENT
 								);
 
+								ns = namespacePrefixTbl[idToken];
+
+								if(ns == nullptr) {
+									// Found a known but undeclared namespace
+									// prefix, valid if declared with an xmlns
+									// attribute in the same element.
+
+									writeToken(TokenType :: PREFIX_ID, idToken, tokenPtr);
+
+									writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
+
+									idToken = Patricia :: notFound;
+									state = State :: UNKNOWN_NAME;
+									break;
+								}
+
+								pos = 0;
+								tokenStart = p;
 								cursor.init(ns->*trie);
-								// TODO: Start matching the name again!
+
+								break;
 							} else {
 								// TODO: Reintepret token up to cursor as a
 								// namespace prefix.
@@ -419,8 +431,8 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				}
 
 				if(c == ':') {
-					// Found an undeclared namespace prefix, valid if declared
-					// with an xmlns attribute in the same element.
+					// Found a new, undeclared namespace prefix, valid if
+					// declared with an xmlns attribute in the same element.
 
 					writeToken(
 						TokenType :: UNKNOWN_PREFIX_END_OFFSET,

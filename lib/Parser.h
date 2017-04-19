@@ -154,7 +154,7 @@ public:
 
 	uint32_t addNamespace(const std::shared_ptr<Namespace> ns) {
 		extraNamespaceList.push_back(ns);
-		return(extraNamespaceList.size() - 1);
+		return(extraNamespaceList.size() + config->namespaceList.size() - 1);
 	}
 
 	bool addUri(uint32_t uri, uint32_t ns);
@@ -174,6 +174,7 @@ public:
 	std::shared_ptr<ParserConfig> config;
 
 	const Namespace *namespacePrefixTbl[namespacePrefixTblSize];
+	const Namespace *ns;
 
 	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
 

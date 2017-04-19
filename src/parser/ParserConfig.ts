@@ -9,7 +9,6 @@ import { NativeConfig, NativeParser } from './ParserLib';
 
 export class ParserConfig {
 	constructor() {
-		this.addPrefix(Token.xmlns);
 		this.tokenSet.add(Token.xmlns);
 	}
 
@@ -18,21 +17,24 @@ export class ParserConfig {
 	}
 
 	addNamespace(ns: Namespace) {
-		this.addUri(ns.uri, ns, this.native.addNamespace(ns.getNative(this.tokenSet)));
+		const id = this.native.addNamespace(ns.getNative(this.tokenSet));
+
+		this.namespaceList[id] = ns;
+		this.addUri(ns.uri, ns, id);
+		this.addPrefix(ns.prefix);
 	}
 
-	addUri(uri: string, ns: Namespace, idNamespace?: number) {
-		if(!uri) return;
+	addUri(uri: Token, ns: Namespace, idNamespace?: number) {
+		if(!uri.name) return;
 
-		const uriToken = new Token(uri);
-		const idUri = this.uriSet.add(uriToken);
-		let spec = this.namespaceTbl[ns.uri];
+		const idUri = this.uriSet.add(uri);
+		let spec = this.namespaceTbl[ns.uri.name];
 
 		if(spec && spec.ns == ns) {
 			idNamespace = spec.id;
 		} else if(typeof(idNamespace) == 'number') {
 			spec = { id: idNamespace, ns };
-			this.namespaceTbl[uri] = spec;
+			this.namespaceTbl[uri.name] = spec;
 		} else {
 			throw(new Error('Invalid namespace or missing ID'));
 		}
@@ -42,12 +44,14 @@ export class ParserConfig {
 
 		this.native.addUri(idUri, idNamespace);
 
-		this.uriTrie.insertNode(uriToken);
+		this.uriTrie.insertNode(uri);
 	}
 
-	addPrefix(token: Token) {
-		this.prefixSet.add(token);
-		this.prefixTrie.insertNode(token);
+	addPrefix(prefix: Token) {
+		if(!prefix.name) return;
+
+		this.prefixSet.add(prefix);
+		this.prefixTrie.insertNode(prefix);
 		this.native.setPrefixTrie(this.prefixTrie.encode(this.prefixSet));
 	}
 
@@ -58,6 +62,7 @@ export class ParserConfig {
 	uriTrie = new Patricia();
 
 	namespaceTbl: { [uri: string]: { id: number, ns: Namespace } } = {};
+	namespaceList: Namespace[] = [];
 
 	private native = new NativeConfig();
 }
