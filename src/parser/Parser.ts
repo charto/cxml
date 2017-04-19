@@ -16,6 +16,8 @@ export type TokenBuffer = (number | Token | string)[];
 const codeBufferSize = 8192;
 const dynamicTokenTblSize = 256;
 
+const chunkSize = Infinity;
+
 const enum TOKEN {
 	SHIFT = 5,
 	MASK = 31
@@ -158,8 +160,18 @@ export class Parser extends stream.Transform {
 		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
 
 		this.tokenNum = 0;
-		this.native.parse(chunk as Buffer);
-		this.parseCodeBuffer(false);
+		const len = chunk.length;
+		let pos = 0;
+
+		while(pos < len) {
+			let next = Math.min(pos + chunkSize, len);
+
+			this.chunk = chunk.slice(pos, next);
+			this.native.parse(this.chunk as Buffer);
+			this.parseCodeBuffer(false);
+
+			pos = next;
+		}
 
 		this.tokenBuffer[0] = this.tokenNum;
 		this.flush(null, this.tokenBuffer);
