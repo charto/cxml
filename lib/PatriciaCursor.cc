@@ -49,14 +49,14 @@ bool PatriciaCursor :: advance(unsigned char c) {
 		len = *p++;
 	}
 
+	len -= 8;
+
 	// If the node contains a full byte but the input doesn't match,
 	// then it was not found in the trie.
 	if(c != *p++) {
 		ptr = p;
 		return(false);
 	}
-
-	len -= 8;
 
 	if(!len) {
 		// If the branch doesn't depend on any bits inside the byte,
@@ -96,6 +96,7 @@ bool PatriciaCursor :: transfer(const Patricia &trie) {
 
 uint32_t PatriciaCursor :: findLeaf() {
 	const unsigned char *p = ptr;
+	uint16_t len = this->len;
 	uint32_t data;
 
 	do {
@@ -111,12 +112,14 @@ uint32_t PatriciaCursor :: findLeaf() {
 			p += (len + 7) / 8 + 4;
 		}
 
+		len = p[3];
 		found = p;
 		data = getData();
+
+		p += 4;
 		// After splitting nodes at 32 chars, avoid returning a split node.
 	} while(data == Patricia :: notFound && !(*p & 0x80));
 
-	ptr = p;
 	return(data);
 }
 
