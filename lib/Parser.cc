@@ -18,7 +18,7 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 	uriTrie(config->uriTrie)
 {
 	state = State :: MATCH;
-	pattern = "\xef\xbb\xbf\0";
+	pattern = "\xef\xbb\xbf";
 	matchState = State :: BEFORE_TEXT;
 	noMatchState = State :: BEFORE_TEXT;
 	partialMatchState = State :: ERROR;
@@ -332,12 +332,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// prefix.
 					if(idToken == config->xmlnsToken && tagType == TagType :: ELEMENT) {
 						if(c == ':') {
-							state = State :: DEFINE_XMLNS_PREFIX;
+							state = State :: DEFINE_XMLNS_BEFORE_PREFIX_NAME;
 							break;
 						} else {
 							// Prepare to set default namespace, handled like an
 							// otherwise illegal prefix definition xmlns:xmlns.
-							afterNameState = State :: AFTER_XMLNS_NAME;
+							afterNameState = State :: DEFINE_XMLNS_AFTER_PREFIX_NAME;
 						}
 					}
 
@@ -532,7 +532,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 			// Finished reading an attribute name beginning "xmlns:".
 			// Parse the namespace prefix it defines.
-			case State :: DEFINE_XMLNS_PREFIX:
+			case State :: DEFINE_XMLNS_BEFORE_PREFIX_NAME:
 
 				tokenStart = p - 1;
 
@@ -543,13 +543,13 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// TODO: Better use a state without handling of the : char.
 				afterMatchTrieState = State :: NAME;
 
-				afterNameState = State :: AFTER_XMLNS_NAME;
+				afterNameState = State :: DEFINE_XMLNS_AFTER_PREFIX_NAME;
 				// Prepare to emit the chosen namespace prefix.
 				nameTokenType = TokenType :: XMLNS_ID;
 
 				goto MATCH_TRIE;
 
-			case State :: AFTER_XMLNS_NAME:
+			case State :: DEFINE_XMLNS_AFTER_PREFIX_NAME:
 
 				// If the name was unrecognized, flush tokens so JavaScript
 				// updates the namespace prefix trie and this tokenizer can
@@ -575,7 +575,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				cursor.init(uriTrie);
 				valueTokenType = TokenType :: URI_ID;
 
-				afterValueState = State :: AFTER_XMLNS_URI;
+				afterValueState = State :: DEFINE_XMLNS_AFTER_URI;
 
 				goto MATCH_SPARSE;
 
@@ -660,7 +660,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				state = afterValueState;
 				break;
 
-			case State :: AFTER_XMLNS_URI:
+			case State :: DEFINE_XMLNS_AFTER_URI:
 
 				// If the value was unrecognized, flush tokens so JavaScript
 				// updates the uri trie and this tokenizer can recognize it
@@ -847,7 +847,7 @@ inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uin
 
 		if(id != Patricia :: notFound) {
 			// Emit part length.
-			writeToken(TokenType :: PARTIAL_NAME_LEN, pos - 1, tokenPtr);
+			writeToken(TokenType :: PARTIAL_LEN, pos - 1, tokenPtr);
 			// Emit the first descendant leaf node, which by definition
 			// will begin with this name part (any descendant leaf would work).
 			writeToken(TokenType :: PARTIAL_NAME_ID, id, tokenPtr);
