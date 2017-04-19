@@ -29,6 +29,7 @@ const enum CodeType {
 	CLOSE_ELEMENT_ID,
 	ATTRIBUTE_ID,
 	PROCESSING_ID,
+	PREFIX_ID,
 	XMLNS_ID,
 	URI_ID,
 
@@ -52,14 +53,17 @@ const enum CodeType {
 	UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
 	UNKNOWN_ATTRIBUTE_END_OFFSET,
 	UNKNOWN_PROCESSING_END_OFFSET,
+	UNKNOWN_PREFIX_END_OFFSET,
 	UNKNOWN_XMLNS_END_OFFSET,
 	UNKNOWN_URI_END_OFFSET,
 
 	PROCESSING_END_TYPE,
 
-	// Recognized prefix from an unrecognized name.
-	PARTIAL_LEN,
-	PARTIAL_NAME_ID
+	// Recognized part from an unrecognized name.
+	PARTIAL_URI_ID,
+	PARTIAL_PREFIX_ID,
+	PARTIAL_NAME_ID,
+	PARTIAL_LEN
 }
 
 export const enum TokenType {
@@ -68,6 +72,7 @@ export const enum TokenType {
 	CLOSE_ELEMENT,
 	ATTRIBUTE,
 	PROCESSING,
+	PREFIX,
 	XMLNS,
 	URI,
 
@@ -105,6 +110,8 @@ tokenTypeTbl[CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_OPEN_
 tokenTypeTbl[CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_CLOSE_ELEMENT;
 tokenTypeTbl[CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET] = TokenType.UNKNOWN_ATTRIBUTE;
 tokenTypeTbl[CodeType.UNKNOWN_PROCESSING_END_OFFSET] = TokenType.UNKNOWN_PROCESSING;
+
+tokenTypeTbl[CodeType.UNKNOWN_PREFIX_END_OFFSET] = TokenType.PREFIX;
 tokenTypeTbl[CodeType.UNKNOWN_XMLNS_END_OFFSET] = TokenType.XMLNS;
 tokenTypeTbl[CodeType.UNKNOWN_URI_END_OFFSET] = TokenType.URI;
 
@@ -152,6 +159,8 @@ export class Parser extends stream.Transform {
 		// TODO: C++ side should just copy the tree from the config object.
 		this.native.setUriTrie(this.uris.trie.encode(this.uris.tokenSet), 0);
 		this.uriList = this.uris.tokenSet.list;
+
+		this.target = this.tokenBuffer;
 	}
 
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
@@ -159,7 +168,6 @@ export class Parser extends stream.Transform {
 		this.flush = flush;
 		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
 
-		this.tokenNum = 0;
 		const len = chunk.length;
 		let pos = 0;
 
@@ -173,7 +181,13 @@ export class Parser extends stream.Transform {
 			pos = next;
 		}
 
-		this.tokenBuffer[0] = this.tokenNum;
+		if(this.target == this.tokenBuffer) {
+			this.tokenBuffer[0] = this.tokenNum;
+			this.tokenNum = 0;
+		} else {
+			this.tokenBuffer[0] = this.emitTokenNum;
+			this.emitTokenNum = 0;
+		}
 		this.flush(null, this.tokenBuffer);
 	}
 
@@ -185,8 +199,9 @@ export class Parser extends stream.Transform {
 		let partStart = this.partStart;
 		let partialLen = this.partialLen;
 
-		const tokenBuffer = this.tokenBuffer;
+		let target = this.target;
 		const tokenList = this.tokenSet.list;
+		let partialList = tokenList;
 		let tokenNum = this.tokenNum;
 		let token: Token;
 		let id = 0;
@@ -202,27 +217,42 @@ export class Parser extends stream.Transform {
 				case CodeType.ATTRIBUTE_ID:
 				case CodeType.PROCESSING_ID:
 
-					tokenBuffer[++tokenNum] = kind as TokenType;
+					target[++tokenNum] = kind as TokenType;
 					//if(!tokenList[code]) console.error(kind + ' ' + code);
-					tokenBuffer[++tokenNum] = tokenList[code];
+					target[++tokenNum] = tokenList[code];
 					break;
 
 				case CodeType.XMLNS_ID:
 
-					tokenBuffer[++tokenNum] = TokenType.XMLNS;
-					tokenBuffer[++tokenNum] = this.prefixList[code];
+					target[++tokenNum] = TokenType.XMLNS;
+					target[++tokenNum] = this.prefixList[code];
 					break;
 
 				case CodeType.URI_ID:
 
-					tokenBuffer[++tokenNum] = TokenType.URI;
-					tokenBuffer[++tokenNum] = this.uriList[code];
+					target[++tokenNum] = TokenType.URI;
+					target[++tokenNum] = this.uriList[code];
 					break;
 
 				case CodeType.ELEMENT_EMITTED:
 				case CodeType.CLOSED_ELEMENT_EMITTED:
 
-					tokenBuffer[++tokenNum] = kind as TokenType;
+					if(this.target == this.resolveBuffer) {
+						this.target = this.tokenBuffer;
+						this.tokenNum = this.emitTokenNum;
+
+						target = this.target;
+						tokenNum = this.tokenNum;
+
+						// TODO: Resolve tokens with unknown namespace prefixes!
+						for(let token of this.resolveBuffer) {
+							target[++tokenNum] = token;
+						}
+
+						this.resolveBuffer = [];
+					}
+
+					target[++tokenNum] = kind as TokenType;
 					break;
 
 				case CodeType.TEXT_START_OFFSET:
@@ -235,8 +265,8 @@ export class Parser extends stream.Transform {
 
 				case CodeType.COMMENT_END_OFFSET:
 
-					tokenBuffer[++tokenNum] = TokenType.COMMENT;
-					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					target[++tokenNum] = TokenType.COMMENT;
+					target[++tokenNum] = this.getSlice(partStart, code);
 					partStart = -1;
 					break;
 
@@ -247,11 +277,12 @@ export class Parser extends stream.Transform {
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
 				case CodeType.UNKNOWN_PROCESSING_END_OFFSET:
 
-					tokenBuffer[++tokenNum] = tokenTypeTbl[kind];
-					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					target[++tokenNum] = tokenTypeTbl[kind];
+					target[++tokenNum] = this.getSlice(partStart, code);
 					partStart = -1;
 					break;
 
+				case CodeType.UNKNOWN_PREFIX_END_OFFSET:
 				case CodeType.UNKNOWN_XMLNS_END_OFFSET:
 				case CodeType.UNKNOWN_URI_END_OFFSET:
 
@@ -259,18 +290,7 @@ export class Parser extends stream.Transform {
 					// Incoming code buffer should have been flushed immediately
 					// after writing this token.
 
-					if(kind == CodeType.UNKNOWN_XMLNS_END_OFFSET) {
-						[ token, id ] = this.prefixes.add(this.getSlice(partStart, code));
-
-						if(id > dynamicTokenTblSize) {
-							// TODO: report row and column in error messages.
-							throw(new Error('Too many different xmlns prefixes'));
-						}
-
-						// Pass new trie and ID of last inserted token to C++.
-						this.native.setPrefixTrie(this.prefixes.trie.encode(this.prefixes.tokenSet), id);
-						this.prefixList = this.prefixes.tokenSet.list;
-					} else {
+					if(kind == CodeType.UNKNOWN_URI_END_OFFSET) {
 						let uri = this.getSlice(partStart, code);
 
 						[ token, id ] = this.uris.add(uri);
@@ -291,10 +311,36 @@ export class Parser extends stream.Transform {
 						// Pass new trie and ID of last inserted token to C++.
 						this.native.setUriTrie(this.uris.trie.encode(this.uris.tokenSet), id);
 						this.uriList = this.uris.tokenSet.list;
+					} else {
+						[ token, id ] = this.prefixes.add(this.getSlice(partStart, code));
+
+						if(id > dynamicTokenTblSize) {
+							// TODO: report row and column in error messages.
+							throw(new Error('Too many different xmlns prefixes'));
+						}
+
+						// Pass new trie and ID of last inserted token to C++.
+						this.native.setPrefixTrie(this.prefixes.trie.encode(this.prefixes.tokenSet), id);
+						this.prefixList = this.prefixes.tokenSet.list;
 					}
 
-					tokenBuffer[++tokenNum] = tokenTypeTbl[kind];
-					tokenBuffer[++tokenNum] = token;
+					if(kind == CodeType.UNKNOWN_PREFIX_END_OFFSET) {
+						// Buffer everything following an element or attribute
+						// with an unknown namespace prefix, for resolving and
+						// emitting after the prefix is defined.
+						if(this.target != this.resolveBuffer) {
+							this.target = this.resolveBuffer;
+							this.emitTokenNum = tokenNum;
+							this.tokenNum = 0;
+
+							target = this.target;
+							tokenNum = this.tokenNum;
+						}
+						this.resolveOffsetList.push(this.target.length);
+					}
+
+					target[++tokenNum] = tokenTypeTbl[kind];
+					target[++tokenNum] = token;
 					partStart = -1;
 					break;
 
@@ -303,15 +349,29 @@ export class Parser extends stream.Transform {
 					partialLen = code;
 					break;
 
+				case CodeType.PARTIAL_URI_ID:
+
+					partialList = this.uris.tokenSet.list;
+
+				// Fallthru
+				case CodeType.PARTIAL_PREFIX_ID:
+
+					if(partialList == tokenList) partialList = this.prefixes.tokenSet.list;
+
+				// Fallthru
 				case CodeType.PARTIAL_NAME_ID:
 
-					this.bufferPartList = [ tokenList[code].buf.slice(0, partialLen) as any ];
+					token = partialList[code];
+
+					this.bufferPartList = [ token.buf.slice(0, partialLen) as any ];
 					this.partList = [ this.bufferPartList ];
+
+					partialList = tokenList;
 					break;
 
 				case CodeType.PROCESSING_END_TYPE:
 
-					tokenBuffer[++tokenNum] = (
+					target[++tokenNum] = (
 						code ?
 						TokenType.SGML_PROCESSING_END :
 						TokenType.XML_PROCESSING_END
@@ -399,7 +459,10 @@ export class Parser extends stream.Transform {
 
 	private partialLen: number;
 
-	private tokenNum: number;
+	/** Offset to position in target where to write output tokens. */
+	private tokenNum = 0;
+	/** Offset to latest token in tokenBuffer when it's not the target. */
+	private emitTokenNum: number;
 
 	private prefixes: TokenPackage;
 	private prefixList: Token[];
@@ -409,4 +472,8 @@ export class Parser extends stream.Transform {
 	private native: NativeParser;
 	private codeBuffer: Uint32Array;
 	private tokenBuffer: TokenBuffer = [];
+	private resolveBuffer: TokenBuffer = [];
+	/** Offsets to tokens in resolveBuffer with unknown namespace prefixes. */
+	private resolveOffsetList: number[] = [];
+	private target: TokenBuffer;
 }

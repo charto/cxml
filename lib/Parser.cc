@@ -392,7 +392,16 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// list if the input buffer was drained. We may need to emit the
 				// length of the matched part and any token starting with it,
 				// to recover the complete name.
-				emitPartialName(p, static_cast<size_t>(p - chunkBuffer), tokenPtr);
+				emitPartialName(
+					p,
+					static_cast<size_t>(p - chunkBuffer),
+					(
+						matchTarget == MatchTarget :: NAMESPACE ?
+						TokenType :: PARTIAL_PREFIX_ID :
+						TokenType :: PARTIAL_NAME_ID
+					),
+					tokenPtr
+				);
 
 				idToken = Patricia :: notFound;
 				pos = 0;
@@ -410,9 +419,20 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				}
 
 				if(c == ':') {
-					// TODO: Handle a so far undeclared namespace prefix.
-					// It can be valid if there's a corresponding xmlns:...
-					// attribute in the same element.
+					// Found an undeclared namespace prefix, valid if declared
+					// with an xmlns attribute in the same element.
+
+					writeToken(
+						TokenType :: UNKNOWN_PREFIX_END_OFFSET,
+						p - chunkBuffer - 1,
+						tokenPtr
+					);
+
+					// Flush tokens to regenerate prefix trie in JavaScript.
+					flush(tokenPtr);
+
+					// Namespace is unknown so prepare to emit the name.
+					writeToken(TokenType :: UNKNOWN_START_OFFSET, p - 1 - chunkBuffer, tokenPtr);
 					break;
 				}
 
@@ -609,7 +629,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				pos += p - tokenStart;
 
-				emitPartialName(p, static_cast<size_t>(p - chunkBuffer), tokenPtr);
+				emitPartialName(
+					p,
+					static_cast<size_t>(p - chunkBuffer),
+					TokenType :: PARTIAL_URI_ID,
+					tokenPtr
+				);
 
 				idToken = Patricia :: notFound;
 				pos = 0;
@@ -835,7 +860,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	}
 }
 
-inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uint32_t *&tokenPtr) {
+inline void Parser :: emitPartialName(
+	const unsigned char *p,
+	size_t offset,
+	TokenType tokenType,
+	uint32_t *&tokenPtr
+) {
 	// Test if the number of characters consumed is more than one,
 	// and more than past characters still left in the input buffer.
 	// Otherwise we can still take the other, faster branch.
@@ -850,7 +880,7 @@ inline void Parser :: emitPartialName(const unsigned char *p, size_t offset, uin
 			writeToken(TokenType :: PARTIAL_LEN, pos - 1, tokenPtr);
 			// Emit the first descendant leaf node, which by definition
 			// will begin with this name part (any descendant leaf would work).
-			writeToken(TokenType :: PARTIAL_NAME_ID, id, tokenPtr);
+			writeToken(tokenType, id, tokenPtr);
 		}
 		// Emit the offset of the remaining part of the name.
 		writeToken(TokenType :: UNKNOWN_START_OFFSET, offset - 1, tokenPtr);
