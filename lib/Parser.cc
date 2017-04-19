@@ -515,7 +515,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 							// Finally text content up to closing double quote.
 							matchState = State :: TEXT;
-							textTokenType = TokenType :: ATTRIBUTE_START_OFFSET;
+							textTokenType = TokenType :: VALUE_START_OFFSET;
 							textEndChar = '"';
 							afterTextState = afterValueState;
 
