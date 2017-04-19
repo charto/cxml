@@ -58,7 +58,7 @@ const enum CodeType {
 	PROCESSING_END_TYPE,
 
 	// Recognized prefix from an unrecognized name.
-	PARTIAL_NAME_LEN,
+	PARTIAL_LEN,
 	PARTIAL_NAME_ID
 }
 
@@ -298,7 +298,7 @@ export class Parser extends stream.Transform {
 					partStart = -1;
 					break;
 
-				case CodeType.PARTIAL_NAME_LEN:
+				case CodeType.PARTIAL_LEN:
 
 					partialLen = code;
 					break;
