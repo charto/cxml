@@ -18,6 +18,7 @@ export class Writer extends stream.Transform {
 	transform(tokenBuffer: TokenBuffer, tokenNum: number, tokenCount: number, partList: string[], partNum: number) {
 		let state = this.state;
 		let indent = this.indent;
+		let prefix = this.prefix;
 
 		if(indent == '') tokenCount = 1;
 
@@ -25,18 +26,25 @@ export class Writer extends stream.Transform {
 
 			switch(tokenBuffer[++tokenNum] as TokenType) {
 
+				case TokenType.PREFIX:
+
+					prefix = (tokenBuffer[++tokenNum] as Token).name + ':';
+					break;
+
 				case TokenType.OPEN_ELEMENT:
 
-					partList[++partNum] = indent + '<' + (tokenBuffer[++tokenNum] as Token).name;
+					partList[++partNum] = indent + '<' + prefix + (tokenBuffer[++tokenNum] as Token).name;
 					indent += '\t';
+					prefix = '';
 
 					state = State.ELEMENT;
 					break;
 
 				case TokenType.UNKNOWN_OPEN_ELEMENT:
 
-					partList[++partNum] = indent + '<' + tokenBuffer[++tokenNum];
+					partList[++partNum] = indent + '<' + prefix + tokenBuffer[++tokenNum];
 					indent += '\t';
+					prefix = '';
 
 					state = State.ELEMENT;
 					break;
@@ -46,7 +54,8 @@ export class Writer extends stream.Transform {
 					indent = indent.substr(0, indent.length - 1);
 
 					if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-					partList[++partNum] = '</' + (tokenBuffer[++tokenNum] as Token).name + '>'
+					partList[++partNum] = '</' + prefix + (tokenBuffer[++tokenNum] as Token).name + '>'
+					prefix = '';
 
 					state = State.TEXT;
 					break;
@@ -56,7 +65,8 @@ export class Writer extends stream.Transform {
 					indent = indent.substr(0, indent.length - 1);
 
 					if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-					partList[++partNum] = '</' + tokenBuffer[++tokenNum] + '>'
+					partList[++partNum] = '</' + prefix + tokenBuffer[++tokenNum] + '>'
+					prefix = '';
 
 					state = State.TEXT;
 					break;
@@ -78,12 +88,14 @@ export class Writer extends stream.Transform {
 
 				case TokenType.ATTRIBUTE:
 
-					partList[++partNum] = ' ' + (tokenBuffer[++tokenNum] as Token).name + '=';
+					partList[++partNum] = ' ' + prefix + (tokenBuffer[++tokenNum] as Token).name + '=';
+					prefix = '';
 					break;
 
 				case TokenType.UNKNOWN_ATTRIBUTE:
 
-					partList[++partNum] = ' ' + tokenBuffer[++tokenNum] + '=';
+					partList[++partNum] = ' ' + prefix + tokenBuffer[++tokenNum] + '=';
+					prefix = '';
 					break;
 
 				case TokenType.VALUE:
@@ -146,6 +158,7 @@ export class Writer extends stream.Transform {
 
 		this.state = state;
 		this.indent = indent;
+		this.prefix = prefix;
 
 		return([ tokenNum, partNum ]);
 	}
@@ -174,5 +187,6 @@ export class Writer extends stream.Transform {
 	private chunkCount = 0;
 	private state = State.TEXT as State;
 	private indent = '';
+	private prefix = '';
 
 }

@@ -36,6 +36,8 @@ const enum CodeType {
 	ELEMENT_EMITTED,
 	CLOSED_ELEMENT_EMITTED,
 
+	NAMESPACE_ID,
+
 	VALUE_START_OFFSET,
 	VALUE_END_OFFSET,
 
@@ -270,6 +272,12 @@ export class Parser extends stream.Transform {
 					target[++tokenNum] = kind as TokenType;
 					break;
 
+				case CodeType.NAMESPACE_ID:
+
+					// TODO: Emit namespace instead of its prefix!
+					this.latestPrefix = this.namespaceList[code].prefix;
+					break;
+
 				case CodeType.TEXT_START_OFFSET:
 				case CodeType.VALUE_START_OFFSET:
 				case CodeType.COMMENT_START_OFFSET:
@@ -285,12 +293,21 @@ export class Parser extends stream.Transform {
 					partStart = -1;
 					break;
 
-				case CodeType.VALUE_END_OFFSET:
-				case CodeType.TEXT_END_OFFSET:
 				case CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET:
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
+
+					if(this.latestPrefix) {
+						target[++tokenNum] = TokenType.PREFIX;
+						target[++tokenNum] = this.latestPrefix;
+
+						this.latestPrefix = null;
+					}
+
+				// Fallthru
 				case CodeType.UNKNOWN_PROCESSING_END_OFFSET:
+				case CodeType.VALUE_END_OFFSET:
+				case CodeType.TEXT_END_OFFSET:
 
 					target[++tokenNum] = tokenTypeTbl[kind];
 					target[++tokenNum] = this.getSlice(partStart, code);
@@ -316,7 +333,7 @@ export class Parser extends stream.Transform {
 						}
 
 						// Create a new namespace for the unrecognized URI.
-						ns = new Namespace(this.latestPrefix.name, uri);
+						ns = new Namespace(this.latestPrefix!.name, uri);
 						idNamespace = this.native.addNamespace(
 							ns.getNative(this.tokenSet)
 						);
@@ -494,7 +511,7 @@ export class Parser extends stream.Transform {
 	/** Offset to latest token in tokenBuffer when it's not the target. */
 	private emitTokenNum: number;
 
-	private latestPrefix: Token;
+	private latestPrefix: Token | null;
 	private prefixes: TokenPackage;
 	private prefixList: Token[];
 	private uris: TokenPackage;

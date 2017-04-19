@@ -79,6 +79,8 @@ public:
 		ELEMENT_EMITTED,
 		CLOSED_ELEMENT_EMITTED,
 
+		NAMESPACE_ID,
+
 		VALUE_START_OFFSET,
 		VALUE_END_OFFSET,
 
@@ -159,6 +161,9 @@ public:
 
 	bool addUri(uint32_t uri, uint32_t ns);
 
+	// Emit content for a partially matched token.
+	// If the input buffer was drained, emit the match length and some
+	// valid token beginning identically, to recover the complete name.
 	inline void emitPartialName(
 		const unsigned char *p,
 		size_t offset,
@@ -173,12 +178,12 @@ public:
 
 	std::shared_ptr<ParserConfig> config;
 
-	const Namespace *namespacePrefixTbl[namespacePrefixTblSize];
-	const Namespace *ns;
+	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
+	std::pair<uint32_t, const Namespace *> ns;
 
 	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
 
-	std::vector<const Namespace *> namespaceByUriToken;
+	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 
 	PatriciaCursor cursor;
 
@@ -218,6 +223,7 @@ public:
 	uint32_t idToken;
 	uint32_t idLast;
 	uint32_t idPrefix;
+	uint32_t idNamespace;
 
 	uint32_t idElement;
 
