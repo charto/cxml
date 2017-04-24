@@ -274,10 +274,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// with a namespace prefix). If the entire name doesn't fit in
 				// the input buffer, we first try to parse as a qualified name.
 				// This is an optional lookup to avoid later reprocessing.
-				for(ahead = 0; ahead < len && nameCharTbl[p[ahead]]; ++ahead) {}
+				for(ahead = 0; ahead + 1 < len && nameCharTbl[p[ahead]]; ++ahead) {}
 
 				// Prepare Patricia tree cursor for parsing.
-				if(ahead >= len || p[ahead] == ':') {
+				if(ahead + 1 >= len || p[ahead] == ':') {
 					// If the input ran out, assume the name contains a colon
 					// in the next input buffer chunk. If a colon is found, the
 					// name starts with a namespace prefix.
