@@ -219,8 +219,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						nameTokenType = TokenType :: PROCESSING_ID;
 
 						tagType = TagType :: PROCESSING;
-						matchTarget = MatchTarget :: PROCESSING;
-						state = State :: BEFORE_NAME;
+						writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
+
+						idToken = Patricia :: notFound;
+						state = State :: UNKNOWN_NAME;
 						break;
 
 					// A closing element </NAME > (no whitespace after '<').
@@ -268,7 +270,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// The current character must be the valid first character of
 				// an element or attribute name, anything else is an error.
-				if(!nameStartCharTbl[c]) return(false);
+				if(!nameStartCharTbl[c]) {
+					return(false);
+				}
 
 				// Look for a ":" separator indicating a qualified name (starts
 				// with a namespace prefix). If the entire name doesn't fit in
@@ -333,6 +337,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// prefix.
 					if(idToken == config->xmlnsToken && tagType == TagType :: ELEMENT) {
 						if(c == ':') {
+							pos = 0;
 							state = State :: DEFINE_XMLNS_BEFORE_PREFIX_NAME;
 							break;
 						} else {
@@ -346,7 +351,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						if(c == ':' && tagType == TagType :: ELEMENT) {
 							// If matching a namespace, use it.
 							if(matchTarget == MatchTarget :: NAMESPACE) {
-								if(idToken >= namespacePrefixTblSize) return(false);
+								if(idToken >= namespacePrefixTblSize) {
+									return(false);
+								}
 
 								matchTarget = (
 									nameTokenType == TokenType :: ATTRIBUTE_ID ?
@@ -365,6 +372,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 									writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
 
 									idToken = Patricia :: notFound;
+									pos = 0;
 									state = State :: UNKNOWN_NAME;
 									break;
 								}
