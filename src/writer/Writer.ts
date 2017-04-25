@@ -119,7 +119,8 @@ export class Writer extends stream.Transform {
 
 				case TokenType.XMLNS:
 
-					partList[++partNum] = ' xmlns:' + (tokenBuffer[++tokenNum] as Token).name + '=';
+					const token = tokenBuffer[++tokenNum] as Token;
+					partList[++partNum] = (token == Token.xmlns ? ' ' : ' xmlns:') + token.name + '=';
 					break;
 
 				case TokenType.URI:
