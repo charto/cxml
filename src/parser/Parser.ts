@@ -251,6 +251,8 @@ export class Parser extends stream.Transform {
 
 				case CodeType.URI_ID:
 
+					this.latestPrefix = null;
+
 					target[++tokenNum] = TokenType.URI;
 					target[++tokenNum] = this.uriList[code];
 					break;
@@ -341,6 +343,8 @@ export class Parser extends stream.Transform {
 						idNamespace = this.native.addNamespace(
 							ns.getNative(this.tokenSet)
 						);
+
+						this.latestPrefix = null;
 
 						this.namespaceList[idNamespace] = ns;
 						this.native.addUri(idToken, idNamespace);
