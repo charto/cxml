@@ -412,6 +412,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// TODO: "ns" variable is incorrect if set earlier by an
 					// unrelated xmlns attribute!
 					writeToken(TokenType :: NAMESPACE_ID, ns.first, tokenPtr);
+					ns = std::make_pair(0, nullptr);
 				}
 
 				// For partial matches, emit the matched prefix.
