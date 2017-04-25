@@ -343,6 +343,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						} else {
 							// Prepare to set default namespace, handled like an
 							// otherwise illegal prefix definition xmlns:xmlns.
+							nameTokenType = TokenType :: XMLNS_ID;
 							afterNameState = State :: DEFINE_XMLNS_AFTER_PREFIX_NAME;
 						}
 					}
