@@ -21,7 +21,8 @@ bool PatriciaCursor :: advance(unsigned char c) {
 			// High bit of associated data value signals no longer strings
 			// with this prefix exist.
 			if(*p & 0x80) {
-				ptr = p;
+				// TODO: should this be p or p - 1 ?
+				ptr = p - 1;
 				return(false);
 			}
 		}
@@ -30,7 +31,7 @@ bool PatriciaCursor :: advance(unsigned char c) {
 			// If input differs from branch node contents in bits before
 			// the last one, then it was not found in the trie.
 			if(delta > 1) {
-				ptr = p;
+				ptr = p - 1;
 				return(false);
 			}
 

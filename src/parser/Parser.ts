@@ -166,6 +166,10 @@ export class Parser extends stream.Transform {
 		this.target = this.tokenBuffer;
 	}
 
+	throwError(msg: string) {
+		throw(new Error(msg));
+	}
+
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
 		this.chunk = chunk;
 		this.flush = flush;
@@ -178,7 +182,7 @@ export class Parser extends stream.Transform {
 			let next = Math.min(pos + chunkSize, len);
 
 			this.chunk = chunk.slice(pos, next);
-			this.native.parse(this.chunk as Buffer);
+			this.native.parse(this.chunk as Buffer) || this.throwError('Parse error');
 			this.parseCodeBuffer(false);
 
 			pos = next;
@@ -348,9 +352,9 @@ export class Parser extends stream.Transform {
 						);
 						this.uriList = this.uris.tokenSet.list;
 					} else {
-						[ token, idToken ] = this.prefixes.add(
-							this.getSlice(partStart, code)
-						);
+						let prefix = this.getSlice(partStart, code);
+
+						[ token, idToken ] = this.prefixes.add(prefix);
 
 						this.latestPrefix = token;
 
