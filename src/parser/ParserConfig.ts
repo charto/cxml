@@ -16,17 +16,23 @@ export class ParserConfig {
 		return(new NativeParser(this.native));
 	}
 
-	addNamespace(ns: Namespace) {
-		const id = this.native.addNamespace(ns.getNative(this.tokenSet));
+	addNamespace(ns: Namespace, isBound = false) {
+		const idNamespace = this.native.addNamespace(ns.getNative(this.tokenSet));
+		const idPrefix = this.addPrefix(ns.prefix);
+		const idUri = this.addUri(ns.uri, ns, idNamespace);
 
-		this.namespaceList[id] = ns;
-		this.addUri(ns.uri, ns, id);
-		this.addPrefix(ns.prefix);
+		this.namespaceList[idNamespace] = ns;
+
+		if(isBound) this.native.bindPrefix(idPrefix, idUri);
+
+		return(idNamespace);
+	}
+
+	bindNamespace(ns: Namespace) {
+		this.addNamespace(ns, true);
 	}
 
 	addUri(uri: Token, ns: Namespace, idNamespace?: number) {
-		if(!uri.name) return;
-
 		const idUri = this.uriSet.add(uri);
 		let spec = this.namespaceTbl[ns.uri.name];
 
@@ -44,15 +50,21 @@ export class ParserConfig {
 
 		this.native.addUri(idUri, idNamespace);
 
-		this.uriTrie.insertNode(uri);
+		if(uri.name) this.uriTrie.insertNode(uri);
+
+		return(idUri);
 	}
 
 	addPrefix(prefix: Token) {
-		if(!prefix.name) return;
+		const idPrefix = this.prefixSet.add(prefix);
 
-		this.prefixSet.add(prefix);
-		this.prefixTrie.insertNode(prefix);
-		this.native.setPrefixTrie(this.prefixTrie.encode(this.prefixSet));
+		if(prefix.name) {
+			this.prefixTrie.insertNode(prefix);
+			// TODO: maybe remove following line and pass xmlns differently?
+			this.native.setPrefixTrie(this.prefixTrie.encode(this.prefixSet));
+		}
+
+		return(idPrefix);
 	}
 
 	tokenSet = new TokenSet();

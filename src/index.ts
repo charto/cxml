@@ -15,8 +15,8 @@ const ns = new Namespace('xml', 'http://www.w3.org/XML/1998/namespace');
 // ns.addElementTokens([ tokenSet.add('xml') ]);
 
 const config = new ParserConfig();
-config.addNamespace(anonymous);
-config.addNamespace(ns);
+config.bindNamespace(anonymous);
+config.bindNamespace(ns);
 
 config.addNamespace(new Namespace('xsi', 'http://www.w3.org/2001/XMLSchema-instance'));
 

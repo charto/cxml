@@ -1,7 +1,11 @@
 #include "ParserConfig.h"
 #include "PatriciaCursor.h"
 
-ParserConfig :: ParserConfig() {}
+ParserConfig :: ParserConfig() {
+	for(unsigned int i = 0; i < namespacePrefixTblSize; ++i) {
+		namespacePrefixTbl[i] = std::make_pair(0, nullptr);
+	}
+}
 
 void ParserConfig :: setPrefixTrie(nbind::Buffer buffer) {
 	prefixTrie.setBuffer(buffer);
@@ -45,9 +49,10 @@ bool ParserConfig :: addUri(uint32_t uri, uint32_t ns) {
 NBIND_CLASS(ParserConfig) {
 	construct<>();
 
-	method(setPrefixTrie);
 	method(addNamespace);
 	method(addUri);
+	method(bindPrefix);
+	method(setPrefixTrie);
 }
 
 #endif
