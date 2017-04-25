@@ -27,7 +27,7 @@ class Parser {
 
 public:
 
-	static constexpr uint32_t namespacePrefixTblSize = 256;
+	static constexpr uint32_t namespacePrefixTblSize = ParserConfig :: namespacePrefixTblSize;
 
 	/** Parser states. */
 
@@ -144,14 +144,12 @@ public:
 		*tokenPtr++ = static_cast<uint32_t>(kind) + (token << TOKEN_SHIFT);
 	}
 
-	void setPrefixTrie(nbind::Buffer buffer, uint32_t id) {
+	void setPrefixTrie(nbind::Buffer buffer) {
 		prefixTrie.setBuffer(buffer);
-		idLast = id;
 	}
 
-	void setUriTrie(nbind::Buffer buffer, uint32_t id) {
+	void setUriTrie(nbind::Buffer buffer) {
 		uriTrie.setBuffer(buffer);
-		idLast = id;
 	}
 
 	uint32_t addNamespace(const std::shared_ptr<Namespace> ns) {
@@ -159,7 +157,19 @@ public:
 		return(extraNamespaceList.size() + config->namespaceList.size() - 1);
 	}
 
-	bool addUri(uint32_t uri, uint32_t ns);
+	void setPrefix(uint32_t idPrefix) {
+		if(idPrefix < namespacePrefixTblSize) this->idPrefix = idPrefix;
+	}
+
+	bool bindPrefix(uint32_t idPrefix, uint32_t uri) {
+		if(idPrefix >= namespacePrefixTblSize) return(false);
+		if(uri >= namespaceByUriToken.size()) return(false);
+
+		namespacePrefixTbl[idPrefix] = namespaceByUriToken[uri];
+		return(true);
+	}
+
+	bool addUri(uint32_t uri, uint32_t idNamespace);
 
 	// Emit content for a partially matched token.
 	// If the input buffer was drained, emit the match length and some
@@ -178,12 +188,10 @@ public:
 
 	std::shared_ptr<ParserConfig> config;
 
+	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
+	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
 	std::pair<uint32_t, const Namespace *> ns;
-
-	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
-
-	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 
 	PatriciaCursor cursor;
 
@@ -221,7 +229,6 @@ public:
 	uint32_t col;
 
 	uint32_t idToken;
-	uint32_t idLast;
 	uint32_t idPrefix;
 	uint32_t idNamespace;
 

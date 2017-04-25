@@ -155,12 +155,12 @@ export class Parser extends stream.Transform {
 
 		this.prefixes = new TokenPackage(this.native, config.prefixSet, config.prefixTrie);
 		// TODO: C++ side should just copy the tree from the config object.
-		this.native.setPrefixTrie(this.prefixes.trie.encode(this.prefixes.tokenSet), 0);
+		this.native.setPrefixTrie(this.prefixes.trie.encode(this.prefixes.tokenSet));
 		this.prefixList = this.prefixes.tokenSet.list;
 
 		this.uris = new TokenPackage(this.native, config.uriSet, config.uriTrie);
 		// TODO: C++ side should just copy the tree from the config object.
-		this.native.setUriTrie(this.uris.trie.encode(this.uris.tokenSet), 0);
+		this.native.setUriTrie(this.uris.trie.encode(this.uris.tokenSet));
 		this.uriList = this.uris.tokenSet.list;
 
 		this.target = this.tokenBuffer;
@@ -213,7 +213,6 @@ export class Parser extends stream.Transform {
 		let token: Token;
 		let ns: Namespace;
 		let idToken: number;
-		let idNamespace: number;
 
 		while(codeNum < codeCount) {
 			let code = codeBuffer[++codeNum];
@@ -243,6 +242,7 @@ export class Parser extends stream.Transform {
 
 				case CodeType.XMLNS_ID:
 
+					this.idPrefix = code;
 					this.latestPrefix = this.prefixList[code];
 
 					target[++tokenNum] = TokenType.XMLNS;
@@ -340,7 +340,7 @@ export class Parser extends stream.Transform {
 
 						// Create a new namespace for the unrecognized URI.
 						ns = new Namespace(this.latestPrefix!.name, uri);
-						idNamespace = this.native.addNamespace(
+						const idNamespace = this.native.addNamespace(
 							ns.getNative(this.tokenSet)
 						);
 
@@ -351,27 +351,31 @@ export class Parser extends stream.Transform {
 
 						// Pass new trie and ID of last inserted token to C++.
 						this.native.setUriTrie(
-							this.uris.trie.encode(this.uris.tokenSet),
-							idToken
+							this.uris.trie.encode(this.uris.tokenSet)
 						);
+
+						this.native.bindPrefix(this.idPrefix, idToken);
+
 						this.uriList = this.uris.tokenSet.list;
 					} else {
 						let prefix = this.getSlice(partStart, code);
 
-						[ token, idToken ] = this.prefixes.add(prefix);
+						[ token, this.idPrefix ] = this.prefixes.add(prefix);
 
 						this.latestPrefix = token;
 
-						if(idToken > dynamicTokenTblSize) {
+						if(this.idPrefix > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
 							throw(new Error('Too many different xmlns prefixes'));
 						}
 
 						// Pass new trie and ID of last inserted token to C++.
 						this.native.setPrefixTrie(
-							this.prefixes.trie.encode(this.prefixes.tokenSet),
-							idToken
+							this.prefixes.trie.encode(this.prefixes.tokenSet)
 						);
+
+						this.native.setPrefix(this.idPrefix);
+
 						this.prefixList = this.prefixes.tokenSet.list;
 					}
 
@@ -520,6 +524,7 @@ export class Parser extends stream.Transform {
 	private emitTokenNum: number;
 
 	private latestPrefix: Token | null;
+	private idPrefix: number;
 	private prefixes: TokenPackage;
 	private prefixList: Token[];
 	private uris: TokenPackage;

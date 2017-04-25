@@ -1,3 +1,4 @@
+#include <cstring>
 #include <cstdio>
 
 #include "Parser.h"
@@ -26,9 +27,7 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 	row = 0;
 	col = 0;
 
-	for(unsigned int i = 0; i < namespacePrefixTblSize; ++i) {
-		namespacePrefixTbl[i] = std::make_pair(0, nullptr);
-	}
+	memcpy(namespacePrefixTbl, config->namespacePrefixTbl, sizeof(namespacePrefixTbl));
 }
 
 /** Branchless cursor position update based on UTF-8 input byte. Assumes
@@ -49,15 +48,18 @@ inline void Parser :: updateRowCol(unsigned char c) {
 	row += (c == '\n');
 }
 
-bool Parser :: addUri(uint32_t uri, uint32_t ns) {
-	uint32_t nsExtra = ns - config->namespaceList.size();
+bool Parser :: addUri(uint32_t uri, uint32_t idNamespace) {
+	uint32_t nsExtra = idNamespace - config->namespaceList.size();
 
 	if(nsExtra < extraNamespaceList.size()) {
 		if(uri >= namespaceByUriToken.size()) {
 			namespaceByUriToken.resize(uri + 1);
 		}
 
-		namespaceByUriToken[uri] = std::make_pair(ns, extraNamespaceList[nsExtra].get());
+		namespaceByUriToken[uri] = std::make_pair(
+			idNamespace,
+			extraNamespaceList[nsExtra].get()
+		);
 
 		return(true);
 	}
@@ -595,19 +597,16 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 			case State :: DEFINE_XMLNS_AFTER_PREFIX_NAME:
 
-				// If the name was unrecognized, flush tokens so JavaScript
-				// updates the namespace prefix trie and this tokenizer can
-				// recognize it in the future.
-				if(!knownName) {
+				if(knownName) {
+					// Store index of namespace prefix in prefix mapping table
+					// for assigning a new namespace URI.
+					idPrefix = idToken;
+				} else {
+					// If the name was unrecognized, flush tokens so JavaScript
+					// updates the namespace prefix trie and this tokenizer can
+					// recognize it in the future.
 					flush(tokenPtr);
-					// Assume JavaScript passed inserted token ID to
-					// setPrefixTrie which sets idLast.
-					idToken = idLast;
 				}
-
-				// Store index of namespace prefix in prefix mapping table
-				// for assigning a new namespace URI.
-				idPrefix = idToken;
 
 				// Match equals sign and namespace URI in double quotes.
 				state = State :: MATCH_SPARSE;
@@ -711,17 +710,14 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 			case State :: DEFINE_XMLNS_AFTER_URI:
 
-				// If the value was unrecognized, flush tokens so JavaScript
-				// updates the uri trie and this tokenizer can recognize it
-				// in the future.
-				if(!knownName) {
+				if(knownName) {
+					namespacePrefixTbl[idPrefix] = namespaceByUriToken[idToken];
+				} else {
+					// If the value was unrecognized, flush tokens so JavaScript
+					// updates the uri trie and this tokenizer can recognize it
+					// in the future.
 					flush(tokenPtr);
-					// Assume JavaScript passed inserted token ID to
-					// setPrefixTrie which sets idLast.
-					idToken = idLast;
 				}
-
-				namespacePrefixTbl[idPrefix] = namespaceByUriToken[idToken];
 
 				afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
 
@@ -952,6 +948,8 @@ NBIND_CLASS(Parser) {
 	construct<std::shared_ptr<ParserConfig> >();
 	method(addNamespace);
 	method(addUri);
+	method(setPrefix);
+	method(bindPrefix);
 	method(setTokenBuffer);
 	method(setPrefixTrie);
 	method(setUriTrie);
