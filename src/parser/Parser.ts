@@ -303,7 +303,7 @@ export class Parser extends stream.Transform {
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
 
-					if(this.latestPrefix) {
+					if(this.latestPrefix && this.latestPrefix.name != 'xmlns') {
 						target[++tokenNum] = TokenType.PREFIX;
 						target[++tokenNum] = this.latestPrefix;
 
