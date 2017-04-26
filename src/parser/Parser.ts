@@ -211,7 +211,6 @@ export class Parser extends stream.Transform {
 		let partialList = tokenList;
 		let tokenNum = this.tokenNum;
 		let token: Token;
-		let ns: Namespace;
 		let idToken: number;
 
 		while(codeNum < codeCount) {
@@ -339,7 +338,7 @@ export class Parser extends stream.Transform {
 						}
 
 						// Create a new namespace for the unrecognized URI.
-						ns = new Namespace(this.latestPrefix!.name, uri);
+						const ns = new Namespace(this.latestPrefix!.name, uri);
 						const idNamespace = this.native.addNamespace(
 							ns.getNative(this.tokenSet)
 						);
