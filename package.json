@@ -11,7 +11,7 @@
     "copyasm": "copyasm",
     "ndts": "ndts",
     "tsc": "tsc",
-    "prepublish": "tsc -p src",
+    "prepublish": "ndts > src/parser/Lib.d.ts && tsc -p src",
     "install": "autogypi && node-gyp configure build"
   },
   "author": "Juha Järvi",

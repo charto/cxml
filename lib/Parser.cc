@@ -33,6 +33,10 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 /** Branchless cursor position update based on UTF-8 input byte. Assumes
   * each codepoint is a separate character printed left to right. */
 inline void Parser :: updateRowCol(unsigned char c) {
+#if 0
+	unsigned int color = static_cast<unsigned int>(state);
+	printf("\e[%d;%dm%c", (color & 8) >> 3, 30 + (color & 7), c);
+#endif
 	col = (
 		// If c is a tab, round col up to just before the next tab stop.
 		(col | ((c != '\t') - 1 & 7)) +
