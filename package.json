@@ -29,13 +29,13 @@
     "typescript"
   ],
   "dependencies": {
-    "@types/bluebird": "^3.0.37",
-    "@types/node": "^7.0.0",
-    "@types/sax": "0.0.28",
     "bluebird": "^3.4.7",
     "sax": "~1.2.1"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.0.37",
+    "@types/node": "^7.0.0",
+    "@types/sax": "0.0.28",
     "typescript": "^2.1.5"
   }
 }
