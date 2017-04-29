@@ -188,7 +188,7 @@ public:
 
 	std::shared_ptr<ParserConfig> config;
 
-	std::vector<const std::shared_ptr<Namespace>> extraNamespaceList;
+	std::vector<std::shared_ptr<Namespace>> extraNamespaceList;
 	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
 	std::pair<uint32_t, const Namespace *> ns;
