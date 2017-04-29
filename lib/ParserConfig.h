@@ -36,7 +36,7 @@ public:
 
 private:
 
-	std::vector<const std::shared_ptr<Namespace>> namespaceList;
+	std::vector<std::shared_ptr<Namespace>> namespaceList;
 	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
 
