@@ -61,7 +61,7 @@ const enum CodeType {
 
 	PROCESSING_END_TYPE,
 
-	// Recognized part from an unrecognized name.
+	// Recognized part of an unrecognized name.
 	PARTIAL_URI_ID,
 	PARTIAL_PREFIX_ID,
 	PARTIAL_NAME_ID,
@@ -172,7 +172,6 @@ export class Parser extends stream.Transform {
 
 	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
 		this.chunk = chunk;
-		this.flush = flush;
 		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
 
 		const len = chunk.length;
@@ -195,7 +194,9 @@ export class Parser extends stream.Transform {
 			this.tokenBuffer[0] = this.emitTokenNum;
 			this.emitTokenNum = 0;
 		}
-		this.flush(null, this.tokenBuffer);
+
+		// TODO: Defer flushing if element parsing is unfinished.
+		flush(null, this.tokenBuffer);
 	}
 
 	private parseCodeBuffer(pending: boolean) {
@@ -505,8 +506,6 @@ export class Parser extends stream.Transform {
 
 	/** Current input buffer. */
 	private chunk: string | Buffer;
-
-	private flush: (err: any, chunk: TokenBuffer) => void;
 
 	private bufferPartList: Buffer[] | null;
 	/** Storage for parts of strings split between code or input buffers. */
