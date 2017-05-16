@@ -1,80 +1,146 @@
-import * as ParserLib from './Lib';
-
-import { Patricia } from '../tokenizer/Patricia';
-import { TokenSet } from '../tokenizer/TokenSet';
-import { Token } from '../tokenizer/Token';
-import { Namespace } from '../Namespace';
-
 import { NativeConfig, NativeParser } from './ParserLib';
 
+import { Namespace } from '../Namespace';
+import { ParserNamespace } from './ParserNamespace';
+import { TokenSpace } from '../tokenizer/TokenSpace';
+import { TokenSet } from '../tokenizer/TokenSet';
+import { InternalToken } from './InternalToken';
+import { TokenKind } from './Token';
+import { Parser } from './Parser';
+
+/** Parser configuration for quickly instantiating new parsers.
+  * Each parser instance holds a new, cloned copy. */
+
 export class ParserConfig {
-	constructor() {
-		this.tokenSet.add(Token.xmlns);
-	}
 
-	createNativeParser() {
-		return(new NativeParser(this.native));
-	}
+	constructor(parent?: ParserConfig, native?: NativeConfig) {
+		this.isIndependent = !parent;
 
-	addNamespace(ns: Namespace, isBound = false) {
-		const idNamespace = this.native.addNamespace(ns.getNative(this.tokenSet));
-		const idPrefix = this.addPrefix(ns.prefix);
-		const idUri = this.addUri(ns.uri, ns, idNamespace);
+		if(parent) {
+			this.uriSpace = parent.uriSpace;
+			this.prefixSpace = parent.prefixSpace;
+			this.elementSpace = parent.elementSpace;
+			this.attributeSpace = parent.attributeSpace;
 
-		this.namespaceList[idNamespace] = ns;
+			this.uriSet = parent.uriSet;
+			this.prefixSet = parent.prefixSet;
 
-		if(isBound) this.native.bindPrefix(idPrefix, idUri);
-
-		return(idNamespace);
-	}
-
-	bindNamespace(ns: Namespace) {
-		this.addNamespace(ns, true);
-	}
-
-	addUri(uri: Token, ns: Namespace, idNamespace?: number) {
-		const idUri = this.uriSet.add(uri);
-		let spec = this.namespaceTbl[ns.uri.name];
-
-		if(spec && spec.ns == ns) {
-			idNamespace = spec.id;
-		} else if(typeof(idNamespace) == 'number') {
-			spec = { id: idNamespace, ns };
-			this.namespaceTbl[uri.name] = spec;
+			this.namespaceList = parent.namespaceList;
+			this.namespaceTbl = parent.namespaceTbl;
 		} else {
-			throw(new Error('Invalid namespace or missing ID'));
+			this.uriSpace = new TokenSpace(TokenKind.uri);
+			this.prefixSpace = new TokenSpace(TokenKind.prefix);
+			this.elementSpace = new TokenSpace(TokenKind.element);
+			this.attributeSpace = new TokenSpace(TokenKind.attribute);
+
+			this.uriSet = new TokenSet(this.uriSpace);
+			this.prefixSet = new TokenSet(this.prefixSpace);
+
+			this.namespaceList = [];
+			this.namespaceTbl = {};
 		}
 
-		// Map the URI token ID to the namespace in native code.
-		// See Parser.cc assignment to namespacePrefixTbl.
-
-		this.native.addUri(idUri, idNamespace);
-
-		if(uri.name) this.uriTrie.insertNode(uri);
-
-		return(idUri);
+		this.native = native || new NativeConfig(this.prefixSet.createToken('xmlns').id);
 	}
 
-	addPrefix(prefix: Token) {
-		const idPrefix = this.prefixSet.add(prefix);
+	makeIndependent() {
+		if(this.isIndependent) return;
+		this.isIndependent = true;
 
-		if(prefix.name) {
-			this.prefixTrie.insertNode(prefix);
-			// TODO: maybe remove following line and pass xmlns differently?
-			this.native.setPrefixTrie(this.prefixTrie.encode(this.prefixSet));
+		this.uriSpace = new TokenSpace(TokenKind.uri, this.uriSpace);
+		this.prefixSpace = new TokenSpace(TokenKind.prefix, this.prefixSpace);
+		this.elementSpace = new TokenSpace(TokenKind.element, this.elementSpace);
+		this.attributeSpace = new TokenSpace(TokenKind.attribute, this.attributeSpace);
+
+		this.uriSet = new TokenSet(this.uriSpace, this.uriSet);
+		this.prefixSet = new TokenSet(this.prefixSpace, this.prefixSet);
+
+		const namespaceTbl: { [ name: string ]: ParserNamespace } = {};
+		for(let key of Object.keys(this.namespaceTbl)) {
+			namespaceTbl[key] = this.namespaceTbl[key];
 		}
 
-		return(idPrefix);
+		this.namespaceList = this.namespaceList.slice(0);
+		this.namespaceTbl = namespaceTbl;
 	}
 
-	tokenSet = new TokenSet();
-	prefixSet = new TokenSet();
-	prefixTrie = new Patricia();
-	uriSet = new TokenSet();
-	uriTrie = new Patricia();
+	createParser() {
+		const nativeParser = new NativeParser(this.native);
+		const config = new ParserConfig(this, nativeParser.getConfig());
 
-	namespaceTbl: { [uri: string]: { id: number, ns: Namespace } } = {};
-	namespaceList: Namespace[] = [];
+		return(new Parser(config, nativeParser));
+	}
 
-	private native = new NativeConfig();
+	addNamespace(nsBase: Namespace) {
+		if(this.namespaceTbl[nsBase.uri]) return;
+		if(!this.isIndependent) this.makeIndependent();
+
+		const nsParser = new ParserNamespace(nsBase, this);
+		nsParser.id = this.native.addNamespace(nsParser.registerNative());
+		nsParser.uri = this.addUri(nsBase.uri, nsParser);
+		if(nsBase.defaultPrefix) {
+			nsParser.defaultPrefix = this.addPrefix(nsBase.defaultPrefix);
+		}
+
+		this.namespaceList[nsParser.id] = nsParser;
+		this.namespaceTbl[nsBase.uri] = nsParser;
+	}
+
+	bindNamespace(ns: Namespace | ParserNamespace) {
+		if(ns instanceof Namespace) {
+			const base = ns;
+			while(!(ns = this.namespaceTbl[base.uri])) this.addNamespace(base);
+		}
+
+		const prefix = ns.defaultPrefix;
+
+		if(prefix) this.native.bindPrefix(prefix.id, ns.uri.id);
+	}
+
+	bindPrefix(prefix: InternalToken, uri: InternalToken) {
+		this.native.bindPrefix(prefix.id, uri.id);
+	}
+
+	addUri(uri: string, ns: ParserNamespace) {
+		if(!this.isIndependent) this.makeIndependent();
+
+		const token = this.uriSet.createToken(uri);
+
+		this.native.setUriTrie(this.uriSet.encodeTrie());
+		this.native.addUri(token.id, ns.id);
+
+		return(token);
+	}
+
+	addPrefix(prefix: string) {
+		if(!this.isIndependent) this.makeIndependent();
+
+		const token = this.prefixSet.createToken(prefix);
+
+		this.native.setPrefixTrie(this.prefixSet.encodeTrie());
+
+		return(token);
+	}
+
+	private isIndependent: boolean;
+
+	private native: NativeConfig;
+
+	/** Allocates ID numbers for xmlns uri tokens. */
+	uriSpace: TokenSpace;
+	/** Allocates ID numbers for xmlns prefix tokens. */
+	prefixSpace: TokenSpace;
+	/** Allocates ID numbers for element name tokens. */
+	elementSpace: TokenSpace;
+	/** Allocates ID numbers for attribute name tokens. */
+	attributeSpace: TokenSpace;
+
+	uriSet: TokenSet;
+	prefixSet: TokenSet;
+
+	/** List of supported namespaces. */
+	namespaceList: ParserNamespace[];
+	/** Mapping from URI to namespace. */
+	namespaceTbl: { [ uri: string ]: ParserNamespace };
+
 }

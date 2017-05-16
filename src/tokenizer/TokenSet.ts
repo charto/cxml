@@ -1,45 +1,55 @@
-import { Namespace } from '../Namespace';
-import { Token } from './Token';
-import { NOT_FOUND } from './Patricia';
+import { Patricia } from './Patricia';
+import { ParserNamespace } from '../parser/ParserNamespace';
+import { TokenSpace } from './TokenSpace';
+import { InternalToken } from '../parser/InternalToken';
 
 export class TokenSet {
-	constructor() {
-		this.tokenTbl[Token.empty.key] = NOT_FOUND;
+
+	constructor(private space: TokenSpace, parent?: TokenSet) {
+		this.isIndependent = !parent;
+
+		if(parent) {
+			this.tbl = parent.tbl;
+			this.trie = parent.trie;
+		} else {
+			this.tbl = {};
+			this.trie = new Patricia();
+		}
 	}
 
-	clone() {
-		const other = new TokenSet();
+	makeIndependent() {
+		if(this.isIndependent) return;
+		this.isIndependent = true;
 
-		other.tokenTbl = {};
-		other.list = this.list.slice(0);
-		other.lastNum = this.lastNum;
-
-		for(let key of Object.keys(this.tokenTbl)) {
-			other.tokenTbl[key] = this.tokenTbl[key];
+		const tbl: { [ name: string ]: InternalToken } = {};
+		for(let key of Object.keys(this.tbl)) {
+			tbl[key] = this.tbl[key];
 		}
 
-		return(other);
+		this.tbl = tbl;
+		this.trie = this.trie.clone();
 	}
 
-	add(token: Token) {
-		let id = this.tokenTbl[token.key];
+	createToken(name: string, ns?: ParserNamespace) {
+		let token = this.tbl[name];
 
-		if(!id && id !== 0) {
-			id = ++this.lastNum;
+		if(!token) {
+			if(!this.isIndependent) this.makeIndependent();
 
-			this.tokenTbl[token.key] = id;
-			this.list[id] = token;
+			token = this.space.createToken(name, ns);
+
+			this.tbl[name] = token;
+			if(token.name) this.trie.insertNode(token);
 		}
 
-		return(id);
+		return(token);
 	}
 
-	encode(token: Token) {
-		return(this.tokenTbl[token.key]);
-	}
+	encodeTrie() { return(this.trie.encode()); }
 
-	private tokenTbl: { [key: string]: number } = {};
+	private isIndependent: boolean;
 
-	list: Token[] = [];
-	lastNum = -1;
+	private tbl: { [ name: string ]: InternalToken };
+	private trie: Patricia;
+
 }

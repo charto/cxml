@@ -12,12 +12,7 @@ unsigned char valueCharTbl[256];
 unsigned char nameStartCharTbl[256];
 unsigned char nameCharTbl[256];
 
-Parser :: Parser(std::shared_ptr<ParserConfig> config) :
-	config(config),
-	namespaceByUriToken(config->namespaceByUriToken),
-	prefixTrie(config->prefixTrie),
-	uriTrie(config->uriTrie)
-{
+Parser :: Parser(const ParserConfig &config) : config(config) {
 	state = State :: MATCH;
 	pattern = "\xef\xbb\xbf";
 	matchState = State :: BEFORE_TEXT;
@@ -26,8 +21,6 @@ Parser :: Parser(std::shared_ptr<ParserConfig> config) :
 	pos = 0;
 	row = 0;
 	col = 0;
-
-	memcpy(namespacePrefixTbl, config->namespacePrefixTbl, sizeof(namespacePrefixTbl));
 }
 
 /** Branchless cursor position update based on UTF-8 input byte. Assumes
@@ -41,34 +34,14 @@ inline void Parser :: updateRowCol(unsigned char c) {
 		// If c is a tab, round col up to just before the next tab stop.
 		(col | ((c != '\t') - 1 & 7)) +
 		// Then increment col if c is not a UTF-8 continuation byte.
-		((c & 0xc0) != 0x80)        // Equals: (( (c >> 6) | ~(c >> 7) ) & 1)
+		((c & 0xc0) != 0x80)
 	) & (
 		// Finally set col to zero if c is a line feed.
-		(c == '\n') - 1             // Equals: (( (uint32_t(c) - '\n' - 1) &
-									//           ~(uint32_t(c) - '\n'    )   ) >> 31) - 1
+		(c == '\n') - 1
 	);
 
 	// Increment row if c is a line feed.
 	row += (c == '\n');
-}
-
-bool Parser :: addUri(uint32_t uri, uint32_t idNamespace) {
-	uint32_t nsExtra = idNamespace - config->namespaceList.size();
-
-	if(nsExtra < extraNamespaceList.size()) {
-		if(uri >= namespaceByUriToken.size()) {
-			namespaceByUriToken.resize(uri + 1);
-		}
-
-		namespaceByUriToken[uri] = std::make_pair(
-			idNamespace,
-			extraNamespaceList[nsExtra].get()
-		);
-
-		return(true);
-	}
-
-	return(false);
 }
 
 /** Parse a chunk of incoming data.
@@ -76,8 +49,6 @@ bool Parser :: addUri(uint32_t uri, uint32_t idNamespace) {
   * writeToken which should be foolproof. */
 
 bool Parser :: parse(nbind::Buffer chunk) {
-	// printf("\e[0m\n\nPARSING CHUNK\n\n");
-
 	size_t len = chunk.length();
 	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
@@ -292,12 +263,16 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// in the next input buffer chunk. If a colon is found, the
 					// name starts with a namespace prefix.
 
-					matchTarget = MatchTarget :: NAMESPACE;
-					cursor.init(prefixTrie);
+					if(matchTarget == MatchTarget :: ELEMENT) {
+						matchTarget = MatchTarget :: ELEMENT_NAMESPACE;
+					} else {
+						matchTarget = MatchTarget :: ATTRIBUTE_NAMESPACE;
+					}
+					cursor.init(config.prefixTrie);
 				} else {
 					// Element or attribute name.
 					// TODO: By default, attributes belong to the same namespace as their parent element.
-					ns = namespacePrefixTbl[config->xmlnsToken];
+					ns = config.namespacePrefixTbl[config.xmlnsToken];
 
 					if(ns.second == nullptr) {
 						// No default namespace is defined, so this element
@@ -341,7 +316,13 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 					// Test for an attribute "xmlns:..." defining a namespace
 					// prefix.
-					if(idToken == config->xmlnsToken && tagType == TagType :: ELEMENT) {
+					if(
+						idToken == config.xmlnsToken && (
+							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE ||
+							matchTarget == MatchTarget :: ATTRIBUTE
+						) &&
+						tagType == TagType :: ELEMENT
+					) {
 						if(c == ':') {
 							pos = 0;
 							state = State :: DEFINE_XMLNS_BEFORE_PREFIX_NAME;
@@ -357,18 +338,21 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					if(idToken != Patricia :: notFound) {
 						if(c == ':' && tagType == TagType :: ELEMENT) {
 							// If matching a namespace, use it.
-							if(matchTarget == MatchTarget :: NAMESPACE) {
+							if(
+								matchTarget == MatchTarget :: ELEMENT_NAMESPACE ||
+								matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
+							) {
 								if(idToken >= namespacePrefixTblSize) {
 									return(false);
 								}
 
-								matchTarget = (
-									nameTokenType == TokenType :: ATTRIBUTE_ID ?
-									MatchTarget :: ATTRIBUTE :
-									MatchTarget :: ELEMENT
-								);
+								if(matchTarget == MatchTarget :: ELEMENT_NAMESPACE) {
+									matchTarget = MatchTarget :: ELEMENT;
+								} else {
+									matchTarget = MatchTarget :: ATTRIBUTE;
+								}
 
-								ns = namespacePrefixTbl[idToken];
+								ns = config.namespacePrefixTbl[idToken];
 
 								if(ns.second == nullptr) {
 									// Found a known but undeclared namespace
@@ -388,13 +372,17 @@ bool Parser :: parse(nbind::Buffer chunk) {
 								tokenStart = p;
 								cursor.init(ns.second->*trie);
 
+								state = State :: MATCH_TRIE;
 								break;
 							} else {
 								// TODO: Reintepret token up to cursor as a
 								// namespace prefix.
 							}
 							break;
-						} else if(matchTarget == MatchTarget :: NAMESPACE) {
+						} else if(
+							matchTarget == MatchTarget :: ELEMENT_NAMESPACE ||
+							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
+						) {
 							// TODO: Reintepret token up to cursor as an
 							// element or attribute name according to
 							// nameTokenType.
@@ -426,7 +414,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					p,
 					static_cast<size_t>(p - chunkBuffer),
 					(
-						matchTarget == MatchTarget :: NAMESPACE ?
+						(
+							matchTarget == MatchTarget :: ELEMENT_NAMESPACE ||
+							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
+						) ?
 						TokenType :: PARTIAL_PREFIX_ID :
 						TokenType :: PARTIAL_NAME_ID
 					),
@@ -588,7 +579,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Prepare Patricia tree cursor for parsing an xmlns prefix.
 				state = State :: MATCH_TRIE;
-				cursor.init(prefixTrie);
+				cursor.init(config.prefixTrie);
 
 				// TODO: Better use a state without handling of the : char.
 				afterMatchTrieState = State :: NAME;
@@ -619,7 +610,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				partialMatchState = State :: ERROR;
 
 				matchState = State :: BEFORE_VALUE;
-				cursor.init(uriTrie);
+				cursor.init(config.uriTrie);
 				valueTokenType = TokenType :: URI_ID;
 
 				afterValueState = State :: DEFINE_XMLNS_AFTER_URI;
@@ -715,7 +706,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			case State :: DEFINE_XMLNS_AFTER_URI:
 
 				if(knownName) {
-					namespacePrefixTbl[idPrefix] = namespaceByUriToken[idToken];
+					bindPrefix(idPrefix, idToken);
 				} else {
 					// If the value was unrecognized, flush tokens so JavaScript
 					// updates the uri trie and this tokenizer can recognize it
@@ -949,14 +940,10 @@ Init init;
 #ifdef NBIND_CLASS
 
 NBIND_CLASS(Parser) {
-	construct<std::shared_ptr<ParserConfig> >();
-	method(addNamespace);
-	method(addUri);
+	construct<const ParserConfig &>();
+	method(getConfig);
+	method(setCodeBuffer);
 	method(setPrefix);
-	method(bindPrefix);
-	method(setTokenBuffer);
-	method(setPrefixTrie);
-	method(setUriTrie);
 	getter(getRow);
 	getter(getCol);
 	method(parse);

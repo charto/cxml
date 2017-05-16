@@ -1,7 +1,7 @@
 import * as stream from 'stream';
 
-import { Token } from '../tokenizer/Token';
-import { TokenType, TokenBuffer } from '../parser/Parser';
+import { Token, TokenKind } from '../parser/Token';
+import { TokenBuffer } from '../parser/Parser';
 
 const enum State {
 	ELEMENT = 0,
@@ -19,141 +19,57 @@ export class Writer extends stream.Transform {
 		let state = this.state;
 		let indent = this.indent;
 		let prefix = this.prefix;
+		let token: Token | number | string;
 
 		if(indent == '') tokenCount = 1;
 
 		while(tokenNum < tokenCount) {
 
-			switch(tokenBuffer[++tokenNum] as TokenType) {
+			token = tokenBuffer[++tokenNum];
 
-				case TokenType.PREFIX:
+			if(token instanceof Token) {
+				switch(token.kind) {
+					case TokenKind.open:
 
-					prefix = (tokenBuffer[++tokenNum] as Token).name + ':';
-					break;
+						partList[++partNum] = indent + '<' + token.name;
+						indent += '\t';
 
-				case TokenType.OPEN_ELEMENT:
+						state = State.ELEMENT;
+						break;
 
-					partList[++partNum] = indent + '<' + prefix + (tokenBuffer[++tokenNum] as Token).name;
-					indent += '\t';
-					prefix = '';
+					case TokenKind.emitted:
 
-					state = State.ELEMENT;
-					break;
+						partList[++partNum] = '>';
 
-				case TokenType.UNKNOWN_OPEN_ELEMENT:
+						state = State.TEXT;
+						break;
 
-					partList[++partNum] = indent + '<' + prefix + tokenBuffer[++tokenNum];
-					indent += '\t';
-					prefix = '';
+					case TokenKind.close:
 
-					state = State.ELEMENT;
-					break;
+						indent = indent.substr(0, indent.length - 1);
 
-				case TokenType.CLOSE_ELEMENT:
+						if(state == State.ELEMENT) {
+							partList[++partNum] = '/>';
+						} else {
+							if(state != State.AFTER_TEXT) partList[++partNum] = indent;
+							partList[++partNum] = '</' + token.name + '>'
+						}
 
-					indent = indent.substr(0, indent.length - 1);
+						state = State.TEXT;
+						break;
 
-					if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-					partList[++partNum] = '</' + prefix + (tokenBuffer[++tokenNum] as Token).name + '>'
-					prefix = '';
+					case TokenKind.string:
 
-					state = State.TEXT;
-					break;
-
-				case TokenType.UNKNOWN_CLOSE_ELEMENT:
-
-					indent = indent.substr(0, indent.length - 1);
-
-					if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-					partList[++partNum] = '</' + prefix + tokenBuffer[++tokenNum] + '>'
-					prefix = '';
-
-					state = State.TEXT;
-					break;
-
-				case TokenType.CLOSED_ELEMENT_EMITTED:
-
-					indent = indent.substr(0, indent.length - 1);
-					partList[++partNum] = '/>';
-
-					state = State.TEXT;
-					break;
-
-				case TokenType.ELEMENT_EMITTED:
-
-					partList[++partNum] = '>';
-
-					state = State.TEXT;
-					break;
-
-				case TokenType.ATTRIBUTE:
-
-					partList[++partNum] = ' ' + prefix + (tokenBuffer[++tokenNum] as Token).name + '=';
-					prefix = '';
-					break;
-
-				case TokenType.UNKNOWN_ATTRIBUTE:
-
-					partList[++partNum] = ' ' + prefix + tokenBuffer[++tokenNum] + '=';
-					prefix = '';
-					break;
-
-				case TokenType.VALUE:
-
-					partList[++partNum] = '"' + tokenBuffer[++tokenNum] + '"';
-					break;
-
-				case TokenType.TEXT:
-
-					partList[++partNum] = tokenBuffer[++tokenNum] as string;
-
+						partList[++partNum] = ' ' + token.name + '=';
+						break;
+				}
+			} else {
+				if(state == State.TEXT) {
+					partList[++partNum] = '' + token;
 					state = State.AFTER_TEXT;
-					break;
-
-				case TokenType.PROCESSING:
-
-					partList[++partNum] = indent + '<?' + (tokenBuffer[++tokenNum] as Token).name;
-
-					state = State.PROCESSING;
-					break;
-
-				case TokenType.XMLNS:
-
-					const token = tokenBuffer[++tokenNum] as Token;
-					partList[++partNum] = (token == Token.xmlns ? ' ' : ' xmlns:') + token.name + '=';
-					break;
-
-				case TokenType.URI:
-
-					partList[++partNum] = '"' + (tokenBuffer[++tokenNum] as Token).name + '"';
-					break;
-
-				case TokenType.UNKNOWN_PROCESSING:
-
-					partList[++partNum] = indent + '<?' + tokenBuffer[++tokenNum];
-
-					state = State.PROCESSING;
-					break;
-
-				case TokenType.XML_PROCESSING_END:
-
-					partList[++partNum] = '?>';
-					break;
-
-				case TokenType.SGML_PROCESSING_END:
-
-					partList[++partNum] = '>';
-					break;
-
-				case TokenType.COMMENT:
-
-					partList[++partNum] = indent + '<!--' + tokenBuffer[++tokenNum];
-					break;
-
-				default:
-
-					break;
-
+				} else {
+					partList[++partNum] = '"' + token + '"';
+				}
 			}
 		}
 
