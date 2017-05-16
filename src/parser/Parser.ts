@@ -1,20 +1,19 @@
 import * as stream from 'stream';
 
-import { ArrayType } from '../tokenizer/Buffer';
-import { Patricia } from '../tokenizer/Patricia';
-import { TokenSet } from '../tokenizer/TokenSet';
-import { Token } from '../tokenizer/Token';
+import { ArrayType, encodeArray, decodeArray, concatArray } from '../Buffer';
 import { Namespace } from '../Namespace';
-
+import { CodeType } from '../tokenizer/CodeType';
 import { NativeParser } from './ParserLib';
 import { ParserConfig } from './ParserConfig';
+import { InternalToken } from './InternalToken';
+import { TokenSet } from '../tokenizer/TokenSet';
+import { Token, OpenToken, CloseToken, StringToken } from './Token';
 
-export type TokenBuffer = (number | Token | string)[];
+export type TokenBuffer = (Token | number | string)[];
 
 // const codeBufferSize = 2;
 // const codeBufferSize = 3;
 const codeBufferSize = 8192;
-const dynamicTokenTblSize = 256;
 
 const chunkSize = Infinity;
 
@@ -23,196 +22,79 @@ const enum TOKEN {
 	MASK = 31
 }
 
-/** Copypasted from Parser.h. */
-const enum CodeType {
-	OPEN_ELEMENT_ID = 0,
-	CLOSE_ELEMENT_ID,
-	ATTRIBUTE_ID,
-	PROCESSING_ID,
-	PREFIX_ID,
-	XMLNS_ID,
-	URI_ID,
-
-	ELEMENT_EMITTED,
-	CLOSED_ELEMENT_EMITTED,
-
-	NAMESPACE_ID,
-
-	VALUE_START_OFFSET,
-	VALUE_END_OFFSET,
-
-	TEXT_START_OFFSET,
-	TEXT_END_OFFSET,
-
-	COMMENT_START_OFFSET,
-	COMMENT_END_OFFSET,
-
-	// Unrecognized element name.
-	UNKNOWN_START_OFFSET,
-
-	// The order of these must match OPEN_ELEMENT_ID, CLOSE_ELEMENT_ID...
-	UNKNOWN_OPEN_ELEMENT_END_OFFSET,
-	UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
-	UNKNOWN_ATTRIBUTE_END_OFFSET,
-	UNKNOWN_PROCESSING_END_OFFSET,
-	UNKNOWN_PREFIX_END_OFFSET,
-	UNKNOWN_XMLNS_END_OFFSET,
-	UNKNOWN_URI_END_OFFSET,
-
-	PROCESSING_END_TYPE,
-
-	// Recognized part of an unrecognized name.
-	PARTIAL_URI_ID,
-	PARTIAL_PREFIX_ID,
-	PARTIAL_NAME_ID,
-	PARTIAL_LEN
-}
-
-export const enum TokenType {
-	// The placement of these must match equivalents in CodeType.
-	OPEN_ELEMENT = 0,
-	CLOSE_ELEMENT,
-	ATTRIBUTE,
-	PROCESSING,
-	PREFIX,
-	XMLNS,
-	URI,
-
-	// The placement of these must match equivalents in CodeType.
-	ELEMENT_EMITTED,
-	CLOSED_ELEMENT_EMITTED,
-
-	VALUE,
-	TEXT,
-
-	COMMENT,
-
-	UNKNOWN_OPEN_ELEMENT,
-	UNKNOWN_CLOSE_ELEMENT,
-	UNKNOWN_ATTRIBUTE,
-	UNKNOWN_PROCESSING,
-
-	XML_PROCESSING_END,
-	SGML_PROCESSING_END
-}
-
-let tokenTypeTbl: TokenType[] = [];
-
-// Make sure these codes match without the table:
-// tokenTypeTbl[CodeType.OPEN_ELEMENT_ID] = TokenType.OPEN_ELEMENT;
-// tokenTypeTbl[CodeType.CLOSE_ELEMENT_ID] = TokenType.CLOSE_ELEMENT;
-// tokenTypeTbl[CodeType.ATTRIBUTE_ID] = TokenType.ATTRIBUTE;
-// tokenTypeTbl[CodeType.PROCESSING_ID] = TokenType.PROCESSING;
-
-tokenTypeTbl[CodeType.VALUE_END_OFFSET] = TokenType.VALUE;
-tokenTypeTbl[CodeType.TEXT_END_OFFSET] = TokenType.TEXT;
-tokenTypeTbl[CodeType.COMMENT_END_OFFSET] = TokenType.COMMENT;
-
-tokenTypeTbl[CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_OPEN_ELEMENT;
-tokenTypeTbl[CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_CLOSE_ELEMENT;
-tokenTypeTbl[CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET] = TokenType.UNKNOWN_ATTRIBUTE;
-tokenTypeTbl[CodeType.UNKNOWN_PROCESSING_END_OFFSET] = TokenType.UNKNOWN_PROCESSING;
-
-tokenTypeTbl[CodeType.UNKNOWN_PREFIX_END_OFFSET] = TokenType.PREFIX;
-tokenTypeTbl[CodeType.UNKNOWN_XMLNS_END_OFFSET] = TokenType.XMLNS;
-tokenTypeTbl[CodeType.UNKNOWN_URI_END_OFFSET] = TokenType.URI;
-
-class TokenPackage {
-	constructor(
-		public native: NativeParser,
-		public tokenSet: TokenSet,
-		public trie: Patricia
-	) {}
-
-	add(name: string): [ Token, number ] {
-		if(!this.isCloned) {
-			// Copy tree on first write.
-			this.tokenSet = this.tokenSet.clone();
-			this.trie = this.trie.clone();
-			this.isCloned = true;
-		}
-
-		const token = new Token(name);
-
-		this.trie.insertNode(token);
-		return([ token, this.tokenSet.add(token) ]);
-	}
-
-	isCloned = false;
-}
+const LinkConstructor = [
+	OpenToken,
+	CloseToken,
+	StringToken
+];
 
 export class Parser extends stream.Transform {
-	constructor(config: ParserConfig) {
+
+	constructor(private config: ParserConfig, private native: NativeParser) {
 		super({ objectMode: true });
 
-		this.native = config.createNativeParser();
-
-		this.tokenSet = config.tokenSet;
-		this.namespaceList = config.namespaceList.slice(0);
-
 		this.codeBuffer = new Uint32Array(codeBufferSize);
-		this.native.setTokenBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
-
-		this.prefixes = new TokenPackage(this.native, config.prefixSet, config.prefixTrie);
-		// TODO: C++ side should just copy the tree from the config object.
-		this.native.setPrefixTrie(this.prefixes.trie.encode(this.prefixes.tokenSet));
-		this.prefixList = this.prefixes.tokenSet.list;
-
-		this.uris = new TokenPackage(this.native, config.uriSet, config.uriTrie);
-		// TODO: C++ side should just copy the tree from the config object.
-		this.native.setUriTrie(this.uris.trie.encode(this.uris.tokenSet));
-		this.uriList = this.uris.tokenSet.list;
-
-		this.target = this.tokenBuffer;
+		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 	}
 
 	throwError(msg: string) {
 		throw(new Error(msg));
 	}
 
-	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
-		this.chunk = chunk;
-		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
+	_transform(
+		chunk: string | ArrayType,
+		enc: string,
+		flush: (err: any, chunk: TokenBuffer) => void
+	) {
+		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
 
 		const len = chunk.length;
-		let pos = 0;
+		let next: number;
 
-		while(pos < len) {
-			let next = Math.min(pos + chunkSize, len);
+		for(let pos = 0; pos < len; pos = next) {
+			next = Math.min(pos + chunkSize, len);
 
 			this.chunk = chunk.slice(pos, next);
-			this.native.parse(this.chunk as Buffer) || this.throwError('Parse error');
+			this.native.parse(this.chunk) || this.throwError('Parse error');
 			this.parseCodeBuffer(false);
-
-			pos = next;
-		}
-
-		if(this.target == this.tokenBuffer) {
-			this.tokenBuffer[0] = this.tokenNum;
-			this.tokenNum = 0;
-		} else {
-			this.tokenBuffer[0] = this.emitTokenNum;
-			this.emitTokenNum = 0;
 		}
 
 		// TODO: Defer flushing if element parsing is unfinished.
-		flush(null, this.tokenBuffer);
+		if(1) {
+			this.tokenBuffer[0] = this.tokenNum;
+			this.tokenNum = 0;
+			flush(null, this.tokenBuffer);
+		}
 	}
 
 	private parseCodeBuffer(pending: boolean) {
+		const config = this.config;
 		const codeBuffer = this.codeBuffer;
 		const codeCount = codeBuffer[0];
+
+		// NOTE: Remember to update these if config is cloned!
+		const elementList = config.elementSpace.list;
+		const attributeList = config.attributeSpace.list;
+		const prefixList = config.prefixSpace.list;
+		const uriList = config.uriSpace.list;
 
 		let codeNum = 0;
 		let partStart = this.partStart;
 		let partialLen = this.partialLen;
+		let latestElement = this.latestElement;
+		let latestPrefix = this.latestPrefix;
 
-		let target = this.target;
-		const tokenList = this.tokenSet.list;
-		let partialList = tokenList;
+		const tokenBuffer = this.tokenBuffer;
+		const prefixBuffer = this.prefixBuffer;
+		const unknownElementTbl = this.unknownElementTbl;
+		const unknownAttributeTbl = this.unknownAttributeTbl;
+		// let partialList: InternalToken[];
 		let tokenNum = this.tokenNum;
 		let token: Token;
-		let idToken: number;
+		let linkTbl: Token[];
+		let linkKind: number;
+		let name: string;
+		let elementStart = this.elementStart;
 
 		while(codeNum < codeCount) {
 			let code = codeBuffer[++codeNum];
@@ -221,67 +103,57 @@ export class Parser extends stream.Transform {
 
 			switch(kind) {
 				case CodeType.OPEN_ELEMENT_ID:
+
+					latestElement = elementList[code].open;
+					// TODO: If latestprefix is null, use current prefix for element's namespace.
+					tokenBuffer[++tokenNum] = latestElement;
+					prefixBuffer[0] = latestPrefix;
+					elementStart = tokenNum;
+					break;
+
 				case CodeType.CLOSE_ELEMENT_ID:
-				case CodeType.ATTRIBUTE_ID:
-				case CodeType.PROCESSING_ID:
 
-					target[++tokenNum] = kind as TokenType;
-					//if(!tokenList[code]) console.error(kind + ' ' + code);
-					target[++tokenNum] = tokenList[code];
-					break;
-
-				case CodeType.PREFIX_ID:
-
-					this.latestPrefix = this.prefixList[code];
-
-					this.markUnresolved(tokenNum);
-					target = this.target;
-					tokenNum = this.tokenNum;
-
-					break;
-
-				case CodeType.XMLNS_ID:
-
-					this.idPrefix = code;
-					this.latestPrefix = this.prefixList[code];
-
-					target[++tokenNum] = TokenType.XMLNS;
-					target[++tokenNum] = this.latestPrefix;
-					break;
-
-				case CodeType.URI_ID:
-
-					this.latestPrefix = null;
-
-					target[++tokenNum] = TokenType.URI;
-					target[++tokenNum] = this.uriList[code];
+					tokenBuffer[++tokenNum] = elementList[code].close;
 					break;
 
 				case CodeType.ELEMENT_EMITTED:
 				case CodeType.CLOSED_ELEMENT_EMITTED:
 
-					if(this.target == this.resolveBuffer) {
-						this.target = this.tokenBuffer;
-						this.tokenNum = this.emitTokenNum;
+					for(let pos = elementStart; pos <= tokenNum; ++pos) {
 
-						target = this.target;
-						tokenNum = this.tokenNum;
-
-						// TODO: Resolve tokens with unknown namespace prefixes!
-						for(let token of this.resolveBuffer) {
-							target[++tokenNum] = token;
-						}
-
-						this.resolveBuffer = [];
 					}
 
-					target[++tokenNum] = kind as TokenType;
+					// TODO: resolve latestElement if needed.
+
+					tokenBuffer[++tokenNum] = (
+						kind == CodeType.ELEMENT_EMITTED ?
+						latestElement.emitted :
+						latestElement.close
+					)
+
 					break;
 
-				case CodeType.NAMESPACE_ID:
+				case CodeType.ATTRIBUTE_ID:
 
-					// TODO: Emit namespace instead of its prefix!
-					this.latestPrefix = this.namespaceList[code].prefix;
+					tokenBuffer[++tokenNum] = attributeList[code].string;
+					// TODO: If latestprefix is null, use current prefix for attribute's namespace.
+					prefixBuffer[tokenNum - elementStart] = latestPrefix;
+					break;
+
+				case CodeType.PROCESSING_ID:
+
+					break;
+
+				case CodeType.PREFIX_ID:
+				case CodeType.XMLNS_ID:
+
+					latestPrefix = prefixList[code];
+					break;
+
+				case CodeType.URI_ID:
+
+					this.config.bindPrefix(latestPrefix!, uriList[code]);
+					latestPrefix = null;
 					break;
 
 				case CodeType.TEXT_START_OFFSET:
@@ -292,31 +164,40 @@ export class Parser extends stream.Transform {
 					partStart = code;
 					break;
 
-				case CodeType.COMMENT_END_OFFSET:
-
-					target[++tokenNum] = TokenType.COMMENT;
-					target[++tokenNum] = this.getSlice(partStart, code);
-					partStart = -1;
-					break;
-
 				case CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET:
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
-				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
 
-					if(this.latestPrefix && this.latestPrefix.name != 'xmlns') {
-						target[++tokenNum] = TokenType.PREFIX;
-						target[++tokenNum] = this.latestPrefix;
+					name = this.getSlice(partStart, code);
+					latestElement = unknownElementTbl[name];
 
-						this.latestPrefix = null;
+					if(!latestElement) {
+						latestElement = new OpenToken(name);
+						unknownElementTbl[name] = latestElement;
 					}
 
-				// Fallthru
-				case CodeType.UNKNOWN_PROCESSING_END_OFFSET:
+					tokenBuffer[++tokenNum] = (
+						kind == CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET ?
+						latestElement : latestElement.close
+					);
+					break;
+
+				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
+
+					name = this.getSlice(partStart, code);
+					token = unknownAttributeTbl[name];
+
+					if(!token) {
+						token = new StringToken(name);
+						unknownAttributeTbl[name] = token;
+					}
+
+					tokenBuffer[++tokenNum] = token;
+					break;
+
 				case CodeType.VALUE_END_OFFSET:
 				case CodeType.TEXT_END_OFFSET:
 
-					target[++tokenNum] = tokenTypeTbl[kind];
-					target[++tokenNum] = this.getSlice(partStart, code);
+					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
 					partStart = -1;
 					break;
 
@@ -331,98 +212,30 @@ export class Parser extends stream.Transform {
 					if(kind == CodeType.UNKNOWN_URI_END_OFFSET) {
 						let uri = this.getSlice(partStart, code);
 
-						[ token, idToken ] = this.uris.add(uri);
-
-						if(idToken > dynamicTokenTblSize) {
+						/* if(uri.id > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
 							throw(new Error('Too many different xmlns URIs'));
-						}
+						} */
 
 						// Create a new namespace for the unrecognized URI.
-						const ns = new Namespace(this.latestPrefix!.name, uri);
-						const idNamespace = this.native.addNamespace(
-							ns.getNative(this.tokenSet)
-						);
-
-						this.latestPrefix = null;
-
-						this.namespaceList[idNamespace] = ns;
-						this.native.addUri(idToken, idNamespace);
-
-						// Pass new trie and ID of last inserted token to C++.
-						this.native.setUriTrie(
-							this.uris.trie.encode(this.uris.tokenSet)
-						);
-
-						this.native.bindPrefix(this.idPrefix, idToken);
-
-						this.uriList = this.uris.tokenSet.list;
+						const ns = new Namespace(latestPrefix!.name, uri);
+						this.config.addNamespace(ns);
+						this.config.bindNamespace(ns);
+						latestPrefix = null;
 					} else {
-						let prefix = this.getSlice(partStart, code);
+						latestPrefix = this.config.addPrefix(this.getSlice(partStart, code));
 
-						[ token, this.idPrefix ] = this.prefixes.add(prefix);
-
-						this.latestPrefix = token;
-
-						if(this.idPrefix > dynamicTokenTblSize) {
+						/* if(latestPrefix.id > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
 							throw(new Error('Too many different xmlns prefixes'));
-						}
+						} */
 
-						// Pass new trie and ID of last inserted token to C++.
-						this.native.setPrefixTrie(
-							this.prefixes.trie.encode(this.prefixes.tokenSet)
-						);
-
-						this.native.setPrefix(this.idPrefix);
-
-						this.prefixList = this.prefixes.tokenSet.list;
+						this.native.setPrefix(latestPrefix.id);
 					}
 
-					if(kind == CodeType.UNKNOWN_PREFIX_END_OFFSET) {
-						this.markUnresolved(tokenNum);
-						target = this.target;
-						tokenNum = this.tokenNum;
-					}
-
-					target[++tokenNum] = tokenTypeTbl[kind];
-					target[++tokenNum] = token;
 					partStart = -1;
 					break;
 
-				case CodeType.PARTIAL_LEN:
-
-					partialLen = code;
-					break;
-
-				case CodeType.PARTIAL_URI_ID:
-
-					partialList = this.uris.tokenSet.list;
-
-				// Fallthru
-				case CodeType.PARTIAL_PREFIX_ID:
-
-					if(partialList == tokenList) partialList = this.prefixes.tokenSet.list;
-
-				// Fallthru
-				case CodeType.PARTIAL_NAME_ID:
-
-					token = partialList[code];
-
-					this.bufferPartList = [ token.buf.slice(0, partialLen) as any ];
-					this.partList = [ this.bufferPartList ];
-
-					partialList = tokenList;
-					break;
-
-				case CodeType.PROCESSING_END_TYPE:
-
-					target[++tokenNum] = (
-						code ?
-						TokenType.SGML_PROCESSING_END :
-						TokenType.XML_PROCESSING_END
-					);
-					break;
 
 				default:
 
@@ -437,102 +250,66 @@ export class Parser extends stream.Transform {
 
 		this.partStart = partStart;
 		this.partialLen = partialLen;
+		this.latestElement = latestElement;
+		this.latestPrefix = latestPrefix;
 		this.tokenNum = tokenNum;
-	}
-
-	/** Buffer everything following an element or attribute with an unknown
-	  * namespace prefix, for resolving and emitting after the prefix is defined. */
-	private markUnresolved(tokenNum: number) {
-		if(this.target != this.resolveBuffer) {
-			this.target = this.resolveBuffer;
-			this.emitTokenNum = tokenNum;
-			this.tokenNum = 0;
-		}
-
-		this.resolveOffsetList.push(this.target.length);
+		this.elementStart = elementStart;
 	}
 
 	private storeSlice(start: number, end?: number) {
 		if(!this.partList) this.partList = [];
-
-		if(typeof(this.chunk) == 'string') {
-			this.bufferPartList = null;
-			this.partList.push(this.chunk.substring(start, end));
-		} else {
-			if(!this.bufferPartList) {
-				this.bufferPartList = [];
-				this.partList.push(this.bufferPartList);
-			}
-			this.bufferPartList.push(this.chunk.slice(start, end));
-		}
+		this.partList.push(this.chunk.slice(start, end));
+		this.partListLen += (end || this.chunk.length) - start;
 	}
-
-	/** Get a string from the input buffer. Prepend any parts left from
-	  * previous code buffers. */
-	private getSlice: (start: number, end?: number) => string;
 
 	/** Universal getSlice handler for concatenating buffer parts. */
 	private buildSlice(start: number, end?: number) {
 		this.storeSlice(start, end);
 
-		const result = this.partList!.map((part: string | Buffer[]) =>
-			typeof(part) == 'string' ? part : Buffer.concat(part).toString('utf-8')
-		).join('');
-
-		this.bufferPartList = null;
+		const result = decodeArray(concatArray(this.partList!, this.partListLen));
 		this.partList = null;
+		this.partListLen = 0;
 
 		return(result);
 	}
 
-	/** Fast single-part getSlice handler for string buffers. */
-	private getStringSlice(start: number, end?: number) {
+	/** Get a string from the input buffer. Prepend any parts left from
+	  * previous code buffers. */
+	private getSlice(start: number, end?: number) {
 		return((
 			this.partList ? this.buildSlice(start, end) :
-			this.chunk.slice(start, end) as string
+			decodeArray(this.chunk, start, end)
 		).replace(/\r\n?|\n\r/g, '\n'));
 	}
 
-	/** Fast single-part getSlice handler for Node.js Buffers. */
-	private getBufferSlice(start: number, end?: number) {
-		return((
-			this.partList ? this.buildSlice(start, end) :
-			(this.chunk as Buffer).toString('utf-8', start, end)
-		).replace(/\r\n?|\n\r/g, '\n'));
-	}
-
-	namespaceList: Namespace[];
-	private tokenSet: TokenSet;
+	latestElement: OpenToken;
+	latestPrefix: InternalToken | null;
 
 	/** Current input buffer. */
-	private chunk: string | Buffer;
+	private chunk: ArrayType;
 
-	private bufferPartList: Buffer[] | null;
 	/** Storage for parts of strings split between code or input buffers. */
-	private partList: (string | Buffer[])[] | null;
+	private partList: ArrayType[] | null = null;
+	private partListLen = 0;
 
 	/** Offset to start of text in input buffer, or -1 if not reading text. */
 	private partStart = -1;
 
+	/** Number of valid initial bytes in next token. */
 	private partialLen: number;
 
-	/** Offset to position in target where to write output tokens. */
-	private tokenNum = 0;
-	/** Offset to latest token in tokenBuffer when it's not the target. */
-	private emitTokenNum: number;
-
-	private latestPrefix: Token | null;
-	private idPrefix: number;
-	private prefixes: TokenPackage;
-	private prefixList: Token[];
-	private uris: TokenPackage;
-	private uriList: Token[];
-
-	private native: NativeParser;
+	/** Shared with C++ library. */
 	private codeBuffer: Uint32Array;
+	/** Buffer for stream output. */
 	private tokenBuffer: TokenBuffer = [];
-	private resolveBuffer: TokenBuffer = [];
-	/** Offsets to tokens in resolveBuffer with unknown namespace prefixes. */
-	private resolveOffsetList: number[] = [];
-	private target: TokenBuffer;
+	/** Current tokenBuffer offset for writing stream output. */
+	private tokenNum = 0;
+
+	private prefixBuffer: (InternalToken | null)[] = [];
+	private unknownElementTbl: { [ name: string ]: OpenToken } = {};
+	private unknownAttributeTbl: { [ name: string ]: Token } = {};
+
+	/** Offset to start of current element definition in output buffer. */
+	private elementStart = 0;
+
 }

@@ -1,10 +1,9 @@
-import { ArrayType, concatArray } from './Buffer';
-import { Token } from './Token';
-import { TokenSet } from './TokenSet';
+import { ArrayType, concatArray } from '../Buffer';
+import { InternalToken } from '../parser/InternalToken';
 
 class Node {
 	constructor(
-		public token: Token | null,
+		public token: InternalToken | null,
 		public buf: ArrayType,
 		public len: number,
 		public first?: Node,
@@ -100,7 +99,7 @@ export class Patricia {
 		return(other);
 	}
 
-	insertNode(token: Token) {
+	insertNode(token: InternalToken) {
 		let pos = 0;
 		let root = this.root;
 
@@ -167,7 +166,7 @@ export class Patricia {
 		}
 	}
 
-	insertList(tokenList: Token[]) {
+	insertList(tokenList: InternalToken[]) {
 		for(let token of tokenList) {
 			this.insertNode(token);
 		}
@@ -194,7 +193,6 @@ export class Patricia {
 
 	private static encodeNode(
 		node: Node,
-		tokenSet: TokenSet,
 		dataList: ArrayType[]
 	) {
 		let len = node.len;
@@ -228,14 +226,14 @@ export class Patricia {
 				ref = NOT_FOUND;
 			} else {
 				let nextTotalLen = 0;
-				if(node.first) nextTotalLen += Patricia.encodeNode(node.first, tokenSet, dataList);
+				if(node.first) nextTotalLen += Patricia.encodeNode(node.first, dataList);
 
 				if(node.second) {
 					ref = nextTotalLen + 3;
-					nextTotalLen += Patricia.encodeNode(node.second, tokenSet, dataList);
+					nextTotalLen += Patricia.encodeNode(node.second, dataList);
 				} else {
 					// ref = tokenSet.encode(node.token!) || 0;
-					ref = tokenSet.encode(node.token!);
+					ref = node.token!.id;
 					if(!node.first) ref |= 0x800000; // See 0x80 in PatriciaCursor.cc
 				}
 
@@ -252,13 +250,12 @@ export class Patricia {
 		return(totalByteLen);
 	}
 
-	encode(tokenSet: TokenSet) {
+	encode() {
 		const dataList: ArrayType[] = [];
 
 		// Encode trie contents into a buffer.
 		const dataLen = Patricia.encodeNode(
 			this.root || Patricia.sentinel,
-			tokenSet,
 			dataList
 		);
 
@@ -267,9 +264,9 @@ export class Patricia {
 
 	/** Represents the root of an empty tree. */
 	private static sentinel = new Node(
-		Token.empty,
-		Token.empty.buf,
-		Token.empty.buf.length * 8
+		InternalToken.empty,
+		InternalToken.empty.buf,
+		InternalToken.empty.buf.length * 8
 	);
 
 	private root: Node;

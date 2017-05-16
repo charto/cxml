@@ -14,15 +14,16 @@ public:
 
 	static constexpr uint32_t namespacePrefixTblSize = 256;
 
-	ParserConfig();
+	ParserConfig(uint32_t xmlnsToken);
 
-	void setPrefixTrie(nbind::Buffer buffer);
+	void setUriTrie(nbind::Buffer buffer) { uriTrie.setBuffer(buffer); }
+	void setPrefixTrie(nbind::Buffer buffer) { prefixTrie.setBuffer(buffer); }
 
-	void setUriTrie(nbind::Buffer buffer) {
-		uriTrie.setBuffer(buffer);
+	uint32_t addNamespace(const std::shared_ptr<Namespace> ns) {
+		namespaceList.push_back(ns);
+
+		return(namespaceList.size() - 1);
 	}
-
-	uint32_t addNamespace(const std::shared_ptr<Namespace> ns);
 
 	bool addUri(uint32_t uri, uint32_t ns);
 
@@ -40,9 +41,9 @@ private:
 	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
 	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
 
-	uint32_t xmlnsToken = Patricia :: notFound;
+	uint32_t xmlnsToken;
 
-	Patricia prefixTrie;
 	Patricia uriTrie;
+	Patricia prefixTrie;
 
 };

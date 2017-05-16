@@ -12,29 +12,17 @@ export class Namespace extends NBindBase {
 }
 
 export class Parser extends NBindBase {
-	/** Parser(std::shared_ptr<ParserConfig>); */
+	/** Parser(const ParserConfig &); */
 	constructor(p0: ParserConfig);
 
-	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
-	addNamespace(p0: Namespace): number;
+	/** ParserConfig & getConfig(); */
+	getConfig(): ParserConfig;
 
-	/** bool addUri(uint32_t, uint32_t); */
-	addUri(p0: number, p1: number): boolean;
+	/** void setCodeBuffer(Buffer, cbFunction &); */
+	setCodeBuffer(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer, p1: (...args: any[]) => any): void;
 
 	/** void setPrefix(uint32_t); */
 	setPrefix(p0: number): void;
-
-	/** bool bindPrefix(uint32_t, uint32_t); */
-	bindPrefix(p0: number, p1: number): boolean;
-
-	/** void setTokenBuffer(Buffer, cbFunction &); */
-	setTokenBuffer(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer, p1: (...args: any[]) => any): void;
-
-	/** void setPrefixTrie(Buffer); */
-	setPrefixTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
-
-	/** void setUriTrie(Buffer); */
-	setUriTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
 
 	/** bool parse(Buffer); */
 	parse(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): boolean;
@@ -47,8 +35,8 @@ export class Parser extends NBindBase {
 }
 
 export class ParserConfig extends NBindBase {
-	/** ParserConfig(); */
-	constructor();
+	/** ParserConfig(uint32_t); */
+	constructor(p0: number);
 
 	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
 	addNamespace(p0: Namespace): number;
@@ -58,6 +46,9 @@ export class ParserConfig extends NBindBase {
 
 	/** bool bindPrefix(uint32_t, uint32_t); */
 	bindPrefix(p0: number, p1: number): boolean;
+
+	/** void setUriTrie(Buffer); */
+	setUriTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
 
 	/** void setPrefixTrie(Buffer); */
 	setPrefixTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;

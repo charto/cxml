@@ -21,6 +21,14 @@ struct ParserState {
 
 };
 
+struct Element {
+
+	uint32_t prefixStackOffset;
+	// TODO: verify open and close tags match by using CRC.
+	uint32_t crc32;
+
+};
+
 /** Fast streaming XML parser. */
 
 class Parser {
@@ -56,67 +64,33 @@ public:
 	};
 
 	enum class MatchTarget : uint32_t {
-		NAMESPACE,
 		ELEMENT,
+		ELEMENT_NAMESPACE,
 		ATTRIBUTE,
+		ATTRIBUTE_NAMESPACE,
 		PROCESSING
 	};
 
 	static constexpr unsigned int TOKEN_SHIFT = 5;
 
-	// TODO: cdata start/end (no entity parsing on JS side)
-	// Namespace shorthand declaration start/end
-	// Namespace URI start / end ??? (could be handled as an attribute value)
-	enum class TokenType : uint32_t {
-		OPEN_ELEMENT_ID = 0,
-		CLOSE_ELEMENT_ID,
-		ATTRIBUTE_ID,
-		PROCESSING_ID,
-		PREFIX_ID,
-		XMLNS_ID,
-		URI_ID,
+	#define export
+	#define const
+	#define enum enum class
+	#define CodeType TokenType : uint32_t
+	#include "../src/tokenizer/CodeType.ts"
+	#undef export
+	#undef const
+	#undef enum
+	#undef CodeType
 
-		ELEMENT_EMITTED,
-		CLOSED_ELEMENT_EMITTED,
+	Parser(const ParserConfig &config);
 
-		NAMESPACE_ID,
-
-		VALUE_START_OFFSET,
-		VALUE_END_OFFSET,
-
-		TEXT_START_OFFSET,
-		TEXT_END_OFFSET,
-
-		COMMENT_START_OFFSET,
-		COMMENT_END_OFFSET,
-
-		// Unrecognized element name.
-		UNKNOWN_START_OFFSET,
-
-		// The order of these must match OPEN_ELEMENT_ID, CLOSE_ELEMENT_ID...
-		UNKNOWN_OPEN_ELEMENT_END_OFFSET,
-		UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
-		UNKNOWN_ATTRIBUTE_END_OFFSET,
-		UNKNOWN_PROCESSING_END_OFFSET,
-		UNKNOWN_PREFIX_END_OFFSET,
-		UNKNOWN_XMLNS_END_OFFSET,
-		UNKNOWN_URI_END_OFFSET,
-
-		PROCESSING_END_TYPE,
-
-		// Recognized part from an unrecognized name.
-		PARTIAL_URI_ID,
-		PARTIAL_PREFIX_ID,
-		PARTIAL_NAME_ID,
-		PARTIAL_LEN
-	};
-
-	Parser(std::shared_ptr<ParserConfig> config);
+	ParserConfig &getConfig() { return(config); }
 
 	/** Parse a chunk of incoming data. */
 	bool parse(nbind::Buffer chunk);
 
-	void setTokenBuffer(nbind::Buffer tokenBuffer, nbind::cbFunction &flushTokens) {
+	void setCodeBuffer(nbind::Buffer tokenBuffer, nbind::cbFunction &flushTokens) {
 		this->flushTokens = std::unique_ptr<nbind::cbFunction>(new nbind::cbFunction(flushTokens));
 		this->tokenBuffer = tokenBuffer;
 
@@ -144,29 +118,18 @@ public:
 		*tokenPtr++ = static_cast<uint32_t>(kind) + (token << TOKEN_SHIFT);
 	}
 
-	void setPrefixTrie(nbind::Buffer buffer) {
-		prefixTrie.setBuffer(buffer);
-	}
-
-	void setUriTrie(nbind::Buffer buffer) {
-		uriTrie.setBuffer(buffer);
-	}
-
-	uint32_t addNamespace(const std::shared_ptr<Namespace> ns) {
-		extraNamespaceList.push_back(ns);
-		return(extraNamespaceList.size() + config->namespaceList.size() - 1);
-	}
-
 	void setPrefix(uint32_t idPrefix) {
 		if(idPrefix < namespacePrefixTblSize) this->idPrefix = idPrefix;
 	}
 
 	bool bindPrefix(uint32_t idPrefix, uint32_t uri) {
-		if(idPrefix >= namespacePrefixTblSize) return(false);
-		if(uri >= namespaceByUriToken.size()) return(false);
+		if(config.bindPrefix(idPrefix, uri)) {
+			// Push old prefix binding to stack, to restore it after closing tag.
+			// prefixStack.push_back(std::make_pair(idPrefix, namespacePrefixTbl[idPrefix]));
+			return(true);
+		}
 
-		namespacePrefixTbl[idPrefix] = namespaceByUriToken[uri];
-		return(true);
+		return(false);
 	}
 
 	bool addUri(uint32_t uri, uint32_t idNamespace);
@@ -186,12 +149,12 @@ public:
 	inline uint32_t getRow() { return(row); }
 	inline uint32_t getCol() { return(col); }
 
-	std::shared_ptr<ParserConfig> config;
+	ParserConfig config;
 
-	std::vector<std::shared_ptr<Namespace>> extraNamespaceList;
-	std::vector<std::pair<uint32_t, const Namespace *> > namespaceByUriToken;
-	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
 	std::pair<uint32_t, const Namespace *> ns;
+
+	std::vector<std::pair<uint32_t, const Namespace *> > prefixStack;
+	std::vector<Element> elementStack;
 
 	PatriciaCursor cursor;
 
@@ -244,8 +207,6 @@ public:
 
 	Patricia Namespace :: *trie;
 
-	Patricia prefixTrie;
-	Patricia uriTrie;
 	nbind::Buffer tokenBuffer;
 	uint32_t *tokenList;
 	const uint32_t *tokenBufferEnd;
