@@ -31,7 +31,7 @@ export class Writer extends stream.Transform {
 				switch(token.kind) {
 					case TokenKind.open:
 
-						partList[++partNum] = indent + '<' + token.name;
+						partList[++partNum] = indent + '<' + token.ns!.uri + ':' + token.name;
 						indent += '\t';
 
 						state = State.ELEMENT;
@@ -52,7 +52,7 @@ export class Writer extends stream.Transform {
 							partList[++partNum] = '/>';
 						} else {
 							if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-							partList[++partNum] = '</' + token.name + '>'
+							partList[++partNum] = '</' + token.ns!.uri + ':' + token.name + '>'
 						}
 
 						state = State.TEXT;
@@ -60,7 +60,7 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.string:
 
-						partList[++partNum] = ' ' + token.name + '=';
+						partList[++partNum] = ' ' + token.ns!.uri + ':' + token.name + '=';
 						break;
 				}
 			} else {
