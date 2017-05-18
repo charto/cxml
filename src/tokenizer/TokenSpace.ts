@@ -18,7 +18,7 @@ export class TokenSpace {
 		}
 	}
 
-	makeIndependent() {
+	private makeIndependent() {
 		if(this.isIndependent) return;
 		this.isIndependent = true;
 
@@ -34,6 +34,7 @@ export class TokenSpace {
 		return(token);
 	}
 
+	/** If false, object is a clone sharing data with a parent object. */
 	private isIndependent: boolean;
 	private idLast: number;
 
