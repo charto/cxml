@@ -170,7 +170,7 @@ export class Parser extends stream.Transform {
 					latestElement = unknownElementTbl[name];
 
 					if(!latestElement) {
-						latestElement = new OpenToken(name);
+						latestElement = new OpenToken(name, Namespace.unknown);
 						unknownElementTbl[name] = latestElement;
 					}
 
@@ -191,7 +191,7 @@ export class Parser extends stream.Transform {
 					token = unknownAttributeTbl[name];
 
 					if(!token) {
-						token = new StringToken(name);
+						token = new StringToken(name, Namespace.unknown);
 						unknownAttributeTbl[name] = token;
 					}
 

@@ -1,3 +1,4 @@
+import { Namespace } from '../Namespace';
 import { ParserNamespace } from './ParserNamespace';
 import { ArrayType, encodeArray } from '../Buffer';
 import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
@@ -10,18 +11,19 @@ export class InternalToken {
 		public ns?: ParserNamespace
 	) {
 		this.buf = encodeArray(name);
+		const nsBase = ns ? ns.base : Namespace.unknown;
 
 		switch(kind) {
 			case TokenKind.element:
 
-				this.open = new OpenToken(name, ns && ns.base);
-				this.close = new CloseToken(name, ns && ns.base);
-				this.emitted = new EmittedToken(name, ns && ns.base);
+				this.open = new OpenToken(name, nsBase);
+				this.close = new CloseToken(name, nsBase);
+				this.emitted = new EmittedToken(name, nsBase);
 				break;
 
 			case TokenKind.attribute:
 
-				this.string = new StringToken(name, ns && ns.base);
+				this.string = new StringToken(name, nsBase);
 				break;
 
 			default:

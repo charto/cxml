@@ -1,22 +1,25 @@
 import { Namespace } from '../Namespace';
 
 export const enum TokenKind {
+	// Internal token types
 	uri,
 	prefix,
-
 	element,
+	attribute,
+
+	// External element token types
 	open,
 	close,
 	emitted,
 
-	attribute,
+	// External attribute token types
 	string,
 	number
 }
 
 export class Token {
 
-	constructor(public name: string, public ns?: Namespace) {}
+	constructor(public name: string, public ns: Namespace) {}
 
 	kind: TokenKind;
 

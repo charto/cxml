@@ -10,4 +10,6 @@ export class Namespace {
 	elementNameList: string[] = [];
 	attributeNameList: string[] = [];
 
+	static unknown = new Namespace('', '');
+
 }
