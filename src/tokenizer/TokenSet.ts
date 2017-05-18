@@ -17,7 +17,7 @@ export class TokenSet {
 		}
 	}
 
-	makeIndependent() {
+	private makeIndependent() {
 		if(this.isIndependent) return;
 		this.isIndependent = true;
 
@@ -47,6 +47,7 @@ export class TokenSet {
 
 	encodeTrie() { return(this.trie.encode()); }
 
+	/** If false, object is a clone sharing data with a parent object. */
 	private isIndependent: boolean;
 
 	private tbl: { [ name: string ]: InternalToken };

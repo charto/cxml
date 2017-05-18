@@ -22,14 +22,13 @@ const enum TOKEN {
 	MASK = 31
 }
 
-const LinkConstructor = [
-	OpenToken,
-	CloseToken,
-	StringToken
-];
+/** XML parser stream, emits tokens with fully qualified names. */
 
 export class Parser extends stream.Transform {
 
+	/** Call only from ParserConfig.createParser.
+	  * @param config Reference to C++ config object.
+	  * @param native Reference to C++ parser object. */
 	constructor(private config: ParserConfig, private native: NativeParser) {
 		super({ objectMode: true });
 
@@ -37,7 +36,7 @@ export class Parser extends stream.Transform {
 		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 	}
 
-	throwError(msg: string) {
+	private throwError(msg: string) {
 		throw(new Error(msg));
 	}
 
@@ -175,10 +174,15 @@ export class Parser extends stream.Transform {
 						unknownElementTbl[name] = latestElement;
 					}
 
-					tokenBuffer[++tokenNum] = (
-						kind == CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET ?
-						latestElement : latestElement.close
-					);
+					if(kind == CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET) {
+						tokenBuffer[++tokenNum] = latestElement;
+						prefixBuffer[0] = latestPrefix;
+						elementStart = tokenNum;
+					} else {
+						tokenBuffer[++tokenNum] = latestElement.close;
+						prefixBuffer[tokenNum - elementStart] = latestPrefix;
+					}
+
 					break;
 
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
@@ -192,6 +196,7 @@ export class Parser extends stream.Transform {
 					}
 
 					tokenBuffer[++tokenNum] = token;
+					prefixBuffer[tokenNum - elementStart] = latestPrefix;
 					break;
 
 				case CodeType.VALUE_END_OFFSET:
@@ -259,16 +264,16 @@ export class Parser extends stream.Transform {
 	private storeSlice(start: number, end?: number) {
 		if(!this.partList) this.partList = [];
 		this.partList.push(this.chunk.slice(start, end));
-		this.partListLen += (end || this.chunk.length) - start;
+		this.partListTotalByteLen += (end || this.chunk.length) - start;
 	}
 
-	/** Universal getSlice handler for concatenating buffer parts. */
+	/** getSlice helper for concatenating buffer parts. */
 	private buildSlice(start: number, end?: number) {
 		this.storeSlice(start, end);
 
-		const result = decodeArray(concatArray(this.partList!, this.partListLen));
+		const result = decodeArray(concatArray(this.partList!, this.partListTotalByteLen));
 		this.partList = null;
-		this.partListLen = 0;
+		this.partListTotalByteLen = 0;
 
 		return(result);
 	}
@@ -282,15 +287,18 @@ export class Parser extends stream.Transform {
 		).replace(/\r\n?|\n\r/g, '\n'));
 	}
 
-	latestElement: OpenToken;
-	latestPrefix: InternalToken | null;
+	/** Current element not yet emitted (closing angle bracket unseen). */
+	private latestElement: OpenToken;
+	/** Previous namespace prefix token, applied to the next element, attribute
+	  * or xmlns definition. */
+	private latestPrefix: InternalToken | null;
 
 	/** Current input buffer. */
 	private chunk: ArrayType;
 
-	/** Storage for parts of strings split between code or input buffers. */
+	/** Storage for parts of strings split between chunks of input. */
 	private partList: ArrayType[] | null = null;
-	private partListLen = 0;
+	private partListTotalByteLen = 0;
 
 	/** Offset to start of text in input buffer, or -1 if not reading text. */
 	private partStart = -1;
@@ -305,11 +313,15 @@ export class Parser extends stream.Transform {
 	/** Current tokenBuffer offset for writing stream output. */
 	private tokenNum = 0;
 
-	private prefixBuffer: (InternalToken | null)[] = [];
-	private unknownElementTbl: { [ name: string ]: OpenToken } = {};
-	private unknownAttributeTbl: { [ name: string ]: Token } = {};
-
 	/** Offset to start of current element definition in output buffer. */
 	private elementStart = 0;
+	/** Prefixes of latest tokenBuffer entries (their namespace may change
+	  * if the prefix is remapped). Index 0 corresponds to elementStart. */
+	private prefixBuffer: (InternalToken | null)[] = [];
+
+	/** Unresolved elements (temporary tokens lacking a namespace). */
+	private unknownElementTbl: { [ name: string ]: OpenToken } = {};
+	/** Unresolved attributes (temporary tokens lacking a namespace). */
+	private unknownAttributeTbl: { [ name: string ]: Token } = {};
 
 }

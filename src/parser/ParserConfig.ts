@@ -13,6 +13,9 @@ import { Parser } from './Parser';
 
 export class ParserConfig {
 
+	/** Parameters are for internal use only.
+	  * @param parent Parent object for cloning.
+	  * @param native Reference to C++ object. */
 	constructor(parent?: ParserConfig, native?: NativeConfig) {
 		this.isIndependent = !parent;
 
@@ -122,8 +125,10 @@ export class ParserConfig {
 		return(token);
 	}
 
+	/** If false, object is a clone sharing data with a parent object. */
 	private isIndependent: boolean;
 
+	/** Reference to C++ object. */
 	private native: NativeConfig;
 
 	/** Allocates ID numbers for xmlns uri tokens. */
