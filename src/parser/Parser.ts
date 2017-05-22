@@ -144,6 +144,10 @@ export class Parser extends stream.Transform {
 					break;
 
 				case CodeType.PREFIX_ID:
+
+					code = code & 0xffff;
+
+				// Fallthru
 				case CodeType.XMLNS_ID:
 
 					latestPrefix = prefixList[code];
@@ -151,7 +155,6 @@ export class Parser extends stream.Transform {
 
 				case CodeType.URI_ID:
 
-					this.config.bindPrefix(latestPrefix!, uriList[code]);
 					latestPrefix = null;
 					break;
 

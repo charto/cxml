@@ -54,6 +54,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
 	unsigned char c, d;
+	const Namespace *ns;
 
 	// Indicate that no tokens inside the chunk were found yet.
 	tokenList[0] = 0;
@@ -216,6 +217,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						afterNameState = State :: STORE_ELEMENT_NAME;
 						afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
 						nameTokenType = TokenType :: OPEN_ELEMENT_ID;
+						memberPrefix = &elementPrefix;
 
 						tagType = TagType :: ELEMENT;
 						matchTarget = MatchTarget :: ELEMENT;
@@ -270,13 +272,21 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					}
 					cursor.init(config.prefixTrie);
 				} else {
-					// Element or attribute name.
-					// TODO: By default, attributes belong to the same namespace as their parent element.
-					ns = config.namespacePrefixTbl[config.xmlnsToken];
+					if(matchTarget == MatchTarget :: ELEMENT) {
+						elementPrefix.idPrefix = config.xmlnsToken;
+						elementPrefix.idNamespace = config.namespacePrefixTbl[config.xmlnsToken].first;
+						ns = config.namespacePrefixTbl[config.xmlnsToken].second;
+					} else {
+						// By default, attributes belong to the same namespace as their parent element.
+						attributePrefix.idPrefix = elementPrefix.idPrefix;
+						attributePrefix.idNamespace = elementPrefix.idNamespace;
+						ns = config.namespaceList[elementPrefix.idNamespace].get();
+					}
 
-					if(ns.second == nullptr) {
+					if(ns == nullptr) {
 						// No default namespace is defined, so this element
 						// cannot be matched with anything.
+						writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
 						writeToken(TokenType :: UNKNOWN_START_OFFSET, p - 1 - chunkBuffer, tokenPtr);
 
 						idToken = Patricia :: notFound;
@@ -284,7 +294,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 						goto UNKNOWN_NAME;
 					}
 
-					cursor.init(ns.second->*trie);
+					cursor.init(ns->*trie);
 				}
 
 				tokenStart = p - 1;
@@ -346,20 +356,23 @@ bool Parser :: parse(nbind::Buffer chunk) {
 									return(false);
 								}
 
+								memberPrefix->idPrefix = idToken;
+								memberPrefix->idNamespace = config.namespacePrefixTbl[idToken].first;
+
 								if(matchTarget == MatchTarget :: ELEMENT_NAMESPACE) {
 									matchTarget = MatchTarget :: ELEMENT;
 								} else {
 									matchTarget = MatchTarget :: ATTRIBUTE;
 								}
 
-								ns = config.namespacePrefixTbl[idToken];
+								ns = config.namespacePrefixTbl[idToken].second;
 
-								if(ns.second == nullptr) {
+								if(ns == nullptr) {
 									// Found a known but undeclared namespace
 									// prefix, valid if declared with an xmlns
 									// attribute in the same element.
 
-									writeToken(TokenType :: PREFIX_ID, idToken, tokenPtr);
+									writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
 									writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
 
 									idToken = Patricia :: notFound;
@@ -370,7 +383,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 								pos = 0;
 								tokenStart = p;
-								cursor.init(ns.second->*trie);
+								cursor.init(ns->*trie);
 
 								state = State :: MATCH_TRIE;
 								break;
@@ -388,6 +401,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							// nameTokenType.
 						}
 
+						if(nameTokenType != TokenType :: XMLNS_ID) {
+							updateElementStack(nameTokenType);
+							writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
+						}
 						writeToken(nameTokenType, idToken, tokenPtr);
 
 						knownName = true;
@@ -400,14 +417,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				}
 
 				pos += p - tokenStart;
-
-				if(ns.second != nullptr) {
-					// Name was unknown, so emit its namespace.
-					// TODO: "ns" variable is incorrect if set earlier by an
-					// unrelated xmlns attribute!
-					writeToken(TokenType :: NAMESPACE_ID, ns.first, tokenPtr);
-					ns = std::make_pair(0, nullptr);
-				}
 
 				// For partial matches, emit the matched prefix.
 				emitPartialName(
@@ -457,6 +466,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					break;
 				}
 
+				if(nameTokenType != TokenType :: XMLNS_ID) {
+					updateElementStack(nameTokenType);
+					writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
+				}
 				writeToken(
 					static_cast<TokenType>(
 						static_cast<uint32_t>(TokenType :: UNKNOWN_OPEN_ELEMENT_END_OFFSET) -
@@ -514,6 +527,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							state = State :: BEFORE_NAME;
 							matchTarget = MatchTarget :: ATTRIBUTE;
 							nameTokenType = TokenType :: ATTRIBUTE_ID;
+							memberPrefix = &attributePrefix;
 							trie = &Namespace :: attributeTrie;
 
 							// Then equals sign and opening double quote.
