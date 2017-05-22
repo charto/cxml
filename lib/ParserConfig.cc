@@ -5,6 +5,8 @@ ParserConfig :: ParserConfig(uint32_t xmlnsToken) : xmlnsToken(xmlnsToken) {
 	for(unsigned int i = 0; i < namespacePrefixTblSize; ++i) {
 		namespacePrefixTbl[i] = std::make_pair(0, nullptr);
 	}
+	// Ensure that valid namespace indices start from 1.
+	namespaceList.push_back(nullptr);
 }
 
 bool ParserConfig :: addUri(uint32_t uri, uint32_t ns) {

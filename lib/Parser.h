@@ -21,9 +21,22 @@ struct ParserState {
 
 };
 
+struct PrefixDefinition {
+
+	PrefixDefinition(uint32_t idPrefix = 0, uint32_t idNamespace = 0) :
+	idPrefix(idPrefix), idNamespace(idNamespace) {}
+
+	uint32_t idPrefix;
+	uint32_t idNamespace;
+
+};
+
 struct Element {
 
-	uint32_t prefixStackOffset;
+	Element(size_t prefixStackOffset, uint32_t crc32) :
+	prefixStackOffset(prefixStackOffset), crc32(crc32) {}
+
+	size_t prefixStackOffset;
 	// TODO: verify open and close tags match by using CRC.
 	uint32_t crc32;
 
@@ -104,6 +117,28 @@ public:
 		tokenPtr = tokenList + 1;
 	}
 
+	void updateElementStack(TokenType nameTokenType) {
+		if(nameTokenType == TokenType :: OPEN_ELEMENT_ID) {
+			elementStack.emplace_back(prefixStack.size(), 0);
+		} else if(nameTokenType == TokenType :: CLOSE_ELEMENT_ID) {
+			const Element &element = elementStack.back();
+			size_t oldSize = element.prefixStackOffset;
+
+			for(size_t size = prefixStack.size(); size > oldSize; --size) {
+				const PrefixDefinition &old = prefixStack.back();
+				Namespace *ns = config.namespaceList[old.idNamespace].get();
+				// For efficiency, never undefine an xmlns prefix
+				// because it may be redefined identically later.
+				if(ns) {
+					config.namespacePrefixTbl[old.idPrefix] = std::make_pair(old.idNamespace, ns);
+				}
+				prefixStack.pop_back();
+			}
+
+			elementStack.pop_back();
+		}
+	}
+
 	/** Output a token. This is the only function writing to memory, so safety
 	  * from code execution exploits depends on this and nothing else. */
 
@@ -120,12 +155,19 @@ public:
 
 	void setPrefix(uint32_t idPrefix) {
 		if(idPrefix < namespacePrefixTblSize) this->idPrefix = idPrefix;
+		memberPrefix->idPrefix = idPrefix;
+		memberPrefix->idNamespace = 0;
 	}
 
 	bool bindPrefix(uint32_t idPrefix, uint32_t uri) {
+		uint32_t nsOld = config.namespacePrefixTbl[idPrefix].first;
+
 		if(config.bindPrefix(idPrefix, uri)) {
 			// Push old prefix binding to stack, to restore it after closing tag.
-			// prefixStack.push_back(std::make_pair(idPrefix, namespacePrefixTbl[idPrefix]));
+			prefixStack.emplace_back(idPrefix, nsOld);
+			if(elementPrefix.idPrefix == idPrefix) {
+				elementPrefix.idNamespace = config.namespacePrefixTbl[idPrefix].first;
+			}
 			return(true);
 		}
 
@@ -151,9 +193,12 @@ public:
 
 	ParserConfig config;
 
-	std::pair<uint32_t, const Namespace *> ns;
+	/** Prefix and namespace of current element. */
+	PrefixDefinition elementPrefix;
+	PrefixDefinition attributePrefix;
+	PrefixDefinition *memberPrefix = &attributePrefix;
 
-	std::vector<std::pair<uint32_t, const Namespace *> > prefixStack;
+	std::vector<PrefixDefinition> prefixStack;
 	std::vector<Element> elementStack;
 
 	PatriciaCursor cursor;
@@ -193,7 +238,6 @@ public:
 
 	uint32_t idToken;
 	uint32_t idPrefix;
-	uint32_t idNamespace;
 
 	uint32_t idElement;
 
