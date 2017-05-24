@@ -98,7 +98,7 @@ public:
 
 	Parser(const ParserConfig &config);
 
-	ParserConfig &getConfig() { return(config); }
+	ParserConfig *getConfig() { return(&config); }
 
 	/** Parse a chunk of incoming data. */
 	bool parse(nbind::Buffer chunk);

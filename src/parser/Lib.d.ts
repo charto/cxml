@@ -15,8 +15,8 @@ export class Parser extends NBindBase {
 	/** Parser(const ParserConfig &); */
 	constructor(p0: ParserConfig);
 
-	/** ParserConfig & getConfig(); */
-	getConfig(): ParserConfig;
+	/** ParserConfig * getConfig(); */
+	getConfig(): ParserConfig | null;
 
 	/** void setCodeBuffer(Buffer, cbFunction &); */
 	setCodeBuffer(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer, p1: (...args: any[]) => any): void;
