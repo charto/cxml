@@ -45,6 +45,13 @@ export class TokenSet {
 		return(token);
 	}
 
+	addToken(token: InternalToken) {
+		if(token.name) {
+			this.tbl[token.name] = token;
+			this.trie.insertNode(token);
+		}
+	}
+
 	encodeTrie() { return(this.trie.encode()); }
 
 	/** If false, object is a clone sharing data with a parent object. */

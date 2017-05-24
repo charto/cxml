@@ -25,6 +25,8 @@ export class ParserConfig {
 			this.elementSpace = parent.elementSpace;
 			this.attributeSpace = parent.attributeSpace;
 
+			this.xmlnsToken = parent.xmlnsToken;
+
 			this.uriSet = parent.uriSet;
 			this.prefixSet = parent.prefixSet;
 
@@ -35,6 +37,8 @@ export class ParserConfig {
 			this.prefixSpace = new TokenSpace(TokenKind.prefix);
 			this.elementSpace = new TokenSpace(TokenKind.element);
 			this.attributeSpace = new TokenSpace(TokenKind.attribute);
+
+			this.xmlnsToken = this.attributeSpace.createToken('xmlns');
 
 			this.uriSet = new TokenSet(this.uriSpace);
 			this.prefixSet = new TokenSet(this.prefixSpace);
@@ -135,6 +139,8 @@ export class ParserConfig {
 
 	/** Reference to C++ object. */
 	private native: NativeConfig;
+
+	xmlnsToken: InternalToken;
 
 	/** Allocates ID numbers for xmlns uri tokens. */
 	uriSpace: TokenSpace;
