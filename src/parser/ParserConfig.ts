@@ -33,6 +33,7 @@ export class ParserConfig {
 
 			this.namespaceList = parent.namespaceList;
 			this.namespaceTbl = parent.namespaceTbl;
+			this.maxNamespace = parent.maxNamespace;
 		} else {
 			this.uriSpace = new TokenSpace(TokenKind.uri);
 			this.prefixSpace = new TokenSpace(TokenKind.prefix);
@@ -46,6 +47,7 @@ export class ParserConfig {
 
 			this.namespaceList = [];
 			this.namespaceTbl = {};
+			this.maxNamespace = 0;
 		}
 
 		if(!native) {
@@ -98,6 +100,8 @@ export class ParserConfig {
 
 			this.namespaceList[nsParser.id] = nsParser;
 			this.namespaceTbl[nsBase.uri] = nsParser;
+
+			if(nsBase.id > this.maxNamespace) this.maxNamespace = nsBase.id;
 		}
 
 		return(nsParser.id);
@@ -169,5 +173,6 @@ export class ParserConfig {
 	namespaceList: ParserNamespace[];
 	/** Mapping from URI to namespace. */
 	namespaceTbl: { [ uri: string ]: ParserNamespace };
+	maxNamespace: number;
 
 }

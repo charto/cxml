@@ -14,7 +14,7 @@ export type TokenBuffer = (Token | number | string)[];
 
 export interface TokenChunk {
 	length: number;
-	prefixTbl: { [ uri: string ]: string };
+	prefixList: string[];
 	buffer: TokenBuffer;
 }
 
@@ -262,7 +262,7 @@ export class Parser extends stream.Transform {
 						if(latestPrefix != config.xmlnsPrefixToken){
 							name = latestPrefix!.name;
 						} else name = '';
-						const ns = new Namespace(name, uri);
+						const ns = new Namespace(name, uri, ++config.maxNamespace);
 						const idNamespace = this.config.addNamespace(ns);
 						this.config.bindNamespace(ns, latestPrefix!.name);
 
@@ -343,7 +343,7 @@ export class Parser extends stream.Transform {
 		if(!ns.base.defaultPrefix && prefix != this.config.xmlnsPrefixToken) {
 			ns.base.defaultPrefix = prefix.name;
 		}
-		this.output.prefixTbl[ns.base.uri] = ns.base.defaultPrefix;
+		this.output.prefixList[ns.base.id] = ns.base.defaultPrefix + ':';
 
 		for(let pos = 0; pos <= len; ++pos) {
 			if(prefixBuffer[pos] == prefix) {
@@ -385,7 +385,7 @@ export class Parser extends stream.Transform {
 
 	private output: TokenChunk = {
 		length: 0,
-		prefixTbl: {},
+		prefixList: [],
 		buffer: this.tokenBuffer
 	};
 
