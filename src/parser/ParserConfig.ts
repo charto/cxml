@@ -16,7 +16,7 @@ export class ParserConfig {
 	/** Parameters are for internal use only.
 	  * @param parent Parent object for cloning.
 	  * @param native Reference to C++ object. */
-	constructor(parent?: ParserConfig, native?: NativeConfig) {
+	constructor(parent?: ParserConfig, native?: NativeConfig | null) {
 		this.isIndependent = !parent;
 
 		if(parent) {
@@ -75,18 +75,23 @@ export class ParserConfig {
 	}
 
 	addNamespace(nsBase: Namespace) {
-		if(this.namespaceTbl[nsBase.uri]) return;
-		if(!this.isIndependent) this.makeIndependent();
+		let nsParser = this.namespaceTbl[nsBase.uri];
 
-		const nsParser = new ParserNamespace(nsBase, this);
-		nsParser.id = this.native.addNamespace(nsParser.registerNative());
-		nsParser.uri = this.addUri(nsBase.uri, nsParser);
-		if(nsBase.defaultPrefix) {
-			nsParser.defaultPrefix = this.addPrefix(nsBase.defaultPrefix);
+		if(!nsParser) {
+			if(!this.isIndependent) this.makeIndependent();
+
+			nsParser = new ParserNamespace(nsBase, this);
+			nsParser.id = this.native.addNamespace(nsParser.registerNative());
+			nsParser.uri = this.addUri(nsBase.uri, nsParser);
+			if(nsBase.defaultPrefix) {
+				nsParser.defaultPrefix = this.addPrefix(nsBase.defaultPrefix);
+			}
+
+			this.namespaceList[nsParser.id] = nsParser;
+			this.namespaceTbl[nsBase.uri] = nsParser;
 		}
 
-		this.namespaceList[nsParser.id] = nsParser;
-		this.namespaceTbl[nsBase.uri] = nsParser;
+		return(nsParser.id);
 	}
 
 	bindNamespace(ns: Namespace | ParserNamespace) {

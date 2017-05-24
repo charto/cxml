@@ -17,11 +17,11 @@ export class ParserNamespace {
 		this.xmlnsToken = this.attributeSet.createToken('xmlns');
 
 		for(let name of base.elementNameList) {
-			this.elementSet.createToken(name, this);
+			this.addElement(name);
 		}
 
 		for(let name of base.attributeNameList) {
-			this.attributeSet.createToken(name, this);
+			this.addAttribute(name);
 		}
 	}
 
@@ -29,6 +29,14 @@ export class ParserNamespace {
 		this.native.setElementTrie(this.elementSet.encodeTrie());
 		this.native.setAttributeTrie(this.attributeSet.encodeTrie());
 		return(this.native);
+	}
+
+	addElement(name: string) {
+		return(this.elementSet.createToken(name, this));
+	}
+
+	addAttribute(name: string) {
+		return(this.attributeSet.createToken(name, this));
 	}
 
 	private native: NativeNamespace;
@@ -40,7 +48,7 @@ export class ParserNamespace {
 	defaultPrefix?: InternalToken;
 	xmlnsToken: InternalToken;
 
-	elementSet: TokenSet;
-	attributeSet: TokenSet;
+	private elementSet: TokenSet;
+	private attributeSet: TokenSet;
 
 }

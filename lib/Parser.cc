@@ -286,7 +286,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					if(ns == nullptr) {
 						// No default namespace is defined, so this element
 						// cannot be matched with anything.
-						writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
+						writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 14) | memberPrefix->idPrefix, tokenPtr);
 						writeToken(TokenType :: UNKNOWN_START_OFFSET, p - 1 - chunkBuffer, tokenPtr);
 
 						idToken = Patricia :: notFound;
@@ -372,7 +372,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 									// prefix, valid if declared with an xmlns
 									// attribute in the same element.
 
-									writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
+									writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 14) | memberPrefix->idPrefix, tokenPtr);
 									writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
 
 									idToken = Patricia :: notFound;
@@ -403,7 +403,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 						if(nameTokenType != TokenType :: XMLNS_ID) {
 							updateElementStack(nameTokenType);
-							writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
+							writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 14) | memberPrefix->idPrefix, tokenPtr);
 						}
 						writeToken(nameTokenType, idToken, tokenPtr);
 
@@ -468,7 +468,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				if(nameTokenType != TokenType :: XMLNS_ID) {
 					updateElementStack(nameTokenType);
-					writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 16) | memberPrefix->idPrefix, tokenPtr);
+					writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 14) | memberPrefix->idPrefix, tokenPtr);
 				}
 				writeToken(
 					static_cast<TokenType>(

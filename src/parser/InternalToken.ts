@@ -19,11 +19,23 @@ export class InternalToken {
 				this.open = new OpenToken(name, nsBase);
 				this.close = new CloseToken(name, nsBase);
 				this.emitted = new EmittedToken(name, nsBase);
+				this.tokenList = [
+					this.open,
+					this.close,
+					this.emitted,
+					null
+				];
 				break;
 
 			case TokenKind.attribute:
 
 				this.string = new StringToken(name, nsBase);
+				this.tokenList = [
+					null,
+					null,
+					null,
+					this.string
+				];
 				break;
 
 			default:
@@ -42,4 +54,12 @@ export class InternalToken {
 	emitted: EmittedToken;
 
 	string: StringToken;
+
+	// Order must match TokenKind.
+	tokenList: [
+		OpenToken | null,
+		CloseToken | null,
+		EmittedToken | null,
+		StringToken | null
+	];
 }
