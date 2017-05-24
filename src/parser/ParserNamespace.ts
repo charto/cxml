@@ -14,7 +14,7 @@ export class ParserNamespace {
 		this.elementSet = new TokenSet(config.elementSpace);
 		this.attributeSet = new TokenSet(config.attributeSpace);
 
-		this.xmlnsToken = this.attributeSet.createToken('xmlns');
+		this.attributeSet.addToken(config.xmlnsToken);
 
 		for(let name of base.elementNameList) {
 			this.addElement(name);
@@ -46,7 +46,6 @@ export class ParserNamespace {
 
 	uri: InternalToken;
 	defaultPrefix?: InternalToken;
-	xmlnsToken: InternalToken;
 
 	private elementSet: TokenSet;
 	private attributeSet: TokenSet;
