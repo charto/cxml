@@ -44,9 +44,6 @@ export class ParserNamespace {
 	/** Index in parser's namespaceList. */
 	public id: number;
 
-	uri: InternalToken;
-	defaultPrefix?: InternalToken;
-
 	private elementSet: TokenSet;
 	private attributeSet: TokenSet;
 

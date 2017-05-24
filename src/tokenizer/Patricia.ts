@@ -94,7 +94,7 @@ export class Patricia {
 	clone() {
 		const other = new Patricia();
 
-		other.root = this.root.clone();
+		if(this.root) other.root = this.root.clone();
 
 		return(other);
 	}
