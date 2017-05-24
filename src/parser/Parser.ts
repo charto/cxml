@@ -259,9 +259,12 @@ export class Parser extends stream.Transform {
 						} */
 
 						// Create a new namespace for the unrecognized URI.
-						const ns = new Namespace(latestPrefix!.name, uri);
+						if(latestPrefix != config.xmlnsPrefixToken){
+							name = latestPrefix!.name;
+						} else name = '';
+						const ns = new Namespace(name, uri);
 						const idNamespace = this.config.addNamespace(ns);
-						this.config.bindNamespace(ns);
+						this.config.bindNamespace(ns, latestPrefix!.name);
 
 						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
 						latestPrefix = null;
@@ -336,6 +339,11 @@ export class Parser extends stream.Transform {
 		const ns = this.config.namespaceList[idNamespace];
 		const len = tokenNum - elementStart;
 		let token: Token | number | string;
+
+		if(!ns.base.defaultPrefix && prefix != this.config.xmlnsPrefixToken) {
+			ns.base.defaultPrefix = prefix.name;
+		}
+		this.output.prefixTbl[ns.base.uri] = ns.base.defaultPrefix;
 
 		for(let pos = 0; pos <= len; ++pos) {
 			if(prefixBuffer[pos] == prefix) {

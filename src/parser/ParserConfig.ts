@@ -26,6 +26,7 @@ export class ParserConfig {
 			this.attributeSpace = parent.attributeSpace;
 
 			this.xmlnsToken = parent.xmlnsToken;
+			this.xmlnsPrefixToken = parent.xmlnsPrefixToken;
 
 			this.uriSet = parent.uriSet;
 			this.prefixSet = parent.prefixSet;
@@ -47,7 +48,12 @@ export class ParserConfig {
 			this.namespaceTbl = {};
 		}
 
-		this.native = native || new NativeConfig(this.prefixSet.createToken('xmlns').id);
+		if(!native) {
+			this.xmlnsPrefixToken = this.prefixSet.createToken('xmlns');
+			native = new NativeConfig(this.xmlnsPrefixToken.id)
+		}
+
+		this.native = native;
 	}
 
 	makeIndependent() {
@@ -98,15 +104,20 @@ export class ParserConfig {
 		return(nsParser.id);
 	}
 
-	bindNamespace(ns: Namespace | ParserNamespace) {
+	bindNamespace(ns: Namespace | ParserNamespace, prefix?: string) {
 		if(ns instanceof Namespace) {
 			const base = ns;
 			while(!(ns = this.namespaceTbl[base.uri])) this.addNamespace(base);
 		}
 
-		const prefix = ns.defaultPrefix;
+		prefix = prefix || ns.base.defaultPrefix;
 
-		if(prefix) this.native.bindPrefix(prefix.id, ns.uri.id);
+		if(prefix) {
+			this.native.bindPrefix(
+				this.addPrefix(prefix).id,
+				this.addUri(ns.base.uri, ns).id
+			);
+		}
 	}
 
 	bindPrefix(prefix: InternalToken, uri: InternalToken) {
@@ -141,6 +152,7 @@ export class ParserConfig {
 	private native: NativeConfig;
 
 	xmlnsToken: InternalToken;
+	xmlnsPrefixToken: InternalToken;
 
 	/** Allocates ID numbers for xmlns uri tokens. */
 	uriSpace: TokenSpace;
