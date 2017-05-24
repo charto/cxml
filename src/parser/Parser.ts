@@ -172,7 +172,7 @@ export class Parser extends stream.Transform {
 					latestPrefix = prefixList[code];
 					break;
 
-				case CodeType.URI_ID:
+				case CodeType.NAMESPACE_ID:
 
 					this.resolve(elementStart, tokenNum, latestPrefix!, code);
 					latestPrefix = null;

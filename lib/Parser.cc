@@ -648,6 +648,10 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					idToken = cursor.getData();
 
 					if(idToken != Patricia :: notFound) {
+						if(valueTokenType == TokenType :: URI_ID) {
+							valueTokenType = TokenType :: NAMESPACE_ID;
+							idToken = config.namespaceByUriToken[idToken].first;
+						}
 						writeToken(valueTokenType, idToken, tokenPtr);
 
 						knownName = true;
