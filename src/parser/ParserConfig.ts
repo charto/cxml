@@ -92,10 +92,9 @@ export class ParserConfig {
 
 			nsParser = new ParserNamespace(nsBase, this);
 			nsParser.id = this.native.addNamespace(nsParser.registerNative());
-			nsParser.uri = this.addUri(nsBase.uri, nsParser);
-			if(nsBase.defaultPrefix) {
-				nsParser.defaultPrefix = this.addPrefix(nsBase.defaultPrefix);
-			}
+
+			this.addUri(nsBase.uri, nsParser);
+			if(nsBase.defaultPrefix) this.addPrefix(nsBase.defaultPrefix);
 
 			this.namespaceList[nsParser.id] = nsParser;
 			this.namespaceTbl[nsBase.uri] = nsParser;
