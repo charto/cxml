@@ -12,6 +12,12 @@ import { Token, OpenToken, CloseToken, StringToken, TokenKind } from './Token';
 
 export type TokenBuffer = (Token | number | string)[];
 
+export interface TokenChunk {
+	length: number;
+	prefixTbl: { [ uri: string ]: string };
+	buffer: TokenBuffer;
+}
+
 // const codeBufferSize = 2;
 // const codeBufferSize = 3;
 const codeBufferSize = 8192;
@@ -44,7 +50,7 @@ export class Parser extends stream.Transform {
 	_transform(
 		chunk: string | ArrayType,
 		enc: string,
-		flush: (err: any, chunk: TokenBuffer) => void
+		flush: (err: any, chunk: TokenChunk) => void
 	) {
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
 
@@ -61,9 +67,9 @@ export class Parser extends stream.Transform {
 
 		// TODO: Defer flushing if element parsing is unfinished.
 		if(1) {
-			this.tokenBuffer[0] = this.tokenNum;
-			this.tokenNum = 0;
-			flush(null, this.tokenBuffer);
+			this.output.length = this.tokenNum;
+			this.tokenNum = -1;
+			flush(null, this.output);
 		}
 	}
 
@@ -367,7 +373,13 @@ export class Parser extends stream.Transform {
 	/** Buffer for stream output. */
 	private tokenBuffer: TokenBuffer = [];
 	/** Current tokenBuffer offset for writing stream output. */
-	private tokenNum = 0;
+	private tokenNum = -1;
+
+	private output: TokenChunk = {
+		length: 0,
+		prefixTbl: {},
+		buffer: this.tokenBuffer
+	};
 
 	/** Offset to start of current element definition in output buffer. */
 	private elementStart = 0;

@@ -1,7 +1,7 @@
 import * as stream from 'stream';
 
 import { Token, TokenKind } from '../parser/Token';
-import { TokenBuffer } from '../parser/Parser';
+import { TokenChunk } from '../parser/Parser';
 
 const enum State {
 	ELEMENT = 0,
@@ -15,7 +15,8 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(tokenBuffer: TokenBuffer, tokenNum: number, tokenCount: number, partList: string[], partNum: number) {
+	transform(chunk: TokenChunk, tokenNum: number, tokenCount: number, partList: string[], partNum: number) {
+		let buffer = chunk.buffer;
 		let state = this.state;
 		let indent = this.indent;
 		let prefix = this.prefix;
@@ -25,7 +26,7 @@ export class Writer extends stream.Transform {
 
 		while(tokenNum < tokenCount) {
 
-			token = tokenBuffer[++tokenNum];
+			token = buffer[++tokenNum];
 
 			if(token instanceof Token) {
 				switch(token.kind) {
@@ -80,18 +81,17 @@ export class Writer extends stream.Transform {
 		return([ tokenNum, partNum ]);
 	}
 
-	_transform(tokenBuffer: TokenBuffer, enc: string, flush: (err: any, chunk: Buffer) => void) {
-		let tokenNum = 0;
-		let tokenCount = tokenBuffer[0] as number;
+	_transform(chunk: TokenChunk, enc: string, flush: (err: any, chunk: Buffer) => void) {
+		let tokenNum = -1;
 		let partList: string[] = [];
 		let partNum = -1;
 
 		if(!this.chunkCount) {
-			[ tokenNum, partNum ] = this.transform(tokenBuffer, tokenNum, 1, partList, partNum);
+			[ tokenNum, partNum ] = this.transform(chunk, tokenNum, 1, partList, partNum);
 			this.indent = '\n' + this.indent;
 		}
 
-		this.transform(tokenBuffer, tokenNum, tokenCount, partList, partNum);
+		this.transform(chunk, tokenNum, chunk.length, partList, partNum);
 		flush(null, new Buffer(partList.join('')));
 
 		++this.chunkCount;
