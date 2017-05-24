@@ -5,9 +5,10 @@ import { Namespace } from '../Namespace';
 import { CodeType } from '../tokenizer/CodeType';
 import { NativeParser } from './ParserLib';
 import { ParserConfig } from './ParserConfig';
+import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
-import { Token, OpenToken, CloseToken, StringToken } from './Token';
+import { Token, OpenToken, CloseToken, StringToken, TokenKind } from './Token';
 
 export type TokenBuffer = (Token | number | string)[];
 
@@ -82,11 +83,14 @@ export class Parser extends stream.Transform {
 		let partialLen = this.partialLen;
 		let latestElement = this.latestElement;
 		let latestPrefix = this.latestPrefix;
+		let latestNamespace = this.latestNamespace;
 
 		const tokenBuffer = this.tokenBuffer;
 		const prefixBuffer = this.prefixBuffer;
+		const namespaceBuffer = this.namespaceBuffer;
 		const unknownElementTbl = this.unknownElementTbl;
 		const unknownAttributeTbl = this.unknownAttributeTbl;
+		const unknownOffsetList = this.unknownOffsetList;
 		// let partialList: InternalToken[];
 		let tokenNum = this.tokenNum;
 		let token: Token;
@@ -94,6 +98,7 @@ export class Parser extends stream.Transform {
 		let linkKind: number;
 		let name: string;
 		let elementStart = this.elementStart;
+		let unknownCount = this.unknownCount;
 
 		while(codeNum < codeCount) {
 			let code = codeBuffer[++codeNum];
@@ -118,11 +123,24 @@ export class Parser extends stream.Transform {
 				case CodeType.ELEMENT_EMITTED:
 				case CodeType.CLOSED_ELEMENT_EMITTED:
 
-					for(let pos = elementStart; pos <= tokenNum; ++pos) {
+					if(unknownCount) {
+						let ns: ParserNamespace;
+						let offset: number;
 
+						for(let pos = 0; pos < unknownCount; ++pos) {
+							offset = unknownOffsetList[pos];
+							ns = namespaceBuffer[offset]!;
+							// If an xmlns definition already resolved
+							// this token, ns will be null.
+							if(ns) {
+								token = (tokenBuffer[offset + elementStart] as Token);
+								tokenBuffer[offset + elementStart] = token.resolve(ns);
+							}
+						}
+
+						latestElement = tokenBuffer[elementStart] as OpenToken;
+						unknownCount = 0;
 					}
-
-					// TODO: resolve latestElement if needed.
 
 					tokenBuffer[++tokenNum] = (
 						kind == CodeType.ELEMENT_EMITTED ?
@@ -145,7 +163,8 @@ export class Parser extends stream.Transform {
 
 				case CodeType.PREFIX_ID:
 
-					code = code & 0xffff;
+					latestNamespace = config.namespaceList[code >> 14];
+					code = code & 0x3fff;
 
 				// Fallthru
 				case CodeType.XMLNS_ID:
@@ -155,6 +174,7 @@ export class Parser extends stream.Transform {
 
 				case CodeType.URI_ID:
 
+					this.resolve(elementStart, tokenNum, latestPrefix!, code);
 					latestPrefix = null;
 					break;
 
@@ -170,20 +190,23 @@ export class Parser extends stream.Transform {
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 
 					name = this.getSlice(partStart, code);
-					latestElement = unknownElementTbl[name];
-
-					if(!latestElement) {
-						latestElement = new OpenToken(name, Namespace.unknown);
-						unknownElementTbl[name] = latestElement;
-					}
 
 					if(kind == CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET) {
+						latestElement = unknownElementTbl[name];
+
+						if(!latestElement) {
+							latestElement = new OpenToken(name, Namespace.unknown);
+							unknownElementTbl[name] = latestElement;
+						}
+
 						tokenBuffer[++tokenNum] = latestElement;
 						prefixBuffer[0] = latestPrefix;
+						namespaceBuffer[0] = latestNamespace;
 						elementStart = tokenNum;
+						unknownOffsetList[0] = 0;
+						unknownCount = 1;
 					} else {
-						tokenBuffer[++tokenNum] = latestElement.close;
-						prefixBuffer[tokenNum - elementStart] = latestPrefix;
+						tokenBuffer[++tokenNum] = latestNamespace!.addElement(name).close;
 					}
 
 					break;
@@ -199,7 +222,11 @@ export class Parser extends stream.Transform {
 					}
 
 					tokenBuffer[++tokenNum] = token;
-					prefixBuffer[tokenNum - elementStart] = latestPrefix;
+
+					let pos = tokenNum - elementStart;
+					prefixBuffer[pos] = latestPrefix;
+					namespaceBuffer[pos] = latestNamespace;
+					unknownOffsetList[unknownCount++] = pos;
 					break;
 
 				case CodeType.VALUE_END_OFFSET:
@@ -227,8 +254,10 @@ export class Parser extends stream.Transform {
 
 						// Create a new namespace for the unrecognized URI.
 						const ns = new Namespace(latestPrefix!.name, uri);
-						this.config.addNamespace(ns);
+						const idNamespace = this.config.addNamespace(ns);
 						this.config.bindNamespace(ns);
+
+						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
 						latestPrefix = null;
 					} else {
 						latestPrefix = this.config.addPrefix(this.getSlice(partStart, code));
@@ -260,8 +289,11 @@ export class Parser extends stream.Transform {
 		this.partialLen = partialLen;
 		this.latestElement = latestElement;
 		this.latestPrefix = latestPrefix;
+		this.latestNamespace = latestNamespace;
+
 		this.tokenNum = tokenNum;
 		this.elementStart = elementStart;
+		this.unknownCount = unknownCount;
 	}
 
 	private storeSlice(start: number, end?: number) {
@@ -290,11 +322,32 @@ export class Parser extends stream.Transform {
 		).replace(/\r\n?|\n\r/g, '\n'));
 	}
 
+	/** Resolve any prior occurrences of a recently defined prefix
+	  * within the same element. */
+	resolve(elementStart: number, tokenNum: number, prefix: InternalToken, idNamespace: number) {
+		const prefixBuffer = this.prefixBuffer;
+		const tokenBuffer = this.tokenBuffer;
+		const ns = this.config.namespaceList[idNamespace];
+		const len = tokenNum - elementStart;
+		let token: Token | number | string;
+
+		for(let pos = 0; pos <= len; ++pos) {
+			if(prefixBuffer[pos] == prefix) {
+				token = tokenBuffer[pos + elementStart];
+				if(token instanceof Token) {
+					tokenBuffer[pos + elementStart] = token.resolve(ns);
+					this.namespaceBuffer[pos] = null;
+				}
+			}
+		}
+	}
+
 	/** Current element not yet emitted (closing angle bracket unseen). */
 	private latestElement: OpenToken;
 	/** Previous namespace prefix token, applied to the next element, attribute
 	  * or xmlns definition. */
 	private latestPrefix: InternalToken | null;
+	private latestNamespace: ParserNamespace | null;
 
 	/** Current input buffer. */
 	private chunk: ArrayType;
@@ -321,10 +374,13 @@ export class Parser extends stream.Transform {
 	/** Prefixes of latest tokenBuffer entries (their namespace may change
 	  * if the prefix is remapped). Index 0 corresponds to elementStart. */
 	private prefixBuffer: (InternalToken | null)[] = [];
+	private namespaceBuffer: (ParserNamespace | null)[] = [];
 
 	/** Unresolved elements (temporary tokens lacking a namespace). */
 	private unknownElementTbl: { [ name: string ]: OpenToken } = {};
 	/** Unresolved attributes (temporary tokens lacking a namespace). */
 	private unknownAttributeTbl: { [ name: string ]: Token } = {};
+	private unknownOffsetList: number[] = [];
 
+	private unknownCount = 0;
 }
