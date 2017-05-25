@@ -324,8 +324,10 @@ export class Parser extends stream.Transform {
 
 	private storeSlice(start: number, end?: number) {
 		if(!this.partList) this.partList = [];
-		this.partList.push(this.chunk.slice(start, end));
-		this.partListTotalByteLen += (end || this.chunk.length) - start;
+		if(end !== 0) {
+			this.partList.push(this.chunk.slice(start, end));
+			this.partListTotalByteLen += (end || this.chunk.length) - start;
+		}
 	}
 
 	/** getSlice helper for concatenating buffer parts. */
