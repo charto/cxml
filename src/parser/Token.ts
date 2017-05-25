@@ -12,6 +12,8 @@ export const enum TokenKind {
 	string,
 	number,
 
+	comment,
+
 	// Internal token types
 	uri,
 	prefix,
@@ -21,15 +23,27 @@ export const enum TokenKind {
 
 export abstract class Token {
 
-	constructor(public name: string, public ns: Namespace) {}
-
-	abstract resolve(ns: ParserNamespace): Token;
-
 	kind: TokenKind;
 
 }
 
-export class ElementToken extends Token {
+export class SpecialToken extends Token {
+
+	constructor(public kind: TokenKind) { super(); }
+
+	static comment = new SpecialToken(TokenKind.comment);
+
+}
+
+export abstract class MemberToken extends Token {
+
+	constructor(public name: string, public ns: Namespace) { super(); }
+
+	abstract resolve(ns: ParserNamespace): Token;
+
+}
+
+export class ElementToken extends MemberToken {
 
 	resolve(ns: ParserNamespace) {
 		return(ns.addElement(this.name).tokenList[this.kind]!);
@@ -37,7 +51,7 @@ export class ElementToken extends Token {
 
 }
 
-export class AttributeToken extends Token {
+export class AttributeToken extends MemberToken {
 
 	resolve(ns: ParserNamespace) {
 		return(ns.addAttribute(this.name).tokenList[this.kind]!);

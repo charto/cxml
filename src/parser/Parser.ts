@@ -8,7 +8,7 @@ import { ParserConfig } from './ParserConfig';
 import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
-import { Token, OpenToken, CloseToken, StringToken, TokenKind } from './Token';
+import { Token, TokenKind, SpecialToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
 
 export type TokenBuffer = (Token | number | string)[];
 
@@ -147,8 +147,9 @@ export class Parser extends stream.Transform {
 							// If an xmlns definition already resolved
 							// this token, ns will be null.
 							if(ns) {
-								token = (tokenBuffer[offset + elementStart] as Token);
-								tokenBuffer[offset + elementStart] = token.resolve(ns);
+								tokenBuffer[offset + elementStart] = (
+									tokenBuffer[offset + elementStart] as MemberToken
+								).resolve(ns);
 							}
 						}
 
@@ -292,6 +293,12 @@ export class Parser extends stream.Transform {
 					partStart = -1;
 					break;
 
+				case CodeType.COMMENT_END_OFFSET:
+
+					tokenBuffer[++tokenNum] = SpecialToken.comment;
+					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					partStart = -1;
+					break;
 
 				default:
 
@@ -358,7 +365,7 @@ export class Parser extends stream.Transform {
 		for(let pos = 0; pos <= len; ++pos) {
 			if(prefixBuffer[pos] == prefix) {
 				token = tokenBuffer[pos + elementStart];
-				if(token instanceof Token) {
+				if(token instanceof MemberToken) {
 					tokenBuffer[pos + elementStart] = token.resolve(ns);
 					this.namespaceBuffer[pos] = null;
 				}
