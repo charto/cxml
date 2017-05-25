@@ -1,14 +1,15 @@
 import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
-import { Token, TokenKind } from '../parser/Token';
+import { Token, TokenKind, MemberToken } from '../parser/Token';
 import { TokenChunk } from '../parser/Parser';
 
 const enum State {
 	ELEMENT = 0,
 	PROCESSING,
 	TEXT,
-	AFTER_TEXT
+	AFTER_TEXT,
+	COMMENT
 }
 
 export class Writer extends stream.Transform {
@@ -23,6 +24,7 @@ export class Writer extends stream.Transform {
 		let indent = this.indent;
 		let nsElement = this.nsElement;
 		let token: Token | number | string;
+		let member: MemberToken;
 		let prefix: string;
 
 		if(indent == '') tokenCount = 1;
@@ -35,8 +37,9 @@ export class Writer extends stream.Transform {
 				switch(token.kind) {
 					case TokenKind.open:
 
-						nsElement = token.ns;
-						partList[++partNum] = indent + '<' + prefixList[token.ns!.id] + token.name;
+						member = token as MemberToken;
+						nsElement = member.ns;
+						partList[++partNum] = indent + '<' + prefixList[nsElement.id] + member.name;
 						indent += '\t';
 
 						state = State.ELEMENT;
@@ -51,13 +54,14 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.close:
 
+						member = token as MemberToken;
 						indent = indent.substr(0, indent.length - 1);
 
 						if(state == State.ELEMENT) {
 							partList[++partNum] = '/>';
 						} else {
 							if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-							partList[++partNum] = '</' + prefixList[token.ns!.id] + token.name + '>'
+							partList[++partNum] = '</' + prefixList[member.ns.id] + member.name + '>'
 						}
 
 						state = State.TEXT;
@@ -65,20 +69,38 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.string:
 
+						member = token as MemberToken;
 						// Omit prefixes for attributes in the same namespace
 						// as their parent element.
-						if(token.ns == nsElement) prefix = '';
-						else prefix = token.ns!.uri + ':';
+						if(member.ns == nsElement) prefix = '';
+						else prefix = prefixList[member.ns.id];
 
-						partList[++partNum] = ' ' + prefix + token.name + '=';
+						partList[++partNum] = ' ' + prefix + member.name + '=';
+						break;
+
+					case TokenKind.comment:
+
+						state = State.COMMENT;
 						break;
 				}
 			} else {
-				if(state == State.TEXT) {
-					partList[++partNum] = '' + token;
-					state = State.AFTER_TEXT;
-				} else {
-					partList[++partNum] = '"' + token + '"';
+				switch(state) {
+					case State.TEXT:
+
+						partList[++partNum] = '' + token;
+						state = State.AFTER_TEXT;
+						break;
+
+					case State.ELEMENT:
+
+						partList[++partNum] = '"' + token + '"';
+						break;
+
+					case State.COMMENT:
+
+						partList[++partNum] = indent + '<!--' + token;
+						break;
+
 				}
 			}
 		}
