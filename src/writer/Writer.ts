@@ -90,7 +90,12 @@ export class Writer extends stream.Transform {
 		return([ tokenNum, partNum ]);
 	}
 
-	_transform(chunk: TokenChunk, enc: string, flush: (err: any, chunk: Buffer) => void) {
+	_transform(chunk: TokenChunk | null, enc: string, flush: (err: any, chunk: Buffer) => void) {
+		if(!chunk) {
+			flush(null, new Buffer(''));
+			return;
+		}
+
 		let tokenNum = -1;
 		let partList: string[] = [];
 		let partNum = -1;

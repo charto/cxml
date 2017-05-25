@@ -15,6 +15,7 @@ export type TokenBuffer = (Token | number | string)[];
 export interface TokenChunk {
 	length: number;
 	prefixList: string[];
+	/** Buffer for stream output. */
 	buffer: TokenBuffer;
 }
 
@@ -50,9 +51,10 @@ export class Parser extends stream.Transform {
 	_transform(
 		chunk: string | ArrayType,
 		enc: string,
-		flush: (err: any, chunk: TokenChunk) => void
+		flush: (err: any, chunk: TokenChunk | null) => void
 	) {
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
+		this.flush = flush;
 
 		const len = chunk.length;
 		let next: number;
@@ -65,12 +67,18 @@ export class Parser extends stream.Transform {
 			this.parseCodeBuffer(false);
 		}
 
-		// TODO: Defer flushing if element parsing is unfinished.
-		if(1) {
+		if(this.elementStart < 0) {
 			this.output.length = this.tokenNum;
 			this.tokenNum = -1;
 			flush(null, this.output);
-		}
+
+			// Create a new output object, because re-using it invites problems.
+			this.output = {
+				length: 0,
+				prefixList: [],
+				buffer: []
+			};
+		} else flush(null, null);
 	}
 
 	private parseCodeBuffer(pending: boolean) {
@@ -91,7 +99,7 @@ export class Parser extends stream.Transform {
 		let latestPrefix = this.latestPrefix;
 		let latestNamespace = this.latestNamespace;
 
-		const tokenBuffer = this.tokenBuffer;
+		const tokenBuffer = this.output.buffer;
 		const prefixBuffer = this.prefixBuffer;
 		const namespaceBuffer = this.namespaceBuffer;
 		const unknownElementTbl = this.unknownElementTbl;
@@ -153,6 +161,8 @@ export class Parser extends stream.Transform {
 						latestElement.emitted :
 						latestElement.close
 					)
+
+					elementStart = -1;
 
 					break;
 
@@ -335,7 +345,7 @@ export class Parser extends stream.Transform {
 	  * within the same element. */
 	resolve(elementStart: number, tokenNum: number, prefix: InternalToken, idNamespace: number) {
 		const prefixBuffer = this.prefixBuffer;
-		const tokenBuffer = this.tokenBuffer;
+		const tokenBuffer = this.output.buffer;
 		const ns = this.config.namespaceList[idNamespace];
 		const len = tokenNum - elementStart;
 		let token: Token | number | string;
@@ -366,6 +376,8 @@ export class Parser extends stream.Transform {
 	/** Current input buffer. */
 	private chunk: ArrayType;
 
+	private flush: (err: any, chunk: TokenChunk | null) => void;
+
 	/** Storage for parts of strings split between chunks of input. */
 	private partList: ArrayType[] | null = null;
 	private partListTotalByteLen = 0;
@@ -378,19 +390,17 @@ export class Parser extends stream.Transform {
 
 	/** Shared with C++ library. */
 	private codeBuffer: Uint32Array;
-	/** Buffer for stream output. */
-	private tokenBuffer: TokenBuffer = [];
 	/** Current tokenBuffer offset for writing stream output. */
 	private tokenNum = -1;
 
 	private output: TokenChunk = {
 		length: 0,
 		prefixList: [],
-		buffer: this.tokenBuffer
+		buffer: []
 	};
 
 	/** Offset to start of current element definition in output buffer. */
-	private elementStart = 0;
+	private elementStart = -1;
 	/** Prefixes of latest tokenBuffer entries (their namespace may change
 	  * if the prefix is remapped). Index 0 corresponds to elementStart. */
 	private prefixBuffer: (InternalToken | null)[] = [];
