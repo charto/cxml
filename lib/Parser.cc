@@ -259,6 +259,17 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// This is an optional lookup to avoid later reprocessing.
 				for(ahead = 0; ahead + 1 < len && nameCharTbl[p[ahead]]; ++ahead) {}
 
+				if(matchTarget == MatchTarget :: ELEMENT) {
+					elementPrefix.idPrefix = config.xmlnsToken;
+					elementPrefix.idNamespace = config.namespacePrefixTbl[config.xmlnsToken].first;
+					ns = config.namespacePrefixTbl[config.xmlnsToken].second;
+				} else {
+					// By default, attributes belong to the same namespace as their parent element.
+					attributePrefix.idPrefix = elementPrefix.idPrefix;
+					attributePrefix.idNamespace = elementPrefix.idNamespace;
+					ns = config.namespaceList[elementPrefix.idNamespace].get();
+				}
+
 				// Prepare Patricia tree cursor for parsing.
 				if(ahead + 1 >= len || p[ahead] == ':') {
 					// If the input ran out, assume the name contains a colon
@@ -272,17 +283,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					}
 					cursor.init(config.prefixTrie);
 				} else {
-					if(matchTarget == MatchTarget :: ELEMENT) {
-						elementPrefix.idPrefix = config.xmlnsToken;
-						elementPrefix.idNamespace = config.namespacePrefixTbl[config.xmlnsToken].first;
-						ns = config.namespacePrefixTbl[config.xmlnsToken].second;
-					} else {
-						// By default, attributes belong to the same namespace as their parent element.
-						attributePrefix.idPrefix = elementPrefix.idPrefix;
-						attributePrefix.idNamespace = elementPrefix.idNamespace;
-						ns = config.namespaceList[elementPrefix.idNamespace].get();
-					}
-
 					if(ns == nullptr) {
 						// No default namespace is defined, so this element
 						// cannot be matched with anything.
@@ -730,6 +730,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 					// updates the uri trie and this tokenizer can recognize it
 					// in the future.
 					flush(tokenPtr);
+
+					// Reset element namespace to correctly match any following attributes.
+					elementPrefix.idNamespace = config.namespacePrefixTbl[elementPrefix.idPrefix].first;
 				}
 
 				afterValueState = State :: AFTER_ATTRIBUTE_VALUE;
