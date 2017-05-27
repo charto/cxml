@@ -39,7 +39,10 @@ export class TokenSet {
 			token = this.space.createToken(name, ns);
 
 			this.tbl[name] = token;
-			if(token.name) this.trie.insertNode(token);
+			if(token.name) {
+				this.dirty = true;
+				this.trie.insertNode(token);
+			}
 		}
 
 		return(token);
@@ -47,17 +50,22 @@ export class TokenSet {
 
 	addToken(token: InternalToken) {
 		if(token.name) {
+			this.dirty = true;
 			this.tbl[token.name] = token;
 			this.trie.insertNode(token);
 		}
 	}
 
-	encodeTrie() { return(this.trie.encode()); }
+	encodeTrie() {
+		return(this.trie.encode());
+	}
 
 	/** If false, object is a clone sharing data with a parent object. */
 	private isIndependent: boolean;
 
 	private tbl: { [ name: string ]: InternalToken };
 	private trie: Patricia;
+
+	public dirty = true;
 
 }
