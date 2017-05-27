@@ -80,8 +80,7 @@ public:
 		ELEMENT,
 		ELEMENT_NAMESPACE,
 		ATTRIBUTE,
-		ATTRIBUTE_NAMESPACE,
-		PROCESSING
+		ATTRIBUTE_NAMESPACE
 	};
 
 	static constexpr unsigned int TOKEN_SHIFT = 5;

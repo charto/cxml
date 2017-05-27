@@ -204,28 +204,27 @@ export class Parser extends stream.Transform {
 					break;
 
 				case CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET:
+
+					name = this.getSlice(partStart, code);
+					latestElement = unknownElementTbl[name];
+
+					if(!latestElement) {
+						latestElement = new OpenToken(name, Namespace.unknown);
+						unknownElementTbl[name] = latestElement;
+					}
+
+					tokenBuffer[++tokenNum] = latestElement;
+					prefixBuffer[0] = latestPrefix;
+					namespaceBuffer[0] = latestNamespace;
+					elementStart = tokenNum;
+					unknownOffsetList[0] = 0;
+					unknownCount = 1;
+					break;
+
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 
 					name = this.getSlice(partStart, code);
-
-					if(kind == CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET) {
-						latestElement = unknownElementTbl[name];
-
-						if(!latestElement) {
-							latestElement = new OpenToken(name, Namespace.unknown);
-							unknownElementTbl[name] = latestElement;
-						}
-
-						tokenBuffer[++tokenNum] = latestElement;
-						prefixBuffer[0] = latestPrefix;
-						namespaceBuffer[0] = latestNamespace;
-						elementStart = tokenNum;
-						unknownOffsetList[0] = 0;
-						unknownCount = 1;
-					} else {
-						tokenBuffer[++tokenNum] = latestNamespace!.addElement(name).close;
-					}
-
+					tokenBuffer[++tokenNum] = latestNamespace!.addElement(name).close;
 					break;
 
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
@@ -274,13 +273,13 @@ export class Parser extends stream.Transform {
 							name = latestPrefix!.name;
 						} else name = '';
 						const ns = new Namespace(name, uri, ++config.maxNamespace);
-						const idNamespace = this.config.addNamespace(ns);
-						this.config.bindNamespace(ns, latestPrefix!.name);
+						const idNamespace = config.addNamespace(ns);
+						config.bindNamespace(ns, latestPrefix!.name);
 
 						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
 						latestPrefix = null;
 					} else {
-						latestPrefix = this.config.addPrefix(this.getSlice(partStart, code));
+						latestPrefix = config.addPrefix(this.getSlice(partStart, code));
 
 						/* if(latestPrefix.id > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
@@ -310,6 +309,8 @@ export class Parser extends stream.Transform {
 			this.storeSlice(partStart);
 			partStart = 0;
 		}
+
+		config.updateNamespaces();
 
 		this.partStart = partStart;
 		this.partialLen = partialLen;

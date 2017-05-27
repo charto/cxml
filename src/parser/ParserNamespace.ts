@@ -26,8 +26,14 @@ export class ParserNamespace {
 	}
 
 	registerNative(): NativeNamespace {
-		this.native.setElementTrie(this.elementSet.encodeTrie());
-		this.native.setAttributeTrie(this.attributeSet.encodeTrie());
+		if(this.elementSet.dirty) {
+			this.native.setElementTrie(this.elementSet.encodeTrie());
+			this.elementSet.dirty = false;
+		}
+		if(this.attributeSet.dirty) {
+			this.native.setAttributeTrie(this.attributeSet.encodeTrie());
+			this.attributeSet.dirty = false;
+		}
 		return(this.native);
 	}
 

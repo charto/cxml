@@ -123,6 +123,15 @@ export class ParserConfig {
 		}
 	}
 
+	updateNamespaces() {
+		const list = this.namespaceList;
+		const len = list.length;
+
+		for(let num = 0; num < len; ++num) {
+			if(list[num]) list[num].registerNative();
+		}
+	}
+
 	bindPrefix(prefix: InternalToken, uri: InternalToken) {
 		this.native.bindPrefix(prefix.id, uri.id);
 	}
