@@ -17,7 +17,7 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenChunk, tokenNum: number, tokenCount: number, partList: string[], partNum: number) {
+	transform(chunk: TokenChunk, tokenNum: number, partList: string[], partNum: number) {
 		const prefixList = this.prefixList;
 		let buffer = chunk.buffer;
 		let state = this.state;
@@ -27,9 +27,9 @@ export class Writer extends stream.Transform {
 		let member: MemberToken;
 		let prefix: string;
 
-		if(indent == '') tokenCount = 1;
+		const lastNum = (indent == '') ? 1 : chunk.last;
 
-		while(tokenNum < tokenCount) {
+		while(tokenNum < lastNum) {
 
 			token = buffer[++tokenNum];
 
@@ -127,11 +127,11 @@ export class Writer extends stream.Transform {
 			for(let i = 0; i < chunk.prefixList.length; ++i) {
 				this.prefixList[i] = chunk.prefixList[i] || '';
 			}
-			[ tokenNum, partNum ] = this.transform(chunk, tokenNum, 1, partList, partNum);
+			[ tokenNum, partNum ] = this.transform(chunk, tokenNum, partList, partNum);
 			this.indent = '\n' + this.indent;
 		}
 
-		this.transform(chunk, tokenNum, chunk.length, partList, partNum);
+		this.transform(chunk, tokenNum, partList, partNum);
 		flush(null, new Buffer(partList.join('')));
 
 		++this.chunkCount;
