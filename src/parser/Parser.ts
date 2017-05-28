@@ -13,7 +13,7 @@ import { Token, TokenKind, SpecialToken, MemberToken, OpenToken, CloseToken, Str
 export type TokenBuffer = (Token | number | string)[];
 
 export interface TokenChunk {
-	length: number;
+	last: number;
 	prefixList: string[];
 	/** Buffer for stream output. */
 	buffer: TokenBuffer;
@@ -68,13 +68,13 @@ export class Parser extends stream.Transform {
 		}
 
 		if(this.elementStart < 0) {
-			this.output.length = this.tokenNum;
+			this.output.last = this.tokenNum;
 			this.tokenNum = -1;
 			flush(null, this.output);
 
 			// Create a new output object, because re-using it invites problems.
 			this.output = {
-				length: 0,
+				last: -1,
 				prefixList: [],
 				buffer: []
 			};
@@ -353,7 +353,7 @@ export class Parser extends stream.Transform {
 
 	/** Resolve any prior occurrences of a recently defined prefix
 	  * within the same element. */
-	resolve(elementStart: number, tokenNum: number, prefix: InternalToken, idNamespace: number) {
+	private resolve(elementStart: number, tokenNum: number, prefix: InternalToken, idNamespace: number) {
 		const prefixBuffer = this.prefixBuffer;
 		const tokenBuffer = this.output.buffer;
 		const ns = this.config.namespaceList[idNamespace];
@@ -404,7 +404,7 @@ export class Parser extends stream.Transform {
 	private tokenNum = -1;
 
 	private output: TokenChunk = {
-		length: 0,
+		last: -1,
 		prefixList: [],
 		buffer: []
 	};
