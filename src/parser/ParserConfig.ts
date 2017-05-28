@@ -5,7 +5,7 @@ import { ParserNamespace } from './ParserNamespace';
 import { TokenSpace } from '../tokenizer/TokenSpace';
 import { TokenSet } from '../tokenizer/TokenSet';
 import { InternalToken } from './InternalToken';
-import { TokenKind } from './Token';
+import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
 import { Parser } from './Parser';
 
 /** Parser configuration for quickly instantiating new parsers.
@@ -86,6 +86,11 @@ export class ParserConfig {
 		return(new Parser(config, nativeParser));
 	}
 
+	getNamespace(uri: string) {
+		const ns = this.namespaceTbl[uri];
+		return(ns && ns.base);
+	}
+
 	addNamespace(nsBase: Namespace) {
 		let nsParser = this.namespaceTbl[nsBase.uri];
 
@@ -155,6 +160,16 @@ export class ParserConfig {
 		this.native.setPrefixTrie(this.prefixSet.encodeTrie());
 
 		return(token);
+	}
+
+	getElementTokens(ns: Namespace, name: string) {
+		const id = this.addNamespace(ns);
+		return(this.namespaceList[id].addElement(name).tokenList);
+	}
+
+	getAttributeTokens(ns: Namespace, name: string) {
+		const id = this.addNamespace(ns);
+		return(this.namespaceList[id].addAttribute(name).tokenList);
 	}
 
 	/** If false, object is a clone sharing data with a parent object. */
