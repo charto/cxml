@@ -44,6 +44,8 @@ export class Parser extends stream.Transform {
 		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 	}
 
+	public getConfig() { return(this.config); }
+
 	private throwError(msg: string) {
 		throw(new Error(msg));
 	}
