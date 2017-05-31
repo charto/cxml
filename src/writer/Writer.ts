@@ -21,6 +21,7 @@ export class Writer extends stream.Transform {
 		const prefixList = this.prefixList;
 		let buffer = chunk.buffer;
 		let state = this.state;
+		let depth = this.depth;
 		let indent = this.indent;
 		let nsElement = this.nsElement;
 		let token: Token | number | string;
@@ -40,6 +41,8 @@ export class Writer extends stream.Transform {
 						member = token as MemberToken;
 						nsElement = member.ns;
 						partList[++partNum] = indent + '<' + prefixList[nsElement.id] + member.name;
+						if(depth == 0) partList[++partNum] = this.xmlnsDefinitions;
+						++depth;
 						indent += '\t';
 
 						state = State.ELEMENT;
@@ -55,6 +58,7 @@ export class Writer extends stream.Transform {
 					case TokenKind.close:
 
 						member = token as MemberToken;
+						--depth;
 						indent = indent.substr(0, indent.length - 1);
 
 						if(state == State.ELEMENT) {
@@ -106,6 +110,7 @@ export class Writer extends stream.Transform {
 		}
 
 		this.state = state;
+		this.depth = depth;
 		this.indent = indent;
 		this.nsElement = nsElement;
 
@@ -123,10 +128,8 @@ export class Writer extends stream.Transform {
 		let partNum = -1;
 
 		if(!this.chunkCount) {
-			this.prefixList = [];
-			for(let i = 0; i < chunk.prefixList.length; ++i) {
-				this.prefixList[i] = chunk.prefixList[i] || '';
-			}
+			this.copyPrefixes(chunk.namespaceList, chunk.prefixList);
+
 			[ tokenNum, partNum ] = this.transform(chunk, tokenNum, partList, partNum);
 			this.indent = '\n' + this.indent;
 		}
@@ -141,10 +144,58 @@ export class Writer extends stream.Transform {
 		flush(null, new Buffer('\n'));
 	}
 
+	copyPrefixes(namespaceList: Namespace[], prefixList: string[]) {
+		const prefixTbl = this.prefixTbl;
+		let prefix: string;
+
+		for(let i = 0; i < prefixList.length; ++i) {
+			prefix = prefixList[i];
+			if(!prefix) continue;
+
+			if(prefixTbl[prefix]) {
+				let j = 1;
+
+				do {
+					prefix = prefixList[i] + (++j);
+				} while(prefixTbl[prefix]);
+			}
+
+			this.prefixList[i] = prefix;
+			prefixTbl[prefix] = i + 1;
+		}
+
+		let j = 0;
+
+		for(let i = 0; i < prefixList.length; ++i) {
+			prefix = prefixList[i];
+			if(prefix) continue;
+
+			do {
+				prefix = 'p' + (++j);
+			} while(prefixTbl[prefix]);
+
+			this.prefixList[i] = prefix;
+			prefixTbl[prefix] = i + 1;
+		}
+
+		this.xmlnsDefinitions = this.prefixList.map(
+			(prefix: string, num: number) => namespaceList[num] ?
+			' xmlns:' + prefix + '="' + namespaceList[num].uri + '"' :
+			''
+		).join('');
+
+		for(let i = 0; i < prefixList.length; ++i) {
+			this.prefixList[i] = this.prefixList[i] + ':';
+		}
+	}
+
 	private chunkCount = 0;
 	private state = State.TEXT as State;
+	private depth = 0;
 	private indent = '';
 	private nsElement: Namespace;
-	private prefixList: string[];
+	private prefixList: string[] = [];
+	private prefixTbl: { [ key: string ]: number } = {};
+	private xmlnsDefinitions = '';
 
 }

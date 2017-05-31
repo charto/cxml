@@ -13,10 +13,11 @@ import { Token, TokenKind, SpecialToken, MemberToken, OpenToken, CloseToken, Str
 export type TokenBuffer = (Token | number | string)[];
 
 export interface TokenChunk {
-	last: number;
-	prefixList: string[];
 	/** Buffer for stream output. */
 	buffer: TokenBuffer;
+	namespaceList: Namespace[];
+	prefixList: string[];
+	last: number;
 }
 
 // const codeBufferSize = 2;
@@ -70,16 +71,14 @@ export class Parser extends stream.Transform {
 		}
 
 		if(this.elementStart < 0) {
-			this.output.last = this.tokenNum;
-			this.tokenNum = -1;
-			flush(null, this.output);
+			flush(null, {
+				buffer: this.tokenBuffer,
+				namespaceList: this.namespaceList,
+				prefixList: this.prefixList,
+				last: this.tokenNum
+			});
 
-			// Create a new output object, because re-using it invites problems.
-			this.output = {
-				last: -1,
-				prefixList: [],
-				buffer: []
-			};
+			this.tokenNum = -1;
 		} else flush(null, null);
 	}
 
@@ -101,7 +100,7 @@ export class Parser extends stream.Transform {
 		let latestPrefix = this.latestPrefix;
 		let latestNamespace = this.latestNamespace;
 
-		const tokenBuffer = this.output.buffer;
+		const tokenBuffer = this.tokenBuffer;
 		const prefixBuffer = this.prefixBuffer;
 		const namespaceBuffer = this.namespaceBuffer;
 		const unknownElementTbl = this.unknownElementTbl;
@@ -357,7 +356,7 @@ export class Parser extends stream.Transform {
 	  * within the same element. */
 	private resolve(elementStart: number, tokenNum: number, prefix: InternalToken, idNamespace: number) {
 		const prefixBuffer = this.prefixBuffer;
-		const tokenBuffer = this.output.buffer;
+		const tokenBuffer = this.tokenBuffer;
 		const ns = this.config.namespaceList[idNamespace];
 		const len = tokenNum - elementStart;
 		let token: Token | number | string;
@@ -365,7 +364,8 @@ export class Parser extends stream.Transform {
 		if(!ns.base.defaultPrefix && prefix != this.config.xmlnsPrefixToken) {
 			ns.base.defaultPrefix = prefix.name;
 		}
-		this.output.prefixList[ns.base.id] = ns.base.defaultPrefix + ':';
+		this.namespaceList[ns.base.id] = ns.base;
+		this.prefixList[ns.base.id] = ns.base.defaultPrefix;
 
 		for(let pos = 0; pos <= len; ++pos) {
 			if(prefixBuffer[pos] == prefix) {
@@ -390,6 +390,9 @@ export class Parser extends stream.Transform {
 
 	private flush: (err: any, chunk: TokenChunk | null) => void;
 
+	namespaceList: Namespace[] = [];
+	prefixList: string[] = [];
+
 	/** Storage for parts of strings split between chunks of input. */
 	private partList: ArrayType[] | null = null;
 	private partListTotalByteLen = 0;
@@ -402,14 +405,10 @@ export class Parser extends stream.Transform {
 
 	/** Shared with C++ library. */
 	private codeBuffer: Uint32Array;
+	/** Buffer for stream output. */
+	tokenBuffer: TokenBuffer = [];
 	/** Current tokenBuffer offset for writing stream output. */
 	private tokenNum = -1;
-
-	private output: TokenChunk = {
-		last: -1,
-		prefixList: [],
-		buffer: []
-	};
 
 	/** Offset to start of current element definition in output buffer. */
 	private elementStart = -1;
