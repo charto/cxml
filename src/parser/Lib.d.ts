@@ -1,3 +1,5 @@
+import { Buffer } from "nbind/dist/shim";
+
 export class NBindBase { free?(): void }
 
 export class Namespace extends NBindBase {
