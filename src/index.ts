@@ -2,6 +2,7 @@ import { Namespace } from './Namespace';
 export { Namespace };
 export { ParserConfig } from './parser/ParserConfig';
 export { Parser } from './parser/Parser';
+export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
 
 export const anonymous = new Namespace('xmlns', '');
