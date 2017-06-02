@@ -46,6 +46,9 @@ export interface RuleMembers {
 }
 
 function defineSubstitute(substitute: MemberSpec, proxy: MemberRef) {
+	if(!substitute.substitutes2) substitute.substitutes2 = [];
+	substitute.substitutes2.push(proxy);
+
 	var ref = MemberRef.parseSpec([substitute, 0, substitute.safeName], substitute.namespace as any, proxy);
 
 	return(ref);
@@ -146,7 +149,10 @@ export class TypeSpec extends Item {
 		}
 
 		if(typeSpec) {
-			var memberType = typeSpec.placeHolder;
+			// var memberType = typeSpec.placeHolder;
+			var memberType = new typeSpec.proto();
+			memberType._exists = false;
+			memberType._substitutes = ref.member.substitutes2;
 			var type = (this.proto.prototype) as RuleMembers;
 
 			type[ref.safeName] = (ref.max > 1) ? [memberType] : memberType;

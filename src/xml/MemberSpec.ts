@@ -70,7 +70,7 @@ export class MemberSpec extends Item {
 			if(!this.isAbstract) this.proxySpec.addSubstitute(this, this);
 		}
 
-		if(this.dependency && this.dependency instanceof MemberSpec) {
+		if(this.dependency && this.dependency instanceof MemberSpec && this.dependency.proxySpec) {
 			// Parent is actually the substitution group base element.
 			this.dependency.proxySpec.addSubstitute(this.dependency, this);
 		}
@@ -112,6 +112,7 @@ export class MemberSpec extends Item {
 	rule: Rule;
 
 	substitutes: MemberSpec;
+	substitutes2: MemberRef[];
 
 	/** Substitution group virtual type,
 	  * containing all possible substitutes as children. */
