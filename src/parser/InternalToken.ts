@@ -16,9 +16,9 @@ export class InternalToken {
 		switch(kind) {
 			case TokenKind.element:
 
-				this.open = new OpenToken(name, nsBase);
-				this.close = new CloseToken(name, nsBase);
-				this.emitted = new EmittedToken(name, nsBase);
+				this.open = new OpenToken(name, nsBase, id);
+				this.close = this.open.close;
+				this.emitted = this.open.emitted;
 				this.tokenList = [
 					this.open,
 					this.close,
@@ -29,7 +29,7 @@ export class InternalToken {
 
 			case TokenKind.attribute:
 
-				this.string = new StringToken(name, nsBase);
+				this.string = new StringToken(name, nsBase, id);
 				this.tokenList = [
 					null,
 					null,
