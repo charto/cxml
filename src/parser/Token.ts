@@ -23,6 +23,8 @@ export const enum TokenKind {
 
 export abstract class Token {
 
+	constructor(public id?: number) {}
+
 	kind: TokenKind;
 
 }
@@ -37,7 +39,7 @@ export class SpecialToken extends Token {
 
 export abstract class MemberToken extends Token {
 
-	constructor(public name: string, public ns: Namespace) { super(); }
+	constructor(public name: string, public ns: Namespace, id?: number) { super(id); }
 
 	abstract resolve(ns: ParserNamespace): Token;
 
@@ -60,8 +62,8 @@ export class AttributeToken extends MemberToken {
 }
 
 export class OpenToken extends ElementToken {
-	emitted = new EmittedToken(this.name, this.ns);
-	close = new CloseToken(this.name, this.ns);
+	emitted = new EmittedToken(this.name, this.ns, this.id);
+	close = new CloseToken(this.name, this.ns, this.id);
 }
 OpenToken.prototype.kind = TokenKind.open;
 
