@@ -8,20 +8,29 @@ import { InternalToken } from './InternalToken';
 export class ParserNamespace {
 
 	/** @param base Parser-independent namespace definition. */
-	constructor(public base: Namespace, config: ParserConfig) {
-		this.native = new NativeNamespace(base.uri);
+	constructor(public parent: Namespace | ParserNamespace, config: ParserConfig) {
+		if(parent instanceof ParserNamespace) {
+			this.base = parent.base;
+			this.native = parent.native.clone();
 
-		this.elementSet = new TokenSet(config.elementSpace);
-		this.attributeSet = new TokenSet(config.attributeSpace);
+			this.elementSet = new TokenSet(config.elementSpace, parent.elementSet);
+			this.attributeSet = new TokenSet(config.attributeSpace, parent.attributeSet);
+		} else {
+			this.base = parent;
+			this.native = new NativeNamespace(parent.uri);
 
-		this.attributeSet.addToken(config.xmlnsToken);
+			this.elementSet = new TokenSet(config.elementSpace);
+			this.attributeSet = new TokenSet(config.attributeSpace);
 
-		for(let name of base.elementNameList) {
-			this.addElement(name);
-		}
+			this.attributeSet.addToken(config.xmlnsToken);
 
-		for(let name of base.attributeNameList) {
-			this.addAttribute(name);
+			for(let name of parent.elementNameList) {
+				this.addElement(name);
+			}
+
+			for(let name of parent.attributeNameList) {
+				this.addAttribute(name);
+			}
 		}
 	}
 
@@ -45,6 +54,7 @@ export class ParserNamespace {
 		return(this.attributeSet.createToken(name, this));
 	}
 
+	public base: Namespace;
 	private native: NativeNamespace;
 
 	/** Index in parser's namespaceList. */

@@ -273,9 +273,8 @@ export class Parser extends stream.Transform {
 						if(latestPrefix != config.xmlnsPrefixToken){
 							name = latestPrefix!.name;
 						} else name = '';
-						const ns = new Namespace(name, uri, ++config.maxNamespace);
-						const idNamespace = config.addNamespace(ns);
-						config.bindNamespace(ns, latestPrefix!.name);
+						const ns = new Namespace(name, uri, config.maxNamespace + 1);
+						const idNamespace = config.bindNamespace(ns, latestPrefix!.name);
 
 						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
 						latestPrefix = null;

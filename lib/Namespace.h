@@ -12,6 +12,8 @@ public:
 
 	explicit Namespace(std::string uri) : uri(uri) {}
 
+	Namespace clone() { return(*this); }
+
 	void setElementTrie(nbind::Buffer buffer) {
 		elementTrie.setBuffer(buffer);
 	}

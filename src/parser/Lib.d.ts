@@ -6,6 +6,9 @@ export class Namespace extends NBindBase {
 	/** Namespace(std::string); */
 	constructor(p0: string);
 
+	/** Namespace clone(); */
+	clone(): Namespace;
+
 	/** void setElementTrie(Buffer); */
 	setElementTrie(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): void;
 
