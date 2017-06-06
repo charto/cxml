@@ -34,6 +34,8 @@ export class ParserConfig {
 			this.namespaceList = parent.namespaceList;
 			this.namespaceTbl = parent.namespaceTbl;
 			this.maxNamespace = parent.maxNamespace;
+
+			this.nsMapper = parent.nsMapper;
 		} else {
 			this.uriSpace = new TokenSpace(TokenKind.uri);
 			this.prefixSpace = new TokenSpace(TokenKind.prefix);
@@ -49,6 +51,8 @@ export class ParserConfig {
 			this.namespaceTbl = {};
 			this.maxNamespace = 0;
 		}
+
+		this.clonedNamespaceCount = this.maxNamespace;
 
 		if(!native) {
 			this.xmlnsPrefixToken = this.prefixSet.createToken('xmlns');
@@ -70,12 +74,25 @@ export class ParserConfig {
 		this.uriSet = new TokenSet(this.uriSpace, this.uriSet);
 		this.prefixSet = new TokenSet(this.prefixSpace, this.prefixSet);
 
-		const namespaceTbl: { [ name: string ]: ParserNamespace } = {};
-		for(let key of Object.keys(this.namespaceTbl)) {
-			namespaceTbl[key] = this.namespaceTbl[key];
+		const namespaceList = this.namespaceList.slice(0);
+		for(let num = 0; num < this.clonedNamespaceCount; ++num) {
+			let ns = namespaceList[num];
+
+			// This just skips namespace 0 which never exists
+			// (see ParserConfig.cc).
+			if(ns) {
+				ns = new ParserNamespace(ns, this);
+				ns.id = num;
+				namespaceList[num] = ns;
+			}
 		}
 
-		this.namespaceList = this.namespaceList.slice(0);
+		const namespaceTbl: { [ name: string ]: ParserNamespace } = {};
+		for(let key of Object.keys(this.namespaceTbl)) {
+			namespaceTbl[key] = namespaceList[this.namespaceTbl[key].id];
+		}
+
+		this.namespaceList = namespaceList;
 		this.namespaceTbl = namespaceTbl;
 	}
 
@@ -92,21 +109,38 @@ export class ParserConfig {
 	}
 
 	addNamespace(nsBase: Namespace) {
-		let nsParser = this.namespaceTbl[nsBase.uri];
+		let uri = nsBase.uri;
+		let newUri: string | null | false | undefined;
+		let nsParser = this.namespaceTbl[uri];
 
 		if(!nsParser) {
 			if(!this.isIndependent) this.makeIndependent();
 
-			nsParser = new ParserNamespace(nsBase, this);
-			nsParser.id = this.native.addNamespace(nsParser.registerNative());
+			if(this.nsMapper) {
+				newUri = this.nsMapper(uri);
 
-			this.addUri(nsBase.uri, nsParser);
+				if(newUri) {
+					nsParser = this.namespaceTbl[newUri];
+					nsBase.uri = newUri;
+				}
+			}
+
+			if(!nsParser) {
+				nsParser = new ParserNamespace(nsBase, this);
+				nsParser.id = this.native.addNamespace(nsParser.registerNative());
+				this.namespaceList[nsParser.id] = nsParser;
+				if(nsBase.id > this.maxNamespace) this.maxNamespace = nsBase.id;
+
+				if(newUri) {
+					this.addUri(newUri, nsParser);
+					this.namespaceTbl[newUri] = nsParser;
+				}
+			}
+
 			if(nsBase.defaultPrefix) this.addPrefix(nsBase.defaultPrefix);
 
-			this.namespaceList[nsParser.id] = nsParser;
-			this.namespaceTbl[nsBase.uri] = nsParser;
-
-			if(nsBase.id > this.maxNamespace) this.maxNamespace = nsBase.id;
+			this.addUri(uri, nsParser);
+			this.namespaceTbl[uri] = nsParser;
 		}
 
 		return(nsParser.id);
@@ -119,13 +153,22 @@ export class ParserConfig {
 		}
 
 		prefix = prefix || ns.base.defaultPrefix;
+		const uri = ns.base.uri;
 
 		if(prefix) {
-			this.native.bindPrefix(
-				this.addPrefix(prefix).id,
-				this.addUri(ns.base.uri, ns).id
-			);
+			const idPrefix = this.addPrefix(prefix).id;
+			const idUri = this.addUri(uri, ns).id;
+			this.native.bindPrefix(idPrefix, idUri);
+
+			if(ns.base.uri != uri) {
+				this.native.bindPrefix(
+					idPrefix,
+					this.addUri(ns.base.uri, ns).id
+				);
+			}
 		}
+
+		return(ns.id);
 	}
 
 	updateNamespaces() {
@@ -196,7 +239,10 @@ export class ParserConfig {
 	/** List of supported namespaces. */
 	namespaceList: ParserNamespace[];
 	/** Mapping from URI to namespace. */
-	namespaceTbl: { [ uri: string ]: ParserNamespace };
+	private namespaceTbl: { [ uri: string ]: ParserNamespace };
 	maxNamespace: number;
+	clonedNamespaceCount: number;
+
+	nsMapper?: (uri: string) => string | null | false | undefined;
 
 }

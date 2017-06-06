@@ -6,6 +6,7 @@
 
 NBIND_CLASS(Namespace) {
 	construct<std::string>();
+	method(clone);
 	method(setElementTrie);
 	method(setAttributeTrie);
 	// TODO:
