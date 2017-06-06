@@ -148,6 +148,8 @@ export class Writer extends stream.Transform {
 		const prefixTbl = this.prefixTbl;
 		let prefix: string;
 
+		// Add a number to distinguish between duplicate prefix names.
+
 		for(let i = 0; i < prefixList.length; ++i) {
 			prefix = prefixList[i];
 			if(!prefix) continue;
@@ -165,6 +167,8 @@ export class Writer extends stream.Transform {
 		}
 
 		let j = 0;
+
+		// Name all unnamed prefixes with "p" and a sequence number.
 
 		for(let i = 0; i < prefixList.length; ++i) {
 			prefix = prefixList[i];
