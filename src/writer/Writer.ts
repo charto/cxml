@@ -128,7 +128,7 @@ export class Writer extends stream.Transform {
 		let partNum = -1;
 
 		if(!this.chunkCount) {
-			this.copyPrefixes(chunk.namespaceList, chunk.prefixList);
+			this.copyPrefixes(chunk.namespaceList);
 
 			[ tokenNum, partNum ] = this.transform(chunk, tokenNum, partList, partNum);
 			this.indent = '\n' + this.indent;
@@ -144,9 +144,11 @@ export class Writer extends stream.Transform {
 		flush(null, new Buffer('\n'));
 	}
 
-	copyPrefixes(namespaceList: Namespace[], prefixList: string[]) {
+	copyPrefixes(namespaceList: (Namespace | undefined)[]) {
 		const prefixTbl = this.prefixTbl;
 		let prefix: string;
+
+		const prefixList = namespaceList.map((ns: Namespace) => ns.defaultPrefix);
 
 		// Add a number to distinguish between duplicate prefix names.
 
@@ -184,7 +186,7 @@ export class Writer extends stream.Transform {
 
 		this.xmlnsDefinitions = this.prefixList.map(
 			(prefix: string, num: number) => namespaceList[num] ?
-			' xmlns:' + prefix + '="' + namespaceList[num].uri + '"' :
+			' xmlns:' + prefix + '="' + namespaceList[num]!.uri + '"' :
 			''
 		).join('');
 

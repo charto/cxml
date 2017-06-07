@@ -15,8 +15,7 @@ export type TokenBuffer = (Token | number | string)[];
 export interface TokenChunk {
 	/** Buffer for stream output. */
 	buffer: TokenBuffer;
-	namespaceList: Namespace[];
-	prefixList: string[];
+	namespaceList: (Namespace | undefined)[];
 	last: number;
 }
 
@@ -74,7 +73,6 @@ export class Parser extends stream.Transform {
 			flush(null, {
 				buffer: this.tokenBuffer,
 				namespaceList: this.namespaceList,
-				prefixList: this.prefixList,
 				last: this.tokenNum
 			});
 
@@ -364,7 +362,6 @@ export class Parser extends stream.Transform {
 			ns.base.defaultPrefix = prefix.name;
 		}
 		this.namespaceList[ns.base.id] = ns.base;
-		this.prefixList[ns.base.id] = ns.base.defaultPrefix;
 
 		for(let pos = 0; pos <= len; ++pos) {
 			if(prefixBuffer[pos] == prefix) {
@@ -389,8 +386,7 @@ export class Parser extends stream.Transform {
 
 	private flush: (err: any, chunk: TokenChunk | null) => void;
 
-	namespaceList: Namespace[] = [];
-	prefixList: string[] = [];
+	namespaceList: (Namespace | undefined)[] = [];
 
 	/** Storage for parts of strings split between chunks of input. */
 	private partList: ArrayType[] | null = null;
