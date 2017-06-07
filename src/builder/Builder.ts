@@ -1,6 +1,6 @@
 import { Namespace } from '../Namespace';
 import { Token, TokenKind, OpenToken, CloseToken, StringToken } from '../parser/Token';
-import { Parser, TokenBuffer, TokenChunk } from '../parser/Parser';
+import { Parser, TokenBuffer } from '../parser/Parser';
 
 const enum State {
 	ELEMENT = 0,
@@ -113,22 +113,24 @@ export class Builder {
 		let state = State.TEXT;
 		let target: string | null;
 
-		parser.on('data', (chunk: TokenChunk) => {
-			let buffer = chunk.buffer;
+		parser.on('data', (chunk: TokenBuffer) => {
+			if(!chunk) return;
+
 			let token: Token | number | string;
 			let name: string;
-			const lastNum = chunk.last;
-			let tokenNum = -1;
-			let depth = 0;
+			let ignoreDepth = 0;
+
+			const lastNum = chunk[0] as number;
+			let tokenNum = 0;
 
 			while(tokenNum < lastNum) {
 
-				token = buffer[++tokenNum];
+				token = chunk[++tokenNum];
 
-				if(depth) {
+				if(ignoreDepth) {
 					if(token instanceof Token) {
-						if(token.kind == TokenKind.open) ++depth;
-						else if(token.kind == TokenKind.close) --depth;
+						if(token.kind == TokenKind.open) ++ignoreDepth;
+						else if(token.kind == TokenKind.close) --ignoreDepth;
 					}
 				} else if(token instanceof Token) {
 					switch(token.kind) {
@@ -138,7 +140,7 @@ export class Builder {
 							ruleNext = rule.type.elements[name];
 
 							if(!ruleNext) {
-								++depth;
+								++ignoreDepth;
 
 								state = State.TEXT;
 								break;

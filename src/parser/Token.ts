@@ -13,6 +13,8 @@ export const enum TokenKind {
 	number,
 
 	comment,
+	namespace,
+	blank,
 
 	// Internal token types
 	uri,
@@ -34,8 +36,16 @@ export class SpecialToken extends Token {
 	constructor(public kind: TokenKind) { super(); }
 
 	static comment = new SpecialToken(TokenKind.comment);
+	static blank = new SpecialToken(TokenKind.blank);
 
 }
+
+export class NamespaceToken extends Token {
+
+	constructor(public namespaceList: (Namespace | undefined)[]) { super(); }
+
+}
+NamespaceToken.prototype.kind = TokenKind.namespace;
 
 export abstract class MemberToken extends Token {
 

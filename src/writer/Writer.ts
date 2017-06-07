@@ -1,8 +1,8 @@
 import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
-import { Token, TokenKind, MemberToken } from '../parser/Token';
-import { TokenChunk } from '../parser/Parser';
+import { Token, TokenKind, NamespaceToken, MemberToken } from '../parser/Token';
+import { TokenBuffer } from '../parser/Parser';
 
 const enum State {
 	ELEMENT = 0,
@@ -12,14 +12,15 @@ const enum State {
 	COMMENT
 }
 
+const indentPattern = '\n' + new Array(256).join('\t');
+
 export class Writer extends stream.Transform {
 	constructor() {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenChunk, tokenNum: number, partList: string[], partNum: number) {
+	transform(chunk: TokenBuffer) {
 		const prefixList = this.prefixList;
-		let buffer = chunk.buffer;
 		let state = this.state;
 		let depth = this.depth;
 		let indent = this.indent;
@@ -28,11 +29,14 @@ export class Writer extends stream.Transform {
 		let member: MemberToken;
 		let prefix: string;
 
-		const lastNum = (indent == '') ? 1 : chunk.last;
+		let partList: string[] = [];
+		let partNum = -1;
+		const lastNum = chunk[0] as number;
+		let tokenNum = 0;
 
 		while(tokenNum < lastNum) {
 
-			token = buffer[++tokenNum];
+			token = chunk[++tokenNum];
 
 			if(token instanceof Token) {
 				switch(token.kind) {
@@ -42,8 +46,7 @@ export class Writer extends stream.Transform {
 						nsElement = member.ns;
 						partList[++partNum] = indent + '<' + prefixList[nsElement.id] + member.name;
 						if(depth == 0) partList[++partNum] = this.xmlnsDefinitions;
-						++depth;
-						indent += '\t';
+						indent = indentPattern.substr(0, ++depth);
 
 						state = State.ELEMENT;
 						break;
@@ -58,8 +61,7 @@ export class Writer extends stream.Transform {
 					case TokenKind.close:
 
 						member = token as MemberToken;
-						--depth;
-						indent = indent.substr(0, indent.length - 1);
+						indent = indentPattern.substr(0, --depth);
 
 						if(state == State.ELEMENT) {
 							partList[++partNum] = '/>';
@@ -85,6 +87,13 @@ export class Writer extends stream.Transform {
 					case TokenKind.comment:
 
 						state = State.COMMENT;
+						break;
+
+					case TokenKind.namespace:
+
+						if(!this.chunkCount) {
+							this.copyPrefixes((token as NamespaceToken).namespaceList);
+						}
 						break;
 				}
 			} else {
@@ -114,27 +123,16 @@ export class Writer extends stream.Transform {
 		this.indent = indent;
 		this.nsElement = nsElement;
 
-		return([ tokenNum, partNum ]);
+		return(partList);
 	}
 
-	_transform(chunk: TokenChunk | null, enc: string, flush: (err: any, chunk: Buffer) => void) {
+	_transform(chunk: TokenBuffer | null, enc: string, flush: (err: any, chunk: Buffer) => void) {
 		if(!chunk) {
-			flush(null, new Buffer(''));
+			flush(null, new Buffer(0));
 			return;
 		}
 
-		let tokenNum = -1;
-		let partList: string[] = [];
-		let partNum = -1;
-
-		if(!this.chunkCount) {
-			this.copyPrefixes(chunk.namespaceList);
-
-			[ tokenNum, partNum ] = this.transform(chunk, tokenNum, partList, partNum);
-			this.indent = '\n' + this.indent;
-		}
-
-		this.transform(chunk, tokenNum, partList, partNum);
+		const partList = this.transform(chunk);
 		flush(null, new Buffer(partList.join('')));
 
 		++this.chunkCount;
@@ -197,7 +195,7 @@ export class Writer extends stream.Transform {
 
 	private chunkCount = 0;
 	private state = State.TEXT as State;
-	private depth = 0;
+	private depth = 1;
 	private indent = '';
 	private nsElement: Namespace;
 	private prefixList: string[] = [];
