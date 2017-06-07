@@ -8,16 +8,9 @@ import { ParserConfig } from './ParserConfig';
 import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
-import { Token, TokenKind, SpecialToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
+import { Token, TokenKind, SpecialToken, NamespaceToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
 
 export type TokenBuffer = (Token | number | string)[];
-
-export interface TokenChunk {
-	/** Buffer for stream output. */
-	buffer: TokenBuffer;
-	namespaceList: (Namespace | undefined)[];
-	last: number;
-}
 
 // const codeBufferSize = 2;
 // const codeBufferSize = 3;
@@ -53,7 +46,7 @@ export class Parser extends stream.Transform {
 	_transform(
 		chunk: string | ArrayType,
 		enc: string,
-		flush: (err: any, chunk: TokenChunk | null) => void
+		flush: (err: any, chunk: TokenBuffer | null) => void
 	) {
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
 		this.flush = flush;
@@ -70,14 +63,18 @@ export class Parser extends stream.Transform {
 		}
 
 		if(this.elementStart < 0) {
-			flush(null, {
-				buffer: this.tokenBuffer,
-				namespaceList: this.namespaceList,
-				last: this.tokenNum
-			});
-
-			this.tokenNum = -1;
-		} else flush(null, null);
+			this.tokenBuffer[0] = this.tokenNum;
+			this.tokenBuffer[1] = (
+				this.namespacesChanged ?
+				new NamespaceToken(this.namespaceList) :
+				SpecialToken.blank
+			);
+			flush(null, this.tokenBuffer);
+			this.tokenNum = 1;
+		} else {
+			// Not ready to flush but have to send something to get more input.
+			flush(null, null);
+		}
 	}
 
 	private parseCodeBuffer(pending: boolean) {
@@ -362,6 +359,7 @@ export class Parser extends stream.Transform {
 			ns.base.defaultPrefix = prefix.name;
 		}
 		this.namespaceList[ns.base.id] = ns.base;
+		this.namespacesChanged = true;
 
 		for(let pos = 0; pos <= len; ++pos) {
 			if(prefixBuffer[pos] == prefix) {
@@ -384,9 +382,10 @@ export class Parser extends stream.Transform {
 	/** Current input buffer. */
 	private chunk: ArrayType;
 
-	private flush: (err: any, chunk: TokenChunk | null) => void;
+	private flush: (err: any, chunk: TokenBuffer | null) => void;
 
-	namespaceList: (Namespace | undefined)[] = [];
+	private namespaceList: (Namespace | undefined)[] = [];
+	private namespacesChanged = false;
 
 	/** Storage for parts of strings split between chunks of input. */
 	private partList: ArrayType[] | null = null;
@@ -403,7 +402,7 @@ export class Parser extends stream.Transform {
 	/** Buffer for stream output. */
 	tokenBuffer: TokenBuffer = [];
 	/** Current tokenBuffer offset for writing stream output. */
-	private tokenNum = -1;
+	private tokenNum = 1;
 
 	/** Offset to start of current element definition in output buffer. */
 	private elementStart = -1;
