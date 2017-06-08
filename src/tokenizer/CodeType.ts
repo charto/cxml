@@ -37,8 +37,9 @@ export const enum CodeType {
 	PROCESSING_END_TYPE,
 
 	// Recognized part from an unrecognized name.
-	PARTIAL_URI_ID,
+	PARTIAL_ELEMENT_ID,
+	PARTIAL_ATTRIBUTE_ID,
 	PARTIAL_PREFIX_ID,
-	PARTIAL_NAME_ID,
+	PARTIAL_URI_ID,
 	PARTIAL_LEN
 };

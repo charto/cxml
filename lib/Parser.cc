@@ -418,17 +418,17 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				pos += p - tokenStart;
 
-				// For partial matches, emit the matched prefix.
+				// For partial matches, emit the matched part of a name.
 				emitPartialName(
 					p,
 					static_cast<size_t>(p - chunkBuffer),
 					(
-						(
-							matchTarget == MatchTarget :: ELEMENT_NAMESPACE ||
-							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
-						) ?
-						TokenType :: PARTIAL_PREFIX_ID :
-						TokenType :: PARTIAL_NAME_ID
+						matchTarget == MatchTarget :: ELEMENT ?
+						TokenType :: PARTIAL_ELEMENT_ID : (
+							matchTarget == MatchTarget :: ATTRIBUTE ?
+							TokenType :: PARTIAL_ATTRIBUTE_ID :
+							TokenType :: PARTIAL_PREFIX_ID
+						)
 					),
 					tokenPtr
 				);
