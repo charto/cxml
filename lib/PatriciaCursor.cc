@@ -2,6 +2,19 @@
 
 #include "PatriciaCursor.h"
 
+void PatriciaCursor :: init(const Patricia &trie) {
+	if(trie.root != root) {
+		root = trie.root;
+		// Hold on to trie data used by the cursor in case it gets garbage collected.
+		buffer = trie.buffer;
+	}
+
+	ptr = root;
+	len = *ptr++;
+
+	found = nullptr;
+}
+
 bool PatriciaCursor :: advance(unsigned char c) {
 	const unsigned char *p = ptr;
 	unsigned char delta;
@@ -21,8 +34,7 @@ bool PatriciaCursor :: advance(unsigned char c) {
 			// High bit of associated data value signals no longer strings
 			// with this prefix exist.
 			if(*p & 0x80) {
-				// TODO: should this be p or p - 1 ?
-				ptr = p - 1;
+				ptr = p;
 				return(false);
 			}
 		}
@@ -63,7 +75,6 @@ bool PatriciaCursor :: advance(unsigned char c) {
 		// If the branch doesn't depend on any bits inside the byte,
 		// it must be the last byte of an inserted string.
 		// Store the location of its data value.
-		// printf("*");
 		found = p;
 
 		// NOTE: Nodes longer than 32 bytes must be split, so intermediate

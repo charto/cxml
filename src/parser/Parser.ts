@@ -87,6 +87,7 @@ export class Parser extends stream.Transform {
 		const attributeList = config.attributeSpace.list;
 		const prefixList = config.prefixSpace.list;
 		const uriList = config.uriSpace.list;
+		let partialList = elementList;
 
 		let codeNum = 0;
 		let partStart = this.partStart;
@@ -101,7 +102,6 @@ export class Parser extends stream.Transform {
 		const unknownElementTbl = this.unknownElementTbl;
 		const unknownAttributeTbl = this.unknownAttributeTbl;
 		const unknownOffsetList = this.unknownOffsetList;
-		// let partialList: InternalToken[];
 		let tokenNum = this.tokenNum;
 		let token: Token;
 		let linkTbl: Token[];
@@ -215,12 +215,16 @@ export class Parser extends stream.Transform {
 					elementStart = tokenNum;
 					unknownOffsetList[0] = 0;
 					unknownCount = 1;
+
+					partStart = -1;
 					break;
 
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 
 					name = this.getSlice(partStart, code);
 					tokenBuffer[++tokenNum] = latestNamespace!.addElement(name).close;
+
+					partStart = -1;
 					break;
 
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
@@ -239,6 +243,8 @@ export class Parser extends stream.Transform {
 					prefixBuffer[pos] = latestPrefix;
 					namespaceBuffer[pos] = latestNamespace;
 					unknownOffsetList[unknownCount++] = pos;
+
+					partStart = -1;
 					break;
 
 				case CodeType.VALUE_END_OFFSET:
@@ -291,7 +297,36 @@ export class Parser extends stream.Transform {
 
 					tokenBuffer[++tokenNum] = SpecialToken.comment;
 					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+
 					partStart = -1;
+					break;
+
+				case CodeType.PARTIAL_LEN:
+
+					partialLen = code;
+					break;
+
+				case CodeType.PARTIAL_URI_ID:
+
+					partialList = uriList;
+
+				// Fallthru
+				case CodeType.PARTIAL_PREFIX_ID:
+
+					if(partialList == elementList) partialList = prefixList;
+
+				// Fallthru
+				case CodeType.PARTIAL_ATTRIBUTE_ID:
+
+					if(partialList == elementList) partialList = attributeList;
+
+				// Fallthru
+				case CodeType.PARTIAL_ELEMENT_ID:
+
+					this.partList = [ partialList[code].buf.slice(0, partialLen) ];
+					this.partListTotalByteLen = partialLen;
+
+					partialList = elementList;
 					break;
 
 				default:
@@ -305,6 +340,8 @@ export class Parser extends stream.Transform {
 			partStart = 0;
 		}
 
+		// NOTE: Any active cursor in native code will still use the old trie
+		// after update.
 		config.updateNamespaces();
 
 		this.partStart = partStart;

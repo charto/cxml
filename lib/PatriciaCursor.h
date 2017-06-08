@@ -10,12 +10,7 @@ class PatriciaCursor {
 public:
 
 	/** Start scanning a trie from the first input character. */
-	void init(const Patricia &trie) {
-		ptr = trie.root;
-		len = *ptr++;
-
-		found = nullptr;
-	}
+	void init(const Patricia &trie);
 
 	/** Try to match previous input using a different trie. On failure,
 	  * the cursor remains unchanged. */
@@ -37,8 +32,13 @@ public:
 
 private:
 
+	const unsigned char *root = nullptr;
 	const unsigned char *ptr = nullptr;
 	const unsigned char *found;
 	uint16_t len;
+
+	/** Handle to the JavaScript buffer with inserted data,
+	  * to prevent garbage collecting it too early. */
+	nbind::Buffer buffer;
 
 };

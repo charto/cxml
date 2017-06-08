@@ -39,7 +39,7 @@ public:
 
 private:
 
-	/** A separate tree root for each possible initial character. */
+	/** Trie root. */
 	const unsigned char *root;
 
 	/** Handle to the JavaScript buffer with inserted data,
