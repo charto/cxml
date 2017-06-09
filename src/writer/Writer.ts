@@ -4,6 +4,11 @@ import { Namespace } from '../Namespace';
 import { Token, TokenKind, NamespaceToken, MemberToken } from '../parser/Token';
 import { TokenBuffer } from '../parser/Parser';
 
+const enum Indent {
+	MIN_DEPTH= 1,
+	MAX_DEPTH = 256
+}
+
 const enum State {
 	ELEMENT = 0,
 	PROCESSING,
@@ -12,7 +17,7 @@ const enum State {
 	COMMENT
 }
 
-const indentPattern = '\n' + new Array(256).join('\t');
+const indentPattern = '\n' + new Array(Indent.MAX_DEPTH).join('\t');
 
 export class Writer extends stream.Transform {
 	constructor() {
@@ -45,7 +50,7 @@ export class Writer extends stream.Transform {
 						member = token as MemberToken;
 						nsElement = member.ns;
 						partList[++partNum] = indent + '<' + prefixList[nsElement.id] + member.name;
-						if(depth == 0) partList[++partNum] = this.xmlnsDefinitions;
+						if(depth == Indent.MIN_DEPTH) partList[++partNum] = this.xmlnsDefinitions;
 						indent = indentPattern.substr(0, ++depth);
 
 						state = State.ELEMENT;
@@ -195,7 +200,7 @@ export class Writer extends stream.Transform {
 
 	private chunkCount = 0;
 	private state = State.TEXT as State;
-	private depth = 1;
+	private depth = Indent.MIN_DEPTH;
 	private indent = '';
 	private nsElement: Namespace;
 	private prefixList: string[] = [];
