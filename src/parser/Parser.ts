@@ -8,7 +8,7 @@ import { ParserConfig } from './ParserConfig';
 import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
-import { Token, TokenKind, SpecialToken, NamespaceToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
+import { Token, TokenKind, SpecialToken, NamespaceToken, RecycleToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
 
 export type TokenBuffer = (Token | number | string)[];
 
@@ -35,6 +35,8 @@ export class Parser extends stream.Transform {
 
 		this.codeBuffer = new Uint32Array(codeBufferSize);
 		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
+
+		this.tokenBuffer[0] = new RecycleToken(0);
 	}
 
 	public getConfig() { return(this.config); }
@@ -63,7 +65,7 @@ export class Parser extends stream.Transform {
 		}
 
 		if(this.elementStart < 0) {
-			this.tokenBuffer[0] = this.tokenNum;
+			(this.tokenBuffer[0] as RecycleToken).lastNum = this.tokenNum;
 			this.tokenBuffer[1] = (
 				this.namespacesChanged ?
 				new NamespaceToken(this.namespaceList) :
