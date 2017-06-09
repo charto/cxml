@@ -13,8 +13,10 @@ export const enum TokenKind {
 	number,
 
 	comment,
-	namespace,
 	blank,
+
+	namespace,
+	recycle,
 
 	// Internal token types
 	uri,
@@ -46,6 +48,13 @@ export class NamespaceToken extends Token {
 
 }
 NamespaceToken.prototype.kind = TokenKind.namespace;
+
+export class RecycleToken extends Token {
+
+	constructor(public lastNum: number) { super(); }
+
+}
+RecycleToken.prototype.kind = TokenKind.recycle;
 
 export abstract class MemberToken extends Token {
 

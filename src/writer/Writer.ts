@@ -1,7 +1,7 @@
 import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
-import { Token, TokenKind, NamespaceToken, MemberToken } from '../parser/Token';
+import { Token, TokenKind, NamespaceToken, RecycleToken, MemberToken } from '../parser/Token';
 import { TokenBuffer } from '../parser/Parser';
 
 const enum Indent {
@@ -30,14 +30,14 @@ export class Writer extends stream.Transform {
 		let depth = this.depth;
 		let indent = this.indent;
 		let nsElement = this.nsElement;
-		let token: Token | number | string;
+		let token = chunk[0];
 		let member: MemberToken;
 		let prefix: string;
 
 		let partList: string[] = [];
 		let partNum = -1;
-		const lastNum = chunk[0] as number;
-		let tokenNum = 0;
+		let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
+		let tokenNum = -1;
 
 		while(tokenNum < lastNum) {
 
