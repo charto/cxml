@@ -8,6 +8,14 @@ import { InternalToken } from './InternalToken';
 import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
 import { Parser } from './Parser';
 
+export interface TokenTbl {
+	[ prefix: string ]: {
+		uri: string,
+		elements?: string[],
+		attributes?: string[]
+	}
+}
+
 /** Parser configuration for quickly instantiating new parsers.
   * Each parser instance holds a new, cloned copy. */
 
@@ -203,6 +211,28 @@ export class ParserConfig {
 		this.native.setPrefixTrie(this.prefixSet.encodeTrie());
 
 		return(token);
+	}
+
+	registerTokens(tbl: TokenTbl) {
+		const result: { [ name: string ]: number } = {};
+
+		for(let prefix of Object.keys(tbl)) {
+			const spec = tbl[prefix];
+			const uri = spec.uri;
+			const ns = this.getNamespace(uri) || new Namespace(prefix, uri);
+
+			for(let name of spec.elements || []) {
+				const tokens = this.getElementTokens(ns, name);
+				result[prefix + ':' + name] = tokens[TokenKind.open]!.id!;
+			}
+
+			for(let name of spec.attributes || []) {
+				const tokens = this.getAttributeTokens(ns, name);
+				result[prefix + ':' + name] = tokens[TokenKind.string]!.id!;
+			}
+		}
+
+		return(result);
 	}
 
 	getElementTokens(ns: Namespace, name: string) {
