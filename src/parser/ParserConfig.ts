@@ -111,6 +111,10 @@ export class ParserConfig {
 		return(new Parser(config, nativeParser));
 	}
 
+	parseSync(data: string) {
+		return(this.createParser().parseSync(data));
+	}
+
 	getNamespace(uri: string) {
 		const ns = this.namespaceTbl[uri];
 		return(ns && ns.base);

@@ -39,6 +39,15 @@ export class Parser extends stream.Transform {
 		this.tokenBuffer[0] = new RecycleToken(0);
 	}
 
+	public parseSync(data: string | ArrayType) {
+		const output: TokenBuffer[] = [];
+
+		this.on('data', (chunk: any) => output.push(chunk));
+		this.write(data);
+
+		return(Array.prototype.concat.apply([], output));
+	}
+
 	public getConfig() { return(this.config); }
 
 	private throwError(msg: string) {
