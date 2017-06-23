@@ -27,18 +27,19 @@ export const enum TokenKind {
 
 export abstract class Token {
 
-	constructor(public id?: number) {}
+	constructor() {}
 
 	kind: TokenKind;
+	kindString: string;
 
 }
 
 export class SpecialToken extends Token {
 
-	constructor(public kind: TokenKind) { super(); }
+	constructor(public kind: TokenKind, public kindString: string) { super(); }
 
-	static comment = new SpecialToken(TokenKind.comment);
-	static blank = new SpecialToken(TokenKind.blank);
+	static comment = new SpecialToken(TokenKind.comment, 'comment');
+	static blank = new SpecialToken(TokenKind.blank, 'blank');
 
 }
 
@@ -55,10 +56,11 @@ export class RecycleToken extends Token {
 
 }
 RecycleToken.prototype.kind = TokenKind.recycle;
+RecycleToken.prototype.kindString = 'recycle';
 
 export abstract class MemberToken extends Token {
 
-	constructor(public name: string, public ns: Namespace, id?: number) { super(id); }
+	constructor(public name: string, public ns: Namespace, public id?: number) { super(); }
 
 	abstract resolve(ns: ParserNamespace): Token;
 
@@ -85,12 +87,16 @@ export class OpenToken extends ElementToken {
 	close = new CloseToken(this.name, this.ns, this.id);
 }
 OpenToken.prototype.kind = TokenKind.open;
+OpenToken.prototype.kindString = 'open';
 
 export class CloseToken extends ElementToken {}
 CloseToken.prototype.kind = TokenKind.close;
+CloseToken.prototype.kindString = 'close';
 
 export class EmittedToken extends ElementToken {}
 EmittedToken.prototype.kind = TokenKind.emitted;
+EmittedToken.prototype.kindString = 'emitted';
 
 export class StringToken extends AttributeToken {}
 StringToken.prototype.kind = TokenKind.string;
+StringToken.prototype.kindString = 'string';
