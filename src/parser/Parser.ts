@@ -3,6 +3,7 @@ import * as stream from 'stream';
 import { ArrayType, encodeArray, decodeArray, concatArray } from '../Buffer';
 import { Namespace } from '../Namespace';
 import { CodeType } from '../tokenizer/CodeType';
+import { ErrorType } from '../tokenizer/ErrorType';
 import { NativeParser } from './ParserLib';
 import { ParserConfig } from './ParserConfig';
 import { ParserNamespace } from './ParserNamespace';
@@ -21,6 +22,14 @@ const chunkSize = Infinity;
 const enum TOKEN {
 	SHIFT = 5,
 	MASK = 31
+}
+
+export class ParseError extends Error {
+
+	constructor(public code: ErrorType, public row: number, public col: number) {
+		super('Parse error on line ' + row + ' column ' + col);
+	}
+
 }
 
 /** XML parser stream, emits tokens with fully qualified names. */
@@ -42,7 +51,8 @@ export class Parser extends stream.Transform {
 	public parseSync(data: string | ArrayType) {
 		const output: TokenBuffer[] = [];
 
-		this.on('data', (chunk: any) => output.push(chunk));
+		this.on('data', (chunk: TokenBuffer) => output.push(chunk));
+		this.on('error', (err: any) => { throw(err); });
 		this.write(data);
 
 		return(Array.prototype.concat.apply([], output));
@@ -50,8 +60,10 @@ export class Parser extends stream.Transform {
 
 	public getConfig() { return(this.config); }
 
-	private throwError(msg: string) {
-		throw(new Error(msg));
+	private throwError(msg: ErrorType, row: number, col: number) {
+		const err = new ParseError(msg, row + 1, col + 1);
+		this.emit('error', err);
+		this.hasError = true;
 	}
 
 	_transform(
@@ -59,17 +71,24 @@ export class Parser extends stream.Transform {
 		enc: string,
 		flush: (err: any, chunk: TokenBuffer | null) => void
 	) {
+		if(this.hasError) return;
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
 		this.flush = flush;
 
 		const len = chunk.length;
+		let nativeStatus: ErrorType;
 		let next: number;
 
 		for(let pos = 0; pos < len; pos = next) {
 			next = Math.min(pos + chunkSize, len);
 
 			this.chunk = chunk.slice(pos, next);
-			this.native.parse(this.chunk) || this.throwError('Parse error');
+			nativeStatus = this.native.parse(this.chunk);
+
+			if(nativeStatus != ErrorType.OK) {
+				this.throwError(nativeStatus, this.native.row, this.native.col);
+				return;
+			}
 			this.parseCodeBuffer(false);
 		}
 
@@ -466,4 +485,6 @@ export class Parser extends stream.Transform {
 	private unknownOffsetList: number[] = [];
 
 	private unknownCount = 0;
+
+	private hasError = false;
 }

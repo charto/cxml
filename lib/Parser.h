@@ -88,19 +88,25 @@ public:
 	#define export
 	#define const
 	#define enum enum class
+
 	#define CodeType TokenType : uint32_t
 	#include "../src/tokenizer/CodeType.ts"
-	#undef export
-	#undef const
-	#undef enum
 	#undef CodeType
+
+	#define ErrorType ErrorType : uint32_t
+	#include "../src/tokenizer/ErrorType.ts"
+	#undef ErrorType
+
+	#undef enum
+	#undef const
+	#undef export
 
 	Parser(const ParserConfig &config);
 
 	ParserConfig *getConfig() { return(&config); }
 
 	/** Parse a chunk of incoming data. */
-	bool parse(nbind::Buffer chunk);
+	ErrorType parse(nbind::Buffer chunk);
 
 	void setCodeBuffer(nbind::Buffer tokenBuffer, nbind::cbFunction &flushTokens) {
 		this->flushTokens = std::unique_ptr<nbind::cbFunction>(new nbind::cbFunction(flushTokens));
