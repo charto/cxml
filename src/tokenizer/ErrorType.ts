@@ -1,0 +1,7 @@
+export const enum ErrorType {
+	OK = 0,
+	INVALID_CHAR,
+	PROHIBITED_WHITESPACE,
+	TOO_MANY_PREFIXES,
+	OTHER
+};

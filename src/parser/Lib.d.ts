@@ -29,8 +29,8 @@ export class Parser extends NBindBase {
 	/** void setPrefix(uint32_t); */
 	setPrefix(p0: number): void;
 
-	/** bool parse(Buffer); */
-	parse(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): boolean;
+	/** int32_t parse(Buffer); */
+	parse(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): number;
 
 	/** uint32_t row; -- Read-only */
 	row: number;

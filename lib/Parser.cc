@@ -48,7 +48,7 @@ inline void Parser :: updateRowCol(unsigned char c) {
   * For security from buffer overflow attacks, memory writes are only done in
   * writeToken which should be foolproof. */
 
-bool Parser :: parse(nbind::Buffer chunk) {
+Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 	size_t len = chunk.length();
 	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
@@ -64,7 +64,6 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 	// Read a byte of input.
 	c = *p++;
-	updateRowCol(c);
 
 	/*
 		This loop represents a DFA (deterministic finite automaton) where
@@ -153,13 +152,13 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							default:
 
 								// Disallow nonsense bytes.
-								return(false);
+								return(ErrorType :: INVALID_CHAR);
 						}
 					}
 
-					if(!--len) return(true);
-					c = *p++;
 					updateRowCol(c);
+					if(!--len) return(ErrorType :: OK);
+					c = *p++;
 				}
 
 				writeToken(
@@ -250,7 +249,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				// The current character must be the valid first character of
 				// an element or attribute name, anything else is an error.
 				if(!nameStartCharTbl[c]) {
-					return(false);
+					return(ErrorType :: INVALID_CHAR);
 				}
 
 				// Look for a ":" separator indicating a qualified name (starts
@@ -307,12 +306,12 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for matching to known element and attribute names.
 				while(cursor.advance(c)) {
+					updateRowCol(c);
 					if(!--len) {
 						pos += p - tokenStart;
-						return(true);
+						return(ErrorType :: OK);
 					}
 					c = *p++;
-					updateRowCol(c);
 				}
 
 				state = afterMatchTrieState;
@@ -353,7 +352,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 								matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
 							) {
 								if(idToken >= namespacePrefixTblSize) {
-									return(false);
+									return(ErrorType :: TOO_MANY_PREFIXES);
 								}
 
 								memberPrefix->idPrefix = idToken;
@@ -443,9 +442,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 			case State :: UNKNOWN_NAME: UNKNOWN_NAME:
 
 				while(nameCharTbl[c]) {
-					if(!--len) return(true);
-					c = *p++;
 					updateRowCol(c);
+					if(!--len) return(ErrorType :: OK);
+					c = *p++;
 				}
 
 				if(c == ':') {
@@ -553,7 +552,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 				if(c == '>') {
 					state = State :: BEFORE_TEXT;
 				} else if(!whiteCharTbl[c]) {
-					return(false);
+					return(ErrorType :: PROHIBITED_WHITESPACE);
 				}
 
 				break;
@@ -579,7 +578,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							state = State :: AFTER_ELEMENT_NAME;
 							break;
 						} else {
-							return(false);
+							return(ErrorType :: INVALID_CHAR);
 						}
 				}
 
@@ -698,13 +697,13 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							default:
 
 								// Disallow nonsense bytes.
-								return(false);
+								return(ErrorType :: INVALID_CHAR);
 						}
 					}
 
-					if(!--len) return(true);
-					c = *p++;
 					updateRowCol(c);
+					if(!--len) return(ErrorType :: OK);
+					c = *p++;
 				}
 
 				writeToken(
@@ -801,7 +800,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 					case '/':
 
-						return(false);
+						return(ErrorType :: INVALID_CHAR);
 
 					default:
 
@@ -829,7 +828,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 							state = State :: AFTER_PROCESSING_NAME;
 							break;
 						} else {
-							return(false);
+							return(ErrorType :: INVALID_CHAR);
 						}
 				}
 
@@ -846,9 +845,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 				// Fast inner loop for skipping comments.
 				while(c != '-') {
-					if(!--len) return(true);
-					c = *p++;
 					updateRowCol(c);
+					if(!--len) return(ErrorType :: OK);
+					c = *p++;
 				}
 
 				pattern = "->";
@@ -880,7 +879,7 @@ bool Parser :: parse(nbind::Buffer chunk) {
 
 			case State :: ERROR: ERROR:
 
-				return(false);
+				return(ErrorType :: OTHER);
 
 			default:
 
@@ -890,9 +889,9 @@ bool Parser :: parse(nbind::Buffer chunk) {
 		// Only read the next character at the end of the loop, to allow
 		// reprocessing the same character (changing states without
 		// consuming input) by using "continue".
-		if(!--len) return(true);
-		c = *p++;
 		updateRowCol(c);
+		if(!--len) return(ErrorType :: OK);
+		c = *p++;
 	}
 }
 
@@ -959,6 +958,8 @@ Init init;
 #include <nbind/nbind.h>
 
 #ifdef NBIND_CLASS
+
+NBIND_ALIAS(Parser :: ErrorType, int32_t);
 
 NBIND_CLASS(Parser) {
 	construct<const ParserConfig &>();
