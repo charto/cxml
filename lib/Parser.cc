@@ -103,6 +103,17 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					continue;
 				}
 
+			case State :: QUOTE:
+
+				if(d == '"' && c == '\'') {
+					textEndChar = '\'';
+					state = matchState;
+					break;
+				} else {
+					state = noMatchState;
+					continue;
+				}
+
 			// State at the beginning of input after a possible UTF-8 BOM,
 			// or after any closing tag.
 			// Skip whitespace and then read text up to an opening tag.
@@ -143,6 +154,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 								break;
 
 							case '"':
+							case '\'':
 							case '<':
 							case '>':
 
@@ -533,7 +545,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 							afterNameState = State :: MATCH_SPARSE;
 							pattern = "=\"";
 							noMatchState = State :: ERROR;
-							partialMatchState = State :: ERROR;
+							partialMatchState = State :: QUOTE;
 
 							// Finally text content up to closing double quote.
 							matchState = State :: TEXT;
@@ -620,11 +632,12 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				state = State :: MATCH_SPARSE;
 				pattern = "=\"";
 				noMatchState = State :: ERROR;
-				partialMatchState = State :: ERROR;
+				partialMatchState = State :: QUOTE;
 
 				matchState = State :: BEFORE_VALUE;
 				cursor.init(config.uriTrie);
 				valueTokenType = TokenType :: URI_ID;
+				textEndChar = '"';
 
 				afterValueState = State :: DEFINE_XMLNS_AFTER_URI;
 
@@ -642,7 +655,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 			// State :: NAME but reads up to and consumes a final double quote.
 			case State :: VALUE:
 
-				if(c == '"') {
+				if(c == textEndChar) {
 					// If the whole value was matched, get associated reference.
 					idToken = cursor.getData();
 
@@ -680,7 +693,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 
 				while(1) {
 					if(!valueCharTbl[c]) {
-						if(c == '"') break;
+						if(c == textEndChar) break;
 
 						switch(c) {
 							case '&':
@@ -688,6 +701,8 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 								// TODO: Handle entities.
 								break;
 
+							case '"':
+							case '\'':
 							case '<':
 							case '>':
 
@@ -944,9 +959,9 @@ struct Init {
 			nameCharTbl[i] = 0;
 		}
 
-		for(unsigned char c : "\r\n\t ")   c && (valueCharTbl[c] = 1, whiteCharTbl[c] = 1);
+		for(unsigned char c : "\r\n\t ")    c && (valueCharTbl[c] = 1, whiteCharTbl[c] = 1);
 
-		for(unsigned char c : "\"&<>\x7f") c && (valueCharTbl[c] = 0);
+		for(unsigned char c : "\"'&<>\x7f") c && (valueCharTbl[c] = 0);
 
 		setRange(nameStartCharTbl,  "__AZaz\x80\xf7", 1);
 		setRange(nameCharTbl, "..--09__AZaz\x80\xf7", 1);
