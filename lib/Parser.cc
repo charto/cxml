@@ -32,7 +32,7 @@ inline void Parser :: updateRowCol(unsigned char c) {
 #endif
 	col = (
 		// If c is a tab, round col up to just before the next tab stop.
-		(col | ((c != '\t') - 1 & 7)) +
+		(col | (((c != '\t') - 1) & 7)) +
 		// Then increment col if c is not a UTF-8 continuation byte.
 		((c & 0xc0) != 0x80)
 	) & (
@@ -53,7 +53,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 	size_t ahead;
 	const unsigned char *chunkBuffer = chunk.data();
 	const unsigned char *p = chunkBuffer;
-	unsigned char c, d;
+	unsigned char c, d = 0;
 	const Namespace *ns;
 
 	// Indicate that no tokens inside the chunk were found yet.
