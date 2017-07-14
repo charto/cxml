@@ -138,5 +138,5 @@ uint32_t PatriciaCursor :: findLeaf() {
 uint32_t PatriciaCursor :: getData() {
 	if(!found) return(Patricia :: notFound);
 
-	return( (found[0] << 16) + (found[1] << 8) + found[2] & Patricia :: idMask );
+	return( ( (found[0] << 16) + (found[1] << 8) + found[2] ) & Patricia :: idMask );
 }
