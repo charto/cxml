@@ -122,10 +122,13 @@ public:
 		tokenPtr = tokenList + 1;
 	}
 
-	void updateElementStack(TokenType nameTokenType) {
+	bool updateElementStack(TokenType nameTokenType) {
 		if(nameTokenType == TokenType :: OPEN_ELEMENT_ID) {
+			// TODO: Ensure stack is not too large.
 			elementStack.emplace_back(prefixStack.size(), 0);
 		} else if(nameTokenType == TokenType :: CLOSE_ELEMENT_ID) {
+			if(elementStack.empty()) return(false);
+
 			const Element &element = elementStack.back();
 			size_t oldSize = element.prefixStackOffset;
 
@@ -142,6 +145,8 @@ public:
 
 			elementStack.pop_back();
 		}
+
+		return(true);
 	}
 
 	/** Output a token. This is the only function writing to memory, so safety
