@@ -413,7 +413,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 						}
 
 						if(nameTokenType != TokenType :: XMLNS_ID) {
-							updateElementStack(nameTokenType);
+							if(!updateElementStack(nameTokenType)) return(ErrorType :: OTHER);
 							writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 14) | memberPrefix->idPrefix, tokenPtr);
 						}
 						writeToken(nameTokenType, idToken, tokenPtr);
@@ -478,7 +478,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				}
 
 				if(nameTokenType != TokenType :: XMLNS_ID) {
-					updateElementStack(nameTokenType);
+					if(!updateElementStack(nameTokenType)) return(ErrorType :: OTHER);
 					writeToken(TokenType :: PREFIX_ID, (memberPrefix->idNamespace << 14) | memberPrefix->idPrefix, tokenPtr);
 				}
 				writeToken(
@@ -514,7 +514,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				switch(c) {
 					case '/':
 
-						updateElementStack(TokenType :: CLOSE_ELEMENT_ID);
+						if(!updateElementStack(TokenType :: CLOSE_ELEMENT_ID)) return(ErrorType :: OTHER);
 						writeToken(TokenType :: CLOSED_ELEMENT_EMITTED, idElement, tokenPtr);
 
 						expected = '>';
