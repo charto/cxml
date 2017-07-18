@@ -60,6 +60,10 @@ export class Parser extends stream.Transform {
 
 	public getConfig() { return(this.config); }
 
+	bindPrefix(prefix: InternalToken, uri: InternalToken) {
+		this.native.bindPrefix(prefix.id, uri.id);
+	}
+
 	private throwError(msg: ErrorType, row: number, col: number) {
 		const err = new ParseError(msg, row + 1, col + 1);
 		this.emit('error', err);
@@ -305,7 +309,7 @@ export class Parser extends stream.Transform {
 							name = latestPrefix!.name;
 						} else name = '';
 						const ns = new Namespace(name, uri, config.maxNamespace + 1);
-						const idNamespace = config.bindNamespace(ns, latestPrefix!.name);
+						const idNamespace = config.bindNamespace(ns, latestPrefix!.name, this);
 
 						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
 						latestPrefix = null;

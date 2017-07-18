@@ -29,6 +29,9 @@ export class Parser extends NBindBase {
 	/** void setPrefix(uint32_t); */
 	setPrefix(p0: number): void;
 
+	/** bool bindPrefix(uint32_t, uint32_t); */
+	bindPrefix(p0: number, p1: number): boolean;
+
 	/** int32_t parse(Buffer); */
 	parse(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): number;
 

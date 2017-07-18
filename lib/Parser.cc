@@ -514,6 +514,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				switch(c) {
 					case '/':
 
+						updateElementStack(TokenType :: CLOSE_ELEMENT_ID);
 						writeToken(TokenType :: CLOSED_ELEMENT_EMITTED, idElement, tokenPtr);
 
 						expected = '>';
@@ -981,6 +982,7 @@ NBIND_CLASS(Parser) {
 	method(getConfig);
 	method(setCodeBuffer);
 	method(setPrefix);
+	method(bindPrefix);
 	getter(getRow);
 	getter(getCol);
 	method(parse);

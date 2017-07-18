@@ -121,66 +121,44 @@ export class ParserConfig {
 	}
 
 	addNamespace(nsBase: Namespace) {
-		let uri = nsBase.uri;
-		let newUri: string | null | false | undefined;
+		let uri = (this.nsMapper && this.nsMapper(nsBase.uri)) || nsBase.uri;
 		let nsParser = this.namespaceTbl[uri];
 
-		if(!nsParser) {
-			if(!this.isIndependent) this.makeIndependent();
+		if(nsParser) return(nsParser.id);
 
-			if(this.nsMapper) {
-				newUri = this.nsMapper(uri);
+		if(!this.isIndependent) this.makeIndependent();
 
-				if(newUri) {
-					nsParser = this.namespaceTbl[newUri];
-					nsBase.uri = newUri;
-				}
-			}
+		nsBase.uri = uri;
+		nsParser = new ParserNamespace(nsBase, this);
+		nsParser.id = this.native.addNamespace(nsParser.registerNative());
 
-			if(!nsParser) {
-				nsParser = new ParserNamespace(nsBase, this);
-				nsParser.id = this.native.addNamespace(nsParser.registerNative());
-				this.namespaceList[nsParser.id] = nsParser;
-				if(nsBase.id > this.maxNamespace) this.maxNamespace = nsBase.id;
+		this.namespaceList[nsParser.id] = nsParser;
+		this.namespaceTbl[uri] = nsParser;
 
-				if(newUri) {
-					this.addUri(newUri, nsParser);
-					this.namespaceTbl[newUri] = nsParser;
-				}
-			}
+		if(nsBase.id > this.maxNamespace) this.maxNamespace = nsBase.id;
 
-			if(nsBase.defaultPrefix) this.addPrefix(nsBase.defaultPrefix);
-
-			this.addUri(uri, nsParser);
-			this.namespaceTbl[uri] = nsParser;
-		}
+		if(nsBase.defaultPrefix) this.addPrefix(nsBase.defaultPrefix);
+		this.addUri(uri, nsParser);
 
 		return(nsParser.id);
 	}
 
-	bindNamespace(ns: Namespace | ParserNamespace, prefix?: string) {
-		if(ns instanceof Namespace) {
-			const base = ns;
-			while(!(ns = this.namespaceTbl[base.uri])) this.addNamespace(base);
-		}
+	bindNamespace(nsBase: Namespace, prefix?: string, parser?: Parser) {
+		this.addNamespace(nsBase);
 
-		prefix = prefix || ns.base.defaultPrefix;
-		const uri = ns.base.uri;
+		let uri = nsBase.uri;
+		let nsParser = this.namespaceTbl[uri];
+
+		prefix = prefix || nsParser.base.defaultPrefix;
 
 		if(prefix) {
-			const idPrefix = this.addPrefix(prefix).id;
-			const idUri = this.addUri(uri, ns).id;
-			this.native.bindPrefix(idPrefix, idUri);
-
-			if(ns.base.uri != uri) {
-				this.native.bindPrefix(
-					idPrefix,
-					this.addUri(ns.base.uri, ns).id
-				);
-			}
+			(parser || this).bindPrefix(
+				this.addPrefix(prefix),
+				this.addUri(uri, nsParser)
+			);
 		}
 
-		return(ns.id);
+		return(nsParser.id);
 	}
 
 	updateNamespaces() {
