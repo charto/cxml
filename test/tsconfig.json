@@ -1,22 +1,18 @@
 {
+	"compileOnSave": true,
 	"compilerOptions": {
-		"declaration": true,
-		"experimentalDecorators": true,
-		"lib": ["dom", "es5", "es2015.promise"],
+		"declaration": false,
+		"lib": ["es5", "es2015.collection"],
 		"module": "commonjs",
 		"moduleResolution": "node",
 		"noImplicitAny": true,
 		"noImplicitThis": true,
-		"outDir": "../dist",
 		"removeComments": false,
 		"sourceMap": false,
 		"strictNullChecks": true,
 		"target": "es5"
 	},
 	"files": [
-		"node-expat.d.ts",
-
-		"test-sax.ts",
-		"test-expat.ts"
+		"test.ts"
 	]
 }

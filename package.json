@@ -12,7 +12,8 @@
     "ndts": "ndts",
     "tsc": "tsc",
     "prepublish": "ndts > src/parser/Lib.d.ts && tsc -p src && ndts > dist/parser/Lib.d.ts",
-    "install": "autogypi && node-gyp configure build"
+    "install": "autogypi && node-gyp configure build",
+    "test": "tsc -p test && node test/test.js"
   },
   "author": "Juha Järvi",
   "license": "MIT",
