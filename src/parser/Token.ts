@@ -7,10 +7,12 @@ export const enum TokenKind {
 	open,
 	close,
 	emitted,
+	elementEnd = emitted,
 
 	// External attribute token types
 	string,
 	number,
+	attributeEnd = number,
 
 	comment,
 	blank,
