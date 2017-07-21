@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import * as nbind from 'nbind';
+import * as cxml from '..';
 import * as Lib from '../dist/parser/Lib';
 
 import { TokenSpace } from '../dist/tokenizer/TokenSpace';
@@ -37,4 +38,20 @@ function testPatricia() {
 	}
 }
 
+function testParser() {
+	const xmlConfig = new cxml.ParserConfig();
+
+	xmlConfig.bindNamespace(cxml.anonymous);
+	xmlConfig.addNamespace(cxml.xml1998);
+
+	const xmlParser = xmlConfig.createParser();
+
+	xmlParser.pipe(new cxml.Writer()).pipe(process.stdout);
+
+	xmlParser.write('<foo xmlns="urn:test:a1"><bar xmlns="urn:test:a2" /><bar /></foo>');
+	// xmlParser.write('<a:foo xmlns:a="urn:test:a1"><a:bar xmlns:a="urn:test:a2" /><a:bar /></a:foo>');
+	// xmlParser.write('</a></a>');
+}
+
 testPatricia();
+testParser();
