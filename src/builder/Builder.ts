@@ -1,5 +1,5 @@
 import { Namespace } from '../Namespace';
-import { Token, TokenKind, OpenToken, CloseToken, StringToken } from '../parser/Token';
+import { Token, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
 import { Parser, TokenBuffer } from '../parser/Parser';
 
 const enum State {
@@ -116,12 +116,12 @@ export class Builder {
 		parser.on('data', (chunk: TokenBuffer) => {
 			if(!chunk) return;
 
-			let token: Token | number | string;
+			let token = chunk[0];
 			let name: string;
 			let ignoreDepth = 0;
 
-			const lastNum = chunk[0] as number;
-			let tokenNum = 0;
+			let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
+			let tokenNum = -1;
 
 			while(tokenNum < lastNum) {
 
