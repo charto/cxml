@@ -55,6 +55,7 @@ export class Builder {
 		let memberTbl: { [ name: string ]: Rule };
 		let memberName: string;
 		let memberType: RuleType;
+		let memberTypeName: string;
 
 		for(let typeName of Object.keys(typeTbl)) {
 			type = typeTbl[typeName];
@@ -73,21 +74,34 @@ export class Builder {
 				}
 
 				for(memberName of Object.keys(child)) {
-					parts = child[memberName].match(/([$]?)([^\[]+)(\[\])?/);
+					// Parse element or attribute name with type prefix / suffix.
+					parts = memberName.match(/(@?)([^\[]+)(\[\])?/);
 					if(!parts) continue;
 
 					[, prefix, name, suffix] = parts;
-					if(memberName == child[memberName]) memberName = name;
 
-					if(prefix == '$') {
+					// Parse type name if it differs from element/attribute name.
+					if(child[memberName] != memberName) {
+						parts = child[memberName].match(/(@?)([^\[]+)(\[\])?/);
+						if(!parts) continue;
+
+						// Type prefix / suffix behave identically in member and type names.
+						prefix = prefix || parts[1];
+						suffix = suffix || parts[3];
+					}
+
+					memberTypeName = parts[2];
+
+					// Prefix @ marks attributes, as in xpath.
+					if(prefix == '@') {
 						memberTbl = type.attributes;
 						memberType = RuleType.string;
 					} else {
 						memberTbl = type.elements;
-						memberType = typeTbl[name];
+						memberType = typeTbl[memberTypeName];
 					}
 
-					memberTbl[memberName] = {
+					memberTbl[name] = {
 						type: memberType,
 						isArray: suffix == '[]'
 					};
