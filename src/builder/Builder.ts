@@ -109,6 +109,7 @@ export class Builder {
 		let item = document;
 		let itemNext: any;
 		const itemStack: any[] = [];
+		let ignoreDepth = 0;
 
 		let state = State.TEXT;
 		let target: string | null;
@@ -118,7 +119,6 @@ export class Builder {
 
 			let token = chunk[0];
 			let name: string;
-			let ignoreDepth = 0;
 
 			let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
 			let tokenNum = -1;
