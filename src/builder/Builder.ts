@@ -37,79 +37,84 @@ class RuleType {
 	static string = new RuleType();
 }
 
+function defineType(
+	spec: any,
+	typeTbl: { [ typeName: string ]: RuleType },
+	type: RuleType = new RuleType()
+) {
+	let parts: RegExpMatchArray | null;
+
+	let prefix: string, name: string, suffix: string;
+
+	let memberTbl: { [ name: string ]: Rule };
+	let memberName: string;
+	let memberType: RuleType;
+	let memberTypeName: string;
+
+	for(let child of spec) {
+		if(typeof(child) == 'string') {
+			memberName = child;
+			child = {};
+			child[memberName] = memberName;
+		}
+
+		for(memberName of Object.keys(child)) {
+			// Parse element or attribute name with type prefix / suffix.
+			parts = memberName.match(/(@?)([^\[]+)(\[\])?/);
+			if(!parts) continue;
+
+			[, prefix, name, suffix] = parts;
+
+			// Parse type name if it differs from element/attribute name.
+			if(child[memberName] != memberName) {
+				parts = child[memberName].match(/(@?)([^\[]+)(\[\])?/);
+				if(!parts) continue;
+
+				// Type prefix / suffix behave identically in member and type names.
+				prefix = prefix || parts[1];
+				suffix = suffix || parts[3];
+			}
+
+			memberTypeName = parts[2];
+
+			// Prefix @ marks attributes, as in xpath.
+			if(prefix == '@') {
+				memberTbl = type.attributes;
+				memberType = RuleType.string;
+			} else {
+				memberTbl = type.elements;
+				memberType = typeTbl[memberTypeName];
+			}
+
+			memberTbl[name] = {
+				type: memberType,
+				isArray: suffix == '[]'
+			};
+		}
+	}
+
+	return(type);
+}
+
 export class Builder {
 	constructor(schema: any, roots = schema.document) {
 		const typeTbl: { [ typeName: string ]: RuleType } = {
-			roots: new RuleType(),
 			string: RuleType.string
 		};
-		let parts: RegExpMatchArray | null;
 
-		let prefix: string, name: string, suffix: string;
-		let type: RuleType;
-
+		// Create placeholder objects for all types.
 		for(let typeName of Object.keys(schema)) {
 			typeTbl[typeName] = new RuleType();
 		}
 
-		let memberTbl: { [ name: string ]: Rule };
-		let memberName: string;
-		let memberType: RuleType;
-		let memberTypeName: string;
-
-		for(let typeName of Object.keys(typeTbl)) {
-			type = typeTbl[typeName];
-			let spec = schema[typeName];
-
-			if(!spec) {
-				if(typeName == 'roots') spec = roots;
-				else continue;
-			}
-
-			for(let child of spec) {
-				if(typeof(child) == 'string') {
-					memberName = child;
-					child = {};
-					child[memberName] = memberName;
-				}
-
-				for(memberName of Object.keys(child)) {
-					// Parse element or attribute name with type prefix / suffix.
-					parts = memberName.match(/(@?)([^\[]+)(\[\])?/);
-					if(!parts) continue;
-
-					[, prefix, name, suffix] = parts;
-
-					// Parse type name if it differs from element/attribute name.
-					if(child[memberName] != memberName) {
-						parts = child[memberName].match(/(@?)([^\[]+)(\[\])?/);
-						if(!parts) continue;
-
-						// Type prefix / suffix behave identically in member and type names.
-						prefix = prefix || parts[1];
-						suffix = suffix || parts[3];
-					}
-
-					memberTypeName = parts[2];
-
-					// Prefix @ marks attributes, as in xpath.
-					if(prefix == '@') {
-						memberTbl = type.attributes;
-						memberType = RuleType.string;
-					} else {
-						memberTbl = type.elements;
-						memberType = typeTbl[memberTypeName];
-					}
-
-					memberTbl[name] = {
-						type: memberType,
-						isArray: suffix == '[]'
-					};
-				}
-			}
+		// Define types, using placeholders when referring to undefined types.
+		for(let typeName of Object.keys(schema)) {
+			defineType(schema[typeName], typeTbl, typeTbl[typeName]);
 		}
 
-		this.rootRule = { type: typeTbl['roots'] };
+		this.rootRule = {
+			type: typeTbl['document'] || defineType(roots, typeTbl)
+		};
 	}
 
 	build(parser: Parser, cb: any) {
