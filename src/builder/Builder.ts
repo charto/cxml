@@ -1,120 +1,20 @@
 import { Namespace } from '../Namespace';
 import { Token, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
+import { ParserConfig } from '../parser/ParserConfig';
 import { Parser, TokenBuffer } from '../parser/Parser';
+import { SimpleSchema, SimpleSchemaSpec } from '../schema/SimpleSchema';
+import { RuleSet, Rule, RuleMember } from './RuleSet';
 
 const enum State {
 	ELEMENT = 0,
 	PROCESSING,
 	TEXT,
-	AFTER_TEXT,
 	COMMENT
 }
 
-/*
-export class ElementSpec {
-	tagName: string;
-	exists?: boolean;
-	type?: any;
-	template: Element;
-	placeholder: Element;
-}
-
-export class Element {
-	xmlns: Namespace;
-	_: ElementSpec;
-}
-*/
-
-interface Rule {
-	type: RuleType;
-	isArray?: boolean;
-}
-
-class RuleType {
-	elements: { [ elementName: string ]: Rule } = {};
-	attributes: { [ attributeName: string ]: Rule } = {};
-
-	static string = new RuleType();
-}
-
-function defineType(
-	spec: any,
-	typeTbl: { [ typeName: string ]: RuleType },
-	type: RuleType = new RuleType()
-) {
-	let parts: RegExpMatchArray | null;
-
-	let prefix: string, name: string, suffix: string;
-
-	let memberTbl: { [ name: string ]: Rule };
-	let memberName: string;
-	let memberType: RuleType;
-	let memberTypeName: string;
-
-	for(let child of spec) {
-		if(typeof(child) == 'string') {
-			memberName = child;
-			child = {};
-			child[memberName] = memberName;
-		}
-
-		for(memberName of Object.keys(child)) {
-			// Parse element or attribute name with type prefix / suffix.
-			parts = memberName.match(/(@?)([^\[]+)(\[\])?/);
-			if(!parts) continue;
-
-			[, prefix, name, suffix] = parts;
-
-			// Parse type name if it differs from element/attribute name.
-			if(child[memberName] != memberName) {
-				parts = child[memberName].match(/(@?)([^\[]+)(\[\])?/);
-				if(!parts) continue;
-
-				// Type prefix / suffix behave identically in member and type names.
-				prefix = prefix || parts[1];
-				suffix = suffix || parts[3];
-			}
-
-			memberTypeName = parts[2];
-
-			// Prefix @ marks attributes, as in xpath.
-			if(prefix == '@') {
-				memberTbl = type.attributes;
-				memberType = RuleType.string;
-			} else {
-				memberTbl = type.elements;
-				memberType = typeTbl[memberTypeName];
-			}
-
-			memberTbl[name] = {
-				type: memberType,
-				isArray: suffix == '[]'
-			};
-		}
-	}
-
-	return(type);
-}
-
 export class Builder {
-	constructor(schema: any, roots = schema.document) {
-		const typeTbl: { [ typeName: string ]: RuleType } = {
-			string: RuleType.string
-		};
-
-		// Create placeholder objects for all types.
-		for(let typeName of Object.keys(schema)) {
-			typeTbl[typeName] = new RuleType();
-		}
-
-		// Define types, using placeholders when referring to undefined types.
-		for(let typeName of Object.keys(schema)) {
-			defineType(schema[typeName], typeTbl, typeTbl[typeName]);
-		}
-
-		this.rootRule = {
-			type: typeTbl['document'] || defineType(roots, typeTbl)
-		};
+	constructor(parserConfig: ParserConfig, ns: Namespace, schemaSpec: SimpleSchemaSpec) {
+		this.rootRule = new RuleSet(new SimpleSchema(parserConfig, ns, schemaSpec)).rootRule;
 	}
 
 	build(parser: Parser, cb: any) {
@@ -122,7 +22,7 @@ export class Builder {
 		let stackPos = 0;
 
 		let rule = this.rootRule;
-		let ruleNext: Rule | undefined;
+		let member: RuleMember | undefined;
 		const ruleStack: Rule[] = [];
 
 		let item = document;
@@ -137,6 +37,9 @@ export class Builder {
 			if(!chunk) return;
 
 			let token = chunk[0];
+			let dataType: string;
+			let kind: number;
+			let id: number;
 			let name: string;
 
 			let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
@@ -145,34 +48,41 @@ export class Builder {
 			while(tokenNum < lastNum) {
 
 				token = chunk[++tokenNum];
+				dataType = typeof(token);
 
 				if(ignoreDepth) {
-					if(token instanceof Token) {
-						if(token.kind == TokenKind.open) ++ignoreDepth;
-						else if(token.kind == TokenKind.close) --ignoreDepth;
+					if(dataType == 'object') {
+						kind = (token as Token).kind;
+
+						if(kind == TokenKind.open) ++ignoreDepth;
+						else if(kind == TokenKind.close) --ignoreDepth;
 					}
-				} else if(token instanceof Token) {
-					switch(token.kind) {
+				} else if(dataType == 'object') {
+					kind = (token as Token).kind;
+
+						switch(kind) {
 						case TokenKind.open:
 
-							name = (token as OpenToken).name;
-							ruleNext = rule.type.elements[name];
+							id = (token as OpenToken).id!;
+							member = rule.elements[id];
 
-							if(!ruleNext) {
+							if(!member) {
 								++ignoreDepth;
 
 								state = State.TEXT;
 								break;
 							}
 
-							if(ruleNext.type == RuleType.string) {
+							name = (token as OpenToken).name;
+
+							if(member.rule == Rule.string) {
 								// NOTE: If the string element has attributes,
 								// they're added to its parent element!
 								target = name;
 								itemNext = item;
 							} else {
 								itemNext = {};
-								if(ruleNext.isArray) {
+								if(member.max > 1) {
 									if(!item[name]) item[name] = [];
 									item[name].push(itemNext);
 								} else item[name] = itemNext;
@@ -182,14 +92,12 @@ export class Builder {
 							ruleStack[stackPos++] = rule;
 
 							item = itemNext;
-							rule = ruleNext;
+							rule = member.rule;
 
 							state = State.ELEMENT;
 							break;
 
 						case TokenKind.emitted:
-
-							if(rule.type == RuleType.string) ruleNext = rule;
 
 							state = State.TEXT;
 							break;
@@ -204,9 +112,9 @@ export class Builder {
 
 						case TokenKind.string:
 
-							name = (token as StringToken).name;
-							ruleNext = rule.type.attributes[name];
-							if(ruleNext) target = name;
+							id = (token as StringToken).id!;
+							member = rule.attributes[id];
+							if(member) target = (token as StringToken).name;
 
 							break;
 
@@ -218,14 +126,10 @@ export class Builder {
 				} else {
 					switch(state) {
 						case State.TEXT:
-
-							state = State.AFTER_TEXT;
-
-						// Fallthru
 						case State.ELEMENT:
 
-							if(ruleNext && target) {
-								item[target] = ruleNext.isArray ? (token + '').split(/ +/) : token;
+							if(member && target) {
+								item[target] = member.max > 1 ? (token + '').split(/ +/) : token;
 								target = null;
 							}
 
@@ -238,5 +142,5 @@ export class Builder {
 		parser.on('end', () => cb(document));
 	}
 
-	private rootRule: Rule;
+	rootRule: Rule;
 }

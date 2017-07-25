@@ -1,20 +1,42 @@
-// This is schema stuff unrelated to the parser for now.
-
 import { Namespace } from '../Namespace';
+import { MemberToken } from '../parser/Token';
 
-export const enum MemberKind {
-	element,
-	attribute
+import { ComplexType } from './ComplexType';
+
+/** SimpleType equivalent JavaScript data types. */
+
+export type SimpleValue = string | number | boolean;
+
+/** Configuration for elements and attributes as type members. */
+
+export class MemberSpec {
+
+	constructor(
+		public min = 1,
+		public max = 1
+	) {}
+
+	detail?: MemberDetail;
+
 }
 
-export class Member {
+/** Definition of a type with only text content.
+  * Applicable to both elements and attributes. */
 
-	/** @param name Element or attribute name. Not unique within a namespace!
-	  * Schema may define duplicates with different types when nested.
-	  * @param ns Namespace for the element or attribute. */
-	constructor(public name: string, public ns?: Namespace) {}
+export class SimpleType {
 
-	/** Distinguish between element and attribute (defined in the prototype). */
-	kind: MemberKind;
+	parent?: SimpleType;
+
+}
+
+export class MemberDetail {
+
+	/** @param token Token with element or attribute name and namespace.
+	  * A single token may have different types depending on its parent. */
+	constructor(public token: MemberToken) {}
+
+	exists: boolean;
+
+	type: SimpleType | ComplexType;
 
 }

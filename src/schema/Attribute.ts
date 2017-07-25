@@ -1,16 +1,21 @@
-// This is schema stuff unrelated to the parser for now.
+import { AttributeGroup } from './AttributeGroup';
+import { MemberSpec, MemberDetail, SimpleType, SimpleValue } from './Member';
 
-import { Namespace } from '../Namespace';
-import { Member, MemberKind } from './Member';
+/** Configuration for attributes as type members. */
 
-export class Attribute extends Member {
+export class AttributeSpec extends MemberSpec {
 
-	constructor(name: string, ns?: Namespace) {
-		super(name, ns);
-	}
+	/** Default value to use if the element or attribute is missing. */
+	default?: SimpleValue;
+	/** Name and other info. */
+	detail?: AttributeDetail;
 
-	kind: MemberKind.attribute;
+	group?: AttributeGroup;
 
 }
 
-Attribute.prototype.kind = MemberKind.attribute;
+export class AttributeDetail extends MemberDetail {
+
+	type: SimpleType;
+
+}
