@@ -279,6 +279,9 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					attributePrefix.idPrefix = elementPrefix.idPrefix;
 					attributePrefix.idNamespace = elementPrefix.idNamespace;
 					ns = config.namespaceList[elementPrefix.idNamespace].get();
+					// If element namespace prefix was known but undefined,
+					// try the default namespace to allow matching the magic xmlns attribute.
+					if(ns == nullptr) ns = config.namespacePrefixTbl[config.xmlnsToken].second;
 				}
 
 				// Prepare Patricia tree cursor for parsing.
