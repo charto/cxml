@@ -1,6 +1,6 @@
 import { ElementToken } from '../parser/Token';
 
-import { ComplexType } from './ComplexType';
+import { ComplexType, ElementTypeConstructor } from './ComplexType';
 import { Group } from './Group';
 import { MemberSpec, MemberDetail, SimpleType, SimpleValue } from './Member';
 
@@ -41,6 +41,27 @@ export class SimpleElementDetail extends MemberDetail {
 
 export class ElementDetail<ElementClass extends Element = Element> extends MemberDetail {
 
+	createProto() {
+		if(!this.XMLType) {
+			const BaseType: ElementTypeConstructor = this.type.createProto<ElementClass>();
+
+			this.XMLType = class XMLType extends BaseType implements Element {
+				_: ElementDetail<this>;
+			} as ElementConstructor<ElementClass>;
+
+			Object.defineProperty(this.XMLType.prototype, '_', {
+				configurable: true,
+				enumerable: false,
+				value: this,
+				writable: true
+			});
+		}
+
+		return(this.XMLType);
+	}
+
+	XMLType: ElementConstructor<ElementClass>;
+
 	/** A singleton object to use if the element is missing. */
 	placeholder: ElementClass;
 
@@ -58,12 +79,7 @@ export class ElementDetail<ElementClass extends Element = Element> extends Membe
 /** Base class for elements defined in the schema. Inherited by a hierarchy of types,
  *  each branch terminating in an element definition. */
 
-export class ElementBase {
-
-	// @hidden
-	// _: MemberDetail;
-
-}
+export class ElementBase {}
 
 /** Represents any element defined in the schema. */
 
@@ -77,3 +93,7 @@ export interface Element extends ElementBase {
 	$?: SimpleValue;
 
 }
+
+export interface ElementConstructor<ElementClass extends Element = Element> {
+	new(): ElementClass;
+};
