@@ -1,7 +1,11 @@
 import { AttributeSpec } from './Attribute';
 import { AttributeGroup } from './AttributeGroup';
-import { SimpleElementSpec, Element, ElementSpec } from './Element';
+import { SimpleElementSpec, Element, ElementSpec, ElementBase } from './Element';
 import { Group, GroupKind } from './Group';
+
+export interface ElementTypeConstructor<ElementClass extends ElementBase = ElementBase> {
+	new(): ElementClass;
+};
 
 /** Definition of a type containing other elements and attributes. Only applicable to elements. */
 
@@ -21,12 +25,20 @@ export class ComplexType {
 		this.elements.group!.addElement(spec);
 	}
 
+	createProto<ElementClass = ElementBase>() {
+		if(!this.XMLType) {
+			const BaseType = this.parent ? this.parent.createProto() : ElementBase;
+			this.XMLType = class XMLType extends BaseType {};
+		}
+
+		return(this.XMLType as ElementTypeConstructor<ElementClass>);
+	}
+
 	parent?: ComplexType;
 
-	proto: Element;
+	XMLType: ElementTypeConstructor;
 
 	attributes?: AttributeGroup;
-
 	elements?: ElementSpec;
 
 }

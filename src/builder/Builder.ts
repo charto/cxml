@@ -81,7 +81,7 @@ export class Builder {
 								target = name;
 								itemNext = item;
 							} else {
-								itemNext = {};
+								itemNext = new member.rule.XMLType();
 								if(member.max > 1) {
 									if(!item[name]) item[name] = [];
 									item[name].push(itemNext);

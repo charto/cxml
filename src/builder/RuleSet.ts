@@ -1,6 +1,7 @@
 import { SimpleSchema } from '../schema/SimpleSchema';
 import { ComplexType } from '../schema/ComplexType';
 import { MemberSpec } from '../schema/Member';
+import { ElementDetail, ElementConstructor } from '../schema/Element';
 
 export class Rule {
 
@@ -16,6 +17,8 @@ export class Rule {
 	attributes: { [id: number]: RuleMember } = {};
 
 	static string = new Rule();
+
+	XMLType: ElementConstructor;
 
 }
 
@@ -35,19 +38,24 @@ export class RuleMember {
 
 export class RuleSet {
 
-	createRule(type: ComplexType) {
+	createRule(type: ComplexType, d?: ElementDetail) {
 		const rule = new Rule();
 		let childRule: Rule;
+		let proto: { [key: string]: any } = {};
+
+		if(d) {
+			rule.XMLType = d.createProto();
+			proto = rule.XMLType.prototype;
+		}
 
 		if(type.elements && type.elements.group) {
 			for(let childSpec of type.elements.group.list) {
 				const detail = childSpec.detail;
 
 				if(detail) {
-					const token = detail.token;
-
 					if(detail.type instanceof ComplexType) {
-						childRule = this.createRule(detail.type);
+						childRule = this.createRule(detail.type, detail as ElementDetail);
+						proto[detail.token.name] = new childRule.XMLType();
 					} else childRule = Rule.string;
 
 					rule.addElement(new RuleMember(childRule, childSpec));
@@ -60,7 +68,7 @@ export class RuleSet {
 				const detail = attributeSpec.detail;
 
 				if(detail) {
-					const token = detail.token;
+					// const token = detail.token;
 
 					childRule = Rule.string;
 
