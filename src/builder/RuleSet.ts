@@ -1,7 +1,7 @@
 import { SimpleSchema } from '../schema/SimpleSchema';
 import { ComplexType } from '../schema/ComplexType';
 import { MemberSpec } from '../schema/Member';
-import { Element, ElementDetail, ElementConstructor } from '../schema/Element';
+import { Element, ElementMeta, ElementConstructor } from '../schema/Element';
 
 export class Rule {
 
@@ -25,7 +25,7 @@ export class Rule {
 export class RuleMember {
 
 	constructor(public rule: Rule, public spec: MemberSpec) {
-		this.id = spec.detail!.token.id!;
+		this.id = spec.meta!.token.id!;
 		this.min = spec.min;
 		this.max = spec.max;
 	}
@@ -44,7 +44,7 @@ function link<Type>(parent: Type) {
 
 export class RuleSet {
 
-	createRule(type: ComplexType, d?: ElementDetail) {
+	createRule(type: ComplexType, d?: ElementMeta) {
 		const rule = new Rule();
 		let childRule: Rule;
 		let proto: { [key: string]: any } = {};
@@ -56,19 +56,19 @@ export class RuleSet {
 
 		if(type.elements && type.elements.group) {
 			for(let childSpec of type.elements.group.list) {
-				const detail = childSpec.detail;
+				const memberMeta = childSpec.meta;
 
-				if(detail) {
-					if(detail instanceof ElementDetail) {
-						childRule = this.createRule(detail.type, detail);
+				if(memberMeta) {
+					if(memberMeta instanceof ElementMeta) {
+						childRule = this.createRule(memberMeta.type, memberMeta);
 
 						// Subclass type metadata and clear existence flag to indicate a placeholder.
-						let fakeDetail = link(detail);
-						fakeDetail.exists = false;
+						let fakeMeta = link(memberMeta);
+						fakeMeta.exists = false;
 
 						let placeholder: Element | Element[] | null = new childRule.XMLType();
-						placeholder._ = fakeDetail;
-						detail.placeholder = placeholder;
+						placeholder._ = fakeMeta;
+						memberMeta.placeholder = placeholder;
 
 						if(childSpec.max > 1) {
 							// Use arrays as placeholders for arrays of children.
@@ -78,7 +78,7 @@ export class RuleSet {
 						}
 
 						if(placeholder) {
-							Object.defineProperty(proto, detail.token.name, {
+							Object.defineProperty(proto, memberMeta.token.name, {
 								configurable: true,
 								enumerable: false,
 								value: placeholder,
@@ -94,10 +94,10 @@ export class RuleSet {
 
 		if(type.attributes) {
 			for(let attributeSpec of type.attributes.list) {
-				const detail = attributeSpec.detail;
+				const memberMeta = attributeSpec.meta;
 
-				if(detail) {
-					// const token = detail.token;
+				if(memberMeta) {
+					// const token = memberMeta.token;
 
 					childRule = Rule.string;
 

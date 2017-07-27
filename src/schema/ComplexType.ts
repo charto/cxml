@@ -27,14 +27,14 @@ export class ComplexType {
 
 	createProto<ElementClass = ElementBase>() {
 		if(!this.XMLType) {
-			const BaseType = this.parent ? this.parent.createProto() : ElementBase;
+			const BaseType = this.base ? this.base.createProto() : ElementBase;
 			this.XMLType = class XMLType extends BaseType {};
 		}
 
 		return(this.XMLType as ElementTypeConstructor<ElementClass>);
 	}
 
-	parent?: ComplexType;
+	base?: ComplexType;
 
 	XMLType: ElementTypeConstructor;
 
