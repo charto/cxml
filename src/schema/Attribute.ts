@@ -1,5 +1,5 @@
 import { AttributeGroup } from './AttributeGroup';
-import { MemberSpec, MemberDetail, SimpleType, SimpleValue } from './Member';
+import { MemberSpec, MemberMeta, SimpleType, SimpleValue } from './Member';
 
 /** Configuration for attributes as type members. */
 
@@ -8,13 +8,13 @@ export class AttributeSpec extends MemberSpec {
 	/** Default value to use if the element or attribute is missing. */
 	default?: SimpleValue;
 	/** Name and other info. */
-	detail?: AttributeDetail;
+	meta?: AttributeMeta;
 
 	group?: AttributeGroup;
 
 }
 
-export class AttributeDetail extends MemberDetail {
+export class AttributeMeta extends MemberMeta {
 
 	type: SimpleType;
 

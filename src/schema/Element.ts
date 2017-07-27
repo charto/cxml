@@ -2,12 +2,12 @@ import { ElementToken } from '../parser/Token';
 
 import { ComplexType, ElementTypeConstructor } from './ComplexType';
 import { Group } from './Group';
-import { MemberSpec, MemberDetail, SimpleType, SimpleValue } from './Member';
+import { MemberSpec, MemberMeta, SimpleType, SimpleValue } from './Member';
 
 export class SimpleElementSpec extends MemberSpec {
 
 	/** Name and other info. */
-	detail: SimpleElementDetail;
+	meta: SimpleElementMeta;
 
 }
 
@@ -16,7 +16,7 @@ export class SimpleElementSpec extends MemberSpec {
 export class ElementSpec extends MemberSpec {
 
 	/** Name and other info, also available in the prototype of all element instances. */
-	detail?: ElementDetail;
+	meta?: ElementMeta;
 
 	group?: Group;
 
@@ -24,10 +24,10 @@ export class ElementSpec extends MemberSpec {
 
 /** Metadata for elements without children or attributes in builder output. */
 
-export class SimpleElementDetail extends MemberDetail {
+export class SimpleElementMeta extends MemberMeta {
 
 	/** Substitution group head. */
-	substitutes?: SimpleElementDetail;
+	substitutes?: SimpleElementMeta;
 
 	/** Token with element name and namespace.
 	  * A single token may have different types depending on its parent. */
@@ -39,14 +39,14 @@ export class SimpleElementDetail extends MemberDetail {
 
 /** Metadata for elements in builder output. */
 
-export class ElementDetail<ElementClass extends Element = Element> extends MemberDetail {
+export class ElementMeta<ElementClass extends Element = Element> extends MemberMeta {
 
 	createProto() {
 		if(!this.XMLType) {
 			const BaseType: ElementTypeConstructor = this.type.createProto<ElementClass>();
 
 			this.XMLType = class XMLType extends BaseType implements Element {
-				_: ElementDetail<this>;
+				_: ElementMeta<this>;
 			} as ElementConstructor<ElementClass>;
 
 			Object.defineProperty(this.XMLType.prototype, 'constructor', {
@@ -72,7 +72,7 @@ export class ElementDetail<ElementClass extends Element = Element> extends Membe
 	placeholder: ElementClass;
 
 	/** Substitution group head. */
-	substitutes?: ElementDetail;
+	substitutes?: ElementMeta;
 
 	/** Token with element name and namespace.
 	  * A single token may have different types depending on its parent. */
@@ -93,7 +93,7 @@ export interface Element extends ElementBase {
 
 	/** Builder metadata. Defined in the prototypes of parsed objects,
 	  * or properties of placeholders for non-existent members. */
-	_: ElementDetail<this>;
+	_: ElementMeta<this>;
 
 	/** Possible text content. */
 	$?: SimpleValue;

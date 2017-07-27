@@ -16,7 +16,7 @@ export class MemberSpec {
 		public max = 1
 	) {}
 
-	detail?: MemberDetail;
+	meta?: MemberMeta;
 
 }
 
@@ -25,11 +25,11 @@ export class MemberSpec {
 
 export class SimpleType {
 
-	parent?: SimpleType;
+	base?: SimpleType;
 
 }
 
-export class MemberDetail {
+export class MemberMeta {
 
 	/** @param token Token with element or attribute name and namespace.
 	  * A single token may have different types depending on its parent. */

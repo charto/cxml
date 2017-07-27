@@ -3,8 +3,8 @@ import { ParserConfig } from '../parser/ParserConfig';
 import { Namespace } from '../Namespace';
 import { ComplexType } from './ComplexType';
 import { SimpleType } from './Member';
-import { AttributeSpec, AttributeDetail } from './Attribute';
-import { SimpleElementSpec, SimpleElementDetail, ElementSpec, ElementDetail } from './Element';
+import { AttributeSpec, AttributeMeta } from './Attribute';
+import { SimpleElementSpec, SimpleElementMeta, ElementSpec, ElementMeta } from './Element';
 
 export type SimpleMemberSpec = string | { [ memberName: string]: string };
 
@@ -73,26 +73,26 @@ export class SimpleSchema {
 				if(prefix == '$') {
 					const token = this.parserConfig.getAttributeTokens(this.ns, name)[TokenKind.string]!;
 					const attributeSpec = new AttributeSpec(min, max);
-					const attributeDetail = new AttributeDetail(token);
+					const attributeMeta = new AttributeMeta(token);
 
-					// attributeDetail.type = xsd:string
-					attributeSpec.detail = attributeDetail;
+					// attributeMeta.type = xsd:string
+					attributeSpec.meta = attributeMeta;
 					type.addAttribute(attributeSpec);
 				} else if(memberType) {
 					const token = this.parserConfig.getElementTokens(this.ns, name)[TokenKind.open]!;
 					let elementSpec: SimpleElementSpec | ElementSpec;
-					let elementDetail: SimpleElementDetail | ElementDetail;
+					let elementMeta: SimpleElementMeta | ElementMeta;
 
 					if(memberType instanceof ComplexType) {
 						elementSpec = new ElementSpec(min, max);
-						elementDetail = new ElementDetail(token);
+						elementMeta = new ElementMeta(token);
 					} else {
 						elementSpec = new SimpleElementSpec(min, max);
-						elementDetail = new SimpleElementDetail(token);
+						elementMeta = new SimpleElementMeta(token);
 					}
 
-					elementDetail.type = memberType;
-					elementSpec.detail = elementDetail;
+					elementMeta.type = memberType;
+					elementSpec.meta = elementMeta;
 					type.addAll(elementSpec);
 				}
 			}
