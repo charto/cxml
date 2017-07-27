@@ -35,7 +35,7 @@ export class MemberDetail {
 	  * A single token may have different types depending on its parent. */
 	constructor(public token: MemberToken) {}
 
-	exists: boolean;
+	exists = true;
 
 	type: SimpleType | ComplexType;
 
