@@ -49,6 +49,12 @@ export class ElementDetail<ElementClass extends Element = Element> extends Membe
 				_: ElementDetail<this>;
 			} as ElementConstructor<ElementClass>;
 
+			Object.defineProperty(this.XMLType.prototype, 'constructor', {
+				configurable: true,
+				enumerable: false,
+				writable: true
+			});
+
 			Object.defineProperty(this.XMLType.prototype, '_', {
 				configurable: true,
 				enumerable: false,
