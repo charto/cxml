@@ -36,6 +36,12 @@ export class RuleMember {
 
 }
 
+function link<Type>(parent: Type) {
+	function Result() {}
+	Result.prototype = parent;
+	return(new (Result as any)());
+}
+
 export class RuleSet {
 
 	createRule(type: ComplexType, d?: ElementDetail) {
@@ -56,7 +62,12 @@ export class RuleSet {
 					if(detail instanceof ElementDetail) {
 						childRule = this.createRule(detail.type, detail);
 
+						// Subclass type metadata and clear existence flag to indicate a placeholder.
+						let fakeDetail = link(detail);
+						fakeDetail.exists = false;
+
 						let placeholder: Element | Element[] | null = new childRule.XMLType();
+						placeholder._ = fakeDetail;
 						detail.placeholder = placeholder;
 
 						if(childSpec.max > 1) {
