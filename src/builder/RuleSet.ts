@@ -1,7 +1,7 @@
 import { SimpleSchema } from '../schema/SimpleSchema';
 import { ComplexType } from '../schema/ComplexType';
 import { MemberSpec } from '../schema/Member';
-import { ElementDetail, ElementConstructor } from '../schema/Element';
+import { Element, ElementDetail, ElementConstructor } from '../schema/Element';
 
 export class Rule {
 
@@ -53,9 +53,27 @@ export class RuleSet {
 				const detail = childSpec.detail;
 
 				if(detail) {
-					if(detail.type instanceof ComplexType) {
-						childRule = this.createRule(detail.type, detail as ElementDetail);
-						proto[detail.token.name] = new childRule.XMLType();
+					if(detail instanceof ElementDetail) {
+						childRule = this.createRule(detail.type, detail);
+
+						let placeholder: Element | Element[] | null = new childRule.XMLType();
+						detail.placeholder = placeholder;
+
+						if(childSpec.max > 1) {
+							// Use arrays as placeholders for arrays of children.
+							placeholder = childSpec.min > 0 ? [ placeholder ] : [];
+						} else if(childSpec.min < 1) {
+							placeholder = null;
+						}
+
+						if(placeholder) {
+							Object.defineProperty(proto, detail.token.name, {
+								configurable: true,
+								enumerable: false,
+								value: placeholder,
+								writable: true
+							});
+						}
 					} else childRule = Rule.string;
 
 					rule.addElement(new RuleMember(childRule, childSpec));

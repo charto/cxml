@@ -83,7 +83,7 @@ export class Builder {
 							} else {
 								itemNext = new member.rule.XMLType();
 								if(member.max > 1) {
-									if(!item[name]) item[name] = [];
+									if(!item.hasOwnProperty(name)) item[name] = [];
 									item[name].push(itemNext);
 								} else item[name] = itemNext;
 							}

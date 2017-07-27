@@ -47,20 +47,20 @@ export class SimpleSchema {
 				let min = 1, max = 1;
 
 				// Parse element or attribute name with type prefix / suffix.
-				let parts = memberName.match(/(\$?)([^\[]+)(\?)?(\[\])?/);
+				let parts = memberName.match(/(\$?)([^\[]+)(\[\])?(\?)?/);
 				if(!parts) continue;
 
-				let [, prefix, name, optionalSuffix, arraySuffix] = parts;
+				let [, prefix, name, arraySuffix, optionalSuffix] = parts;
 
 				// Parse type name if it differs from element/attribute name.
 				if(child[memberName] != memberName) {
-					parts = child[memberName].match(/(\$?)([^\[]+)(\?)?(\[\])?/);
+					parts = child[memberName].match(/(\$?)([^\[]+)(\[\])?(\?)?/);
 					if(!parts) continue;
 
 					// Type prefix / suffix behave identically in member and type names.
 					prefix = prefix || parts[1];
-					optionalSuffix = optionalSuffix || parts[3];
-					arraySuffix = arraySuffix || parts[4];
+					arraySuffix = arraySuffix || parts[3];
+					optionalSuffix = optionalSuffix || parts[4];
 				}
 
 				if(optionalSuffix) min = 0;
