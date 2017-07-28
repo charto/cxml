@@ -8,9 +8,11 @@ export class Namespace {
 
 	addElement(name: string) { this.elementNameList.push(name); }
 	addAttribute(name: string) { this.attributeNameList.push(name); }
+	addLocation(url: string) { this.schemaLocationList.push(url); }
 
 	elementNameList: string[] = [];
 	attributeNameList: string[] = [];
+	schemaLocationList: string[] = [];
 
 	id: number;
 
