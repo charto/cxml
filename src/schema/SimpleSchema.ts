@@ -10,6 +10,8 @@ export type SimpleMemberSpec = string | { [ memberName: string]: string };
 
 export type SimpleSchemaSpec = { [ typeName: string ]: SimpleMemberSpec[] };
 
+export type SimpleSchemaSpecTbl = { [prefix: string]: [ string, string, SimpleSchemaSpec ] };
+
 export class SimpleSchema {
 
 	constructor(private parserConfig: ParserConfig, public ns: Namespace, spec: SimpleSchemaSpec, root = spec['document']) {

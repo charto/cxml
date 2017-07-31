@@ -2,7 +2,7 @@ import { Namespace } from '../Namespace';
 import { Token, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
 import { ParserConfig } from '../parser/ParserConfig';
 import { Parser, TokenBuffer } from '../parser/Parser';
-import { SimpleSchema, SimpleSchemaSpec } from '../schema/SimpleSchema';
+import { SimpleSchema, SimpleSchemaSpecTbl } from '../schema/SimpleSchema';
 import { RuleSet, Rule, RuleMember } from './RuleSet';
 
 const enum State {
@@ -13,15 +13,22 @@ const enum State {
 }
 
 export class Builder {
-	constructor(parserConfig: ParserConfig, ns: Namespace, schemaSpec: SimpleSchemaSpec) {
-		this.rootRule = new RuleSet(new SimpleSchema(parserConfig, ns, schemaSpec)).rootRule;
+	constructor(parserConfig: ParserConfig, schemaSpec: SimpleSchemaSpecTbl) {
+		for(let prefix of Object.keys(schemaSpec)) {
+			const [ defaultPrefix, nsUri, spec ] = schemaSpec[prefix];
+			const ns = new Namespace(defaultPrefix, nsUri);
+
+			if(spec['document']) {
+				this.rootTbl[nsUri] = new RuleSet(new SimpleSchema(parserConfig, ns, spec)).rootRule;
+			}
+		}
 	}
 
-	build(parser: Parser, cb: any) {
+	build(parser: Parser, nsUri: string, cb: any) {
 		const document: any = {};
 		let stackPos = 0;
 
-		let rule = this.rootRule;
+		let rule = this.rootTbl[nsUri];
 		let member: RuleMember | undefined;
 		const ruleStack: Rule[] = [];
 
@@ -142,5 +149,5 @@ export class Builder {
 		parser.on('end', () => cb(document));
 	}
 
-	rootRule: Rule;
+	rootTbl: { [uri: string]: Rule } = {};
 }
