@@ -7,3 +7,5 @@ package-lock.json
 *.log.*
 *.log
 *.tgz
+!src/tokenizer/CodeType.ts
+!src/tokenizer/ErrorType.ts
