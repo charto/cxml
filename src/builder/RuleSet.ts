@@ -44,13 +44,13 @@ function link<Type>(parent: Type) {
 
 export class RuleSet {
 
-	createRule(type: ComplexType, d?: ElementMeta) {
+	createRule(type: ComplexType, meta?: ElementMeta) {
 		const rule = new Rule();
 		let childRule: Rule;
 		let proto: { [key: string]: any } = {};
 
-		if(d) {
-			rule.XMLType = d.createProto();
+		if(meta) {
+			rule.XMLType = meta.createProto();
 			proto = rule.XMLType.prototype;
 		}
 
