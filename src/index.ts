@@ -3,7 +3,7 @@ export { CRC32, Hasher32 } from './CRC32';
 
 import { Namespace } from './Namespace';
 export { Namespace };
-export { ParserConfig, TokenTbl } from './parser/ParserConfig';
+export { ParserConfig, ParserOptions, TokenTbl } from './parser/ParserConfig';
 export { Parser, ParseError, TokenBuffer } from './parser/Parser';
 export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';

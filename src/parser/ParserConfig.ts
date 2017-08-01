@@ -8,6 +8,10 @@ import { InternalToken } from './InternalToken';
 import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
 import { Parser } from './Parser';
 
+export interface ParserOptions {
+	parseUnknown?: boolean;
+}
+
 export interface TokenTbl {
 	[ prefix: string ]: {
 		uri: string,
@@ -24,10 +28,12 @@ export class ParserConfig {
 	/** Parameters are for internal use only.
 	  * @param parent Parent object for cloning.
 	  * @param native Reference to C++ object. */
-	constructor(parent?: ParserConfig, native?: NativeConfig | null) {
+	constructor(parent?: ParserOptions | ParserConfig, native?: NativeConfig | null) {
 		this.isIndependent = !parent;
 
-		if(parent) {
+		if(parent instanceof ParserConfig) {
+			this.options = parent.options;
+
 			this.uriSpace = parent.uriSpace;
 			this.prefixSpace = parent.prefixSpace;
 			this.elementSpace = parent.elementSpace;
@@ -45,6 +51,8 @@ export class ParserConfig {
 
 			this.nsMapper = parent.nsMapper;
 		} else {
+			this.options = parent || {};
+
 			this.uriSpace = new TokenSpace(TokenKind.uri);
 			this.prefixSpace = new TokenSpace(TokenKind.prefix);
 			this.elementSpace = new TokenSpace(TokenKind.element);
@@ -232,6 +240,8 @@ export class ParserConfig {
 
 	/** Reference to C++ object. */
 	private native: NativeConfig;
+
+	options: ParserOptions;
 
 	xmlnsToken: InternalToken;
 	xmlnsPrefixToken: InternalToken;

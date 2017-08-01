@@ -13,9 +13,12 @@ export class Group {
 
 	addElement(spec: SimpleElementSpec | ElementSpec) {
 		this.list.push(spec);
+		if(spec.meta) this.tbl[spec.meta.token.id!] = spec;
 	}
 
 	/** List of allowed elements and groups. */
 	list: (SimpleElementSpec | ElementSpec)[] = []
+
+	tbl: { [id: number]: SimpleElementSpec | ElementSpec } = {};
 
 }
