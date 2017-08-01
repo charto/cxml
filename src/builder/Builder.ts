@@ -1,9 +1,13 @@
 import { Namespace } from '../Namespace';
 import { Token, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
-import { ParserConfig } from '../parser/ParserConfig';
+import { ParserConfig, ParserOptions } from '../parser/ParserConfig';
 import { Parser, TokenBuffer } from '../parser/Parser';
 import { SimpleSchema, SimpleSchemaSpecTbl } from '../schema/SimpleSchema';
 import { RuleSet, Rule, RuleMember } from './RuleSet';
+
+import { ComplexType } from '../schema/ComplexType';
+import { Element, ElementSpec, ElementMeta, ElementConstructor } from '../schema/Element';
+import { ElementToken } from '../parser/Token';
 
 const enum State {
 	ELEMENT = 0,
@@ -14,23 +18,43 @@ const enum State {
 
 export class Builder {
 	constructor(parserConfig: ParserConfig, schemaSpec: SimpleSchemaSpecTbl) {
+		this.options = parserConfig.options;
+
 		for(let prefix of Object.keys(schemaSpec)) {
 			const [ defaultPrefix, nsUri, spec ] = schemaSpec[prefix];
 			const ns = new Namespace(defaultPrefix, nsUri);
 
 			if(spec['document']) {
-				this.rootTbl[nsUri] = new RuleSet(new SimpleSchema(parserConfig, ns, spec)).rootRule;
+				this.ruleSetTbl[nsUri] = new RuleSet(new SimpleSchema(parserConfig, ns, spec));
 			}
 		}
 	}
+
+	getUnknownProto(token: ElementToken) {
+		let elementSpec: ElementSpec | undefined = this.unknownType.elements && this.unknownType.elements.group!.tbl[token.id!] as ElementSpec;
+
+		if(!elementSpec) {
+			elementSpec = new ElementSpec(0, Infinity);
+			const elementMeta = new ElementMeta(token);
+
+			elementMeta.type = new ComplexType();
+			elementSpec.meta = elementMeta;
+
+			this.unknownType.addAll(elementSpec);
+		}
+
+		return(elementSpec.meta!.createProto());
+	}
+
 
 	build(parser: Parser, nsUri: string, cb: any) {
 		const document: any = {};
 		let stackPos = 0;
 
-		let rule = this.rootTbl[nsUri];
+		let rule: Rule | undefined = this.ruleSetTbl[nsUri].rootRule;
+		let ruleNext: Rule | undefined;
 		let member: RuleMember | undefined;
-		const ruleStack: Rule[] = [];
+		const ruleStack: (Rule | undefined)[] = [];
 
 		let item = document;
 		let itemNext: any;
@@ -38,7 +62,7 @@ export class Builder {
 		let ignoreDepth = 0;
 
 		let state = State.TEXT;
-		let target: string | null;
+		let target: string | undefined;
 
 		parser.on('data', (chunk: TokenBuffer) => {
 			if(!chunk) return;
@@ -67,46 +91,49 @@ export class Builder {
 				} else if(dataType == 'object') {
 					kind = (token as Token).kind;
 
-						switch(kind) {
+					switch(kind) {
 						case TokenKind.open:
 
 							id = (token as OpenToken).id!;
-							member = rule.elements[id];
+							name = (token as OpenToken).name;
+							member = rule && rule.elements[id];
 
-							if(!member) {
+							if(member) {
+								ruleNext = member.rule;
+
+								if(ruleNext == Rule.string) {
+									// NOTE: If the string element has attributes,
+									// they're added to its parent element!
+									target = name;
+									itemNext = item;
+								} else {
+									itemNext = new ruleNext.XMLType();
+									if(member.max > 1) {
+										if(!item.hasOwnProperty(name)) item[name] = [];
+										item[name].push(itemNext);
+									} else item[name] = itemNext;
+								}
+							} else if(!this.options.parseUnknown) {
 								++ignoreDepth;
 
 								state = State.TEXT;
 								break;
-							}
-
-							name = (token as OpenToken).name;
-
-							if(member.rule == Rule.string) {
-								// NOTE: If the string element has attributes,
-								// they're added to its parent element!
-								target = name;
-								itemNext = item;
 							} else {
-								itemNext = new member.rule.XMLType();
-								if(member.max > 1) {
-									if(!item.hasOwnProperty(name)) item[name] = [];
-									item[name].push(itemNext);
-								} else item[name] = itemNext;
+
+								ruleNext = void 0;
+								itemNext = new (this.getUnknownProto(token as OpenToken))();
+
+								if(!item.hasOwnProperty(name)) item[name] = itemNext;
+								else if(item[name] instanceof Array) item[name].push(itemNext);
+								else item[name] = [item[name], itemNext];
 							}
 
 							itemStack[stackPos] = item;
 							ruleStack[stackPos++] = rule;
-
 							item = itemNext;
-							rule = member.rule;
+							rule = ruleNext;
 
 							state = State.ELEMENT;
-							break;
-
-						case TokenKind.emitted:
-
-							state = State.TEXT;
 							break;
 
 						case TokenKind.close:
@@ -114,14 +141,23 @@ export class Builder {
 							item = itemStack[--stackPos];
 							rule = ruleStack[stackPos];
 
+						// Fallthru
+						case TokenKind.emitted:
+
 							state = State.TEXT;
 							break;
 
 						case TokenKind.string:
 
 							id = (token as StringToken).id!;
-							member = rule.attributes[id];
-							if(member) target = (token as StringToken).name;
+							member = rule && rule.attributes[id];
+							if(member) {
+								target = (token as StringToken).name;
+							} else if(!this.options.parseUnknown) {
+								target = void 0;
+							} else {
+								target = (token as StringToken).name;
+							}
 
 							break;
 
@@ -135,9 +171,9 @@ export class Builder {
 						case State.TEXT:
 						case State.ELEMENT:
 
-							if(member && target) {
-								item[target] = member.max > 1 ? (token + '').split(/ +/) : token;
-								target = null;
+							if(target) {
+								item[target] = (member && member.max > 1) ? (token + '').split(/ +/) : token;
+								target = void 0;
 							}
 
 							break;
@@ -149,5 +185,9 @@ export class Builder {
 		parser.on('end', () => cb(document));
 	}
 
-	rootTbl: { [uri: string]: Rule } = {};
+	options: ParserOptions;
+
+	ruleSetTbl: { [uri: string]: RuleSet } = {};
+	unknownType = new ComplexType();
+
 }
