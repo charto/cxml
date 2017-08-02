@@ -60,8 +60,3 @@ Some reasons:
     - Between various checks, only one number is written at a time.
     - Elsewhere, `const` pointers prevent accidental memory writes.
     - Written data is not directly copied from input.
-
-### Conclusion
-
-Recognizing these issues, carefully considering security and speed
-everywhere in the code hopefully leads to the best possible result.
