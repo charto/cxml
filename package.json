@@ -1,13 +1,18 @@
 {
   "name": "cxml",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Advanced schema-aware streaming XML parser",
-  "main": "dist/cxml.js",
-  "typings": "dist/cxml.d.ts",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "scripts": {
+    "autogypi": "autogypi",
+    "node-gyp": "node-gyp",
+    "emcc-path": "emcc-path",
+    "copyasm": "copyasm",
+    "ndts": "ndts",
     "tsc": "tsc",
     "prepublish": "tsc -p src",
-    "test": "tsc -p test && node test/dir-example.js"
+    "install": "autogypi && node-gyp configure build"
   },
   "author": "Juha Järvi",
   "license": "MIT",
@@ -28,14 +33,14 @@
     "dts",
     "typescript"
   ],
-  "dependencies": {
-    "@types/bluebird": "^3.0.37",
-    "@types/node": "^7.0.0",
-    "@types/sax": "0.0.28",
-    "bluebird": "^3.4.7",
-    "sax": "~1.2.1"
-  },
   "devDependencies": {
-    "typescript": "^2.1.5"
+    "@types/sax": "^1.0.0",
+    "sax": "^1.2.2",
+    "typescript": "^2.3.0-dev.20170324"
+  },
+  "dependencies": {
+    "@types/node": "^7.0.10",
+    "autogypi": "^0.2.2",
+    "nbind": "^0.3.9"
   }
 }

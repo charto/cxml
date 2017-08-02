@@ -1,8 +1,7 @@
 node_modules/
-typings/
-cache/
-*.js
-*.d.ts
+build/
+dist/
+auto*.gypi
 *.log.*
 *.log
 *.tgz

@@ -1,280 +1,276 @@
-// This file is part of cxml, copyright (c) 2016-2017 BusFaster Ltd.
-// Released under the MIT license, see LICENSE.
-
+import * as path from 'path';
 import * as stream from 'stream';
-import * as Promise from 'bluebird';
-import * as sax from 'sax';
+import * as nbind from 'nbind';
+import * as ParserLib from './Lib';
 
-import {Context} from '../xml/Context';
-import {Namespace} from '../xml/Namespace';
-import {Rule, RuleClass, HandlerInstance} from './Rule';
-import {MemberRef} from '../xml/MemberRef';
-import {State} from './State';
-import {defaultContext} from '../importer/JS';
+import { ArrayType } from '../tokenizer/Buffer';
+import { Token } from '../tokenizer/Token';
+import { Namespace } from '../Namespace';
 
-export interface CxmlDate extends Date {
-	cxmlTimezoneOffset: number;
+const lib = nbind.init<typeof ParserLib>(path.resolve(__dirname, '../..')).lib;
+
+export const ParserConfig = lib.ParserConfig;
+export type ParserConfig = ParserLib.ParserConfig;
+
+export const RawNamespace = lib.Namespace;
+export type RawNamespace = ParserLib.Namespace;
+
+export type TokenBuffer = (number | Token | string)[];
+
+// const tokenBufferSize = 2;
+// const tokenBufferSize = 3;
+const tokenBufferSize = 8192;
+
+const enum TOKEN {
+	SHIFT = 5,
+	MASK = 31
 }
 
-var converterTbl: { [type: string]: (item: string) => any } = {
-	Date: ((item: string) => {
-		var dateParts = item.match(/([0-9]+)-([0-9]+)-([0-9]+)(?:T([0-9]+):([0-9]+):([0-9]+)(\.[0-9]+)?)?(?:Z|([+-][0-9]+):([0-9]+))?/);
+/** Copypasted from Parser.h. */
+const enum CodeType {
+	OPEN_ELEMENT_ID = 0,
+	CLOSE_ELEMENT_ID,
+	ATTRIBUTE_ID,
+	PROCESSING_ID,
 
-		if(!dateParts) return(null);
+	ATTRIBUTE_START_OFFSET,
+	ATTRIBUTE_END_OFFSET,
 
-		var offsetMinutes = +(dateParts[9] || '0');
-		var offset = +(dateParts[8] || '0') * 60;
+	TEXT_START_OFFSET,
+	TEXT_END_OFFSET,
 
-		if(offset < 0) offsetMinutes = -offsetMinutes;
+	COMMENT_START_OFFSET,
+	COMMENT_END_OFFSET,
 
-		offset += offsetMinutes;
+	// Unrecognized element name.
+	UNKNOWN_START_OFFSET,
 
-		var date = new Date(
-			+dateParts[1],
-			+dateParts[2] - 1,
-			+dateParts[3],
-			+(dateParts[4] || '0'),
-			+(dateParts[5] || '0'),
-			+(dateParts[6] || '0'),
-			+(dateParts[7] || '0') * 1000
-		) as CxmlDate;
+	// The order of these must match OPEN_ELEMENT_ID, CLOSE_ELEMENT_ID...
+	UNKNOWN_OPEN_ELEMENT_END_OFFSET,
+	UNKNOWN_CLOSE_ELEMENT_END_OFFSET,
+	UNKNOWN_ATTRIBUTE_END_OFFSET,
+	UNKNOWN_PROCESSING_END_OFFSET,
 
-		date.setTime(date.getTime() - (offset + date.getTimezoneOffset()) * 60000);
-		date.cxmlTimezoneOffset = offset;
+	PROCESSING_END_TYPE,
 
-		return(date);
-	}),
-	boolean: ((item: string) => item == 'true'),
-	string: ((item: string) => item),
-	number: ((item: string) => +item)
-};
+	// Recognized prefix from an unrecognized name.
+	PREFIX_NAME_LEN,
+	PREFIX_NAME_ID
+}
 
-function convertPrimitive(text: string, type: Rule) {
-	var converter = converterTbl[type.primitiveType];
+export const enum TokenType {
+	OPEN_ELEMENT = 0,
+	CLOSE_ELEMENT,
+	ATTRIBUTE,
+	PROCESSING,
 
-	if(converter) {
-		if(type.isList) {
-			return(text.trim().split(/\s+/).map(converter));
+	VALUE,
+	TEXT,
+
+	COMMENT,
+
+	UNKNOWN_OPEN_ELEMENT,
+	UNKNOWN_CLOSE_ELEMENT,
+	UNKNOWN_ATTRIBUTE,
+	UNKNOWN_PROCESSING,
+
+	XML_PROCESSING_END,
+	SGML_PROCESSING_END
+}
+
+let tokenTypeTbl: TokenType[] = [];
+
+// Make sure these codes match without the table:
+// tokenTypeTbl[CodeType.OPEN_ELEMENT_ID] = TokenType.OPEN_ELEMENT;
+// tokenTypeTbl[CodeType.CLOSE_ELEMENT_ID] = TokenType.CLOSE_ELEMENT;
+// tokenTypeTbl[CodeType.ATTRIBUTE_ID] = TokenType.ATTRIBUTE;
+// tokenTypeTbl[CodeType.PROCESSING_ID] = TokenType.PROCESSING;
+
+tokenTypeTbl[CodeType.ATTRIBUTE_END_OFFSET] = TokenType.VALUE;
+tokenTypeTbl[CodeType.TEXT_END_OFFSET] = TokenType.TEXT;
+tokenTypeTbl[CodeType.COMMENT_END_OFFSET] = TokenType.COMMENT;
+
+tokenTypeTbl[CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_OPEN_ELEMENT;
+tokenTypeTbl[CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET] = TokenType.UNKNOWN_CLOSE_ELEMENT;
+tokenTypeTbl[CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET] = TokenType.UNKNOWN_ATTRIBUTE;
+tokenTypeTbl[CodeType.UNKNOWN_PROCESSING_END_OFFSET] = TokenType.UNKNOWN_PROCESSING;
+
+export class Parser extends stream.Transform {
+	constructor(config: ParserConfig) {
+		super({ objectMode: true });
+
+		this.parser = new lib.Parser(config);
+
+		this.codeBuffer = new Uint32Array(tokenBufferSize);
+		this.parser.setTokenBuffer(this.codeBuffer, () => this.parseTokenBuffer(true));
+	}
+
+	_transform(chunk: string | Buffer, enc: string, flush: (err: any, chunk: TokenBuffer) => void) {
+		this.chunk = chunk;
+		this.flush = flush;
+		this.getSlice = (typeof(chunk) == 'string') ? this.getStringSlice : this.getBufferSlice;
+		this.parser.parse(chunk as Buffer);
+		this.parseTokenBuffer(false);
+	}
+
+	private parseTokenBuffer(pending: boolean) {
+		const codeBuffer = this.codeBuffer;
+		const codeCount = codeBuffer[0];
+
+		let codeNum = 0;
+		let partStart = this.partStart;
+		let prefixLen = this.prefixLen;
+
+		const tokenBuffer = this.tokenBuffer;
+		const tokenList = Token.list;
+		let tokenNum = 0;
+		let token: Token;
+
+		while(codeNum < codeCount) {
+			let code = codeBuffer[++codeNum];
+			const kind = code & TOKEN.MASK;
+			code >>= TOKEN.SHIFT;
+
+			switch(kind) {
+				case CodeType.OPEN_ELEMENT_ID:
+				case CodeType.CLOSE_ELEMENT_ID:
+				case CodeType.ATTRIBUTE_ID:
+				case CodeType.PROCESSING_ID:
+
+					tokenBuffer[++tokenNum] = kind as TokenType;
+					tokenBuffer[++tokenNum] = tokenList[code];
+					break;
+
+				case CodeType.TEXT_START_OFFSET:
+				case CodeType.ATTRIBUTE_START_OFFSET:
+				case CodeType.COMMENT_START_OFFSET:
+				case CodeType.UNKNOWN_START_OFFSET:
+
+					partStart = code;
+					break;
+
+				case CodeType.COMMENT_END_OFFSET:
+
+					tokenBuffer[++tokenNum] = TokenType.COMMENT;
+					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					partStart = -1;
+					break;
+
+				case CodeType.ATTRIBUTE_END_OFFSET:
+				case CodeType.TEXT_END_OFFSET:
+				case CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET:
+				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
+				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
+				case CodeType.UNKNOWN_PROCESSING_END_OFFSET:
+
+					tokenBuffer[++tokenNum] = tokenTypeTbl[kind];
+					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					partStart = -1;
+					break;
+
+				case CodeType.PREFIX_NAME_LEN:
+
+					prefixLen = code;
+					break;
+
+				case CodeType.PREFIX_NAME_ID:
+
+					if(!this.partList) this.partList = [];
+					this.partList.push(tokenList[code].name.substr(0, prefixLen));
+					this.bufferPartList = null;
+					break;
+
+				case CodeType.PROCESSING_END_TYPE:
+
+					tokenBuffer[++tokenNum] = (
+						code ?
+						TokenType.SGML_PROCESSING_END :
+						TokenType.XML_PROCESSING_END
+					);
+					break;
+
+				default:
+
+					break;
+			}
+		}
+
+		if(!pending && partStart >= 0) {
+			this.storeSlice(partStart);
+			partStart = 0;
+		}
+
+		this.partStart = partStart;
+		this.prefixLen = prefixLen;
+		tokenBuffer[0] = tokenNum;
+
+		this.flush(null, tokenBuffer);
+	}
+
+	private storeSlice(start: number, end?: number) {
+		if(!this.partList) this.partList = [];
+
+		if(typeof(this.chunk) == 'string') {
+			this.bufferPartList = null;
+			this.partList.push(this.chunk.substring(start, end));
 		} else {
-			return(converter(text.trim()));
+			if(!this.bufferPartList) {
+				this.bufferPartList = [];
+				this.partList.push(this.bufferPartList);
+			}
+			this.bufferPartList.push(this.chunk.slice(start, end));
 		}
 	}
 
-	return(null);
-}
+	/** Get a string from the input buffer. Prepend any parts left from
+	  * previous code buffers. */
+	private getSlice: (start: number, end?: number) => string;
 
-export class Parser {
-	attach<CustomHandler extends HandlerInstance>(handler: { new(): CustomHandler; }) {
-		var proto = handler.prototype as CustomHandler;
-		var realHandler = (handler as RuleClass).rule.handler;
-		var realProto = realHandler.prototype as CustomHandler;
+	/** Universal getSlice handler for concatenating buffer parts. */
+	private buildSlice(start: number, end?: number) {
+		this.storeSlice(start, end);
 
-		for(var key of Object.keys(proto)) {
-			realProto[key] = proto[key];
-		}
+		const result = this.partList!.map((part: string | Buffer[]) =>
+			typeof(part) == 'string' ? part : Buffer.concat(part).toString('utf-8')
+		).join('');
 
-		realHandler._custom = true;
+		this.bufferPartList = null;
+		this.partList = null;
+
+		return(result);
 	}
 
-	parse<Output extends HandlerInstance>(stream: string | stream.Readable | NodeJS.ReadableStream, output: Output, context?: Context) {
-		return(new Promise<Output>((resolve: (item: Output) => void, reject: (err: any) => void) =>
-			this._parse<Output>(stream, output, context || defaultContext, resolve, reject)
-		));
+	/** Fast single-part getSlice handler for string buffers. */
+	private getStringSlice(start: number, end?: number) {
+		return((
+			this.partList ? this.buildSlice(start, end) :
+			this.chunk.slice(start, end) as string
+		).replace(/\r\n?|\n\r/g, '\n'));
 	}
 
-	_parse<Output extends HandlerInstance>(
-		stream: string | stream.Readable | NodeJS.ReadableStream,
-		output: Output,
-		context: Context,
-		resolve: (item: Output) => void,
-		reject: (err: any) => void
-	) {
-		var xml = sax.createStream(true, { position: true });
-		let rule = (output.constructor as RuleClass).rule;
-		var xmlSpace = context.registerNamespace('http://www.w3.org/XML/1998/namespace');
-
-		let namespaceTbl: { [short: string]: [ Namespace, string ] } = {
-			'': [rule.namespace, rule.namespace.getPrefix()],
-			'xml': [xmlSpace, xmlSpace.getPrefix()]
-		};
-
-		var state = new State(null, null, rule, new rule.handler(), namespaceTbl);
-		var rootState = state;
-		let parentItem: HandlerInstance;
-
-		/** Add a new xmlns prefix recognized inside current tag and its children. */
-
-		function addNamespace(short: string, namespace: Namespace) {
-			if(namespaceTbl[short] && namespaceTbl[short][0] == namespace) return;
-
-			if(namespaceTbl == state.namespaceTbl) {
-				// Copy parent namespace table on first write.
-				namespaceTbl = {};
-
-				for(let key of Object.keys(state.namespaceTbl)) {
-					namespaceTbl[key] = state.namespaceTbl[key];
-				}
-			}
-
-			namespaceTbl[short] = [ namespace, namespace.getPrefix() ];
-		}
-
-		xml.on('opentag', (node: sax.Tag) => {
-			var attrTbl = node.attributes;
-			var attr: string;
-			var nodePrefix = '';
-			var name = node.name;
-			var splitter = name.indexOf(':');
-			var item: HandlerInstance = null;
-
-			namespaceTbl = state.namespaceTbl;
-
-			// Read xmlns namespace prefix definitions before parsing node name.
-
-			for(var key of Object.keys(attrTbl)) {
-				if(key.substr(0, 5) == 'xmlns') {
-					var nsParts = key.match(/^xmlns(:(.+))?$/);
-
-					if(nsParts) {
-						addNamespace(nsParts[2] || '', context.registerNamespace(attrTbl[key]));
-					}
-				}
-			}
-
-			// Parse node name and possible namespace prefix.
-
-			if(splitter >= 0) {
-				nodePrefix = name.substr(0, splitter);
-				name = name.substr(splitter + 1);
-			}
-
-			// Add internal surrogate key namespace prefix to node name.
-
-			var nodeNamespace = namespaceTbl[nodePrefix];
-			name = nodeNamespace[1] + name;
-
-			var child: MemberRef;
-			let rule: Rule;
-
-			if(state.rule) {
-				child = state.rule.childTbl[name];
-
-				if(child) {
-					if(child.proxy) {
-						rule = child.proxy.member.rule;
-						state = new State(state, child.proxy, rule, new rule.handler(), namespaceTbl);
-					}
-
-					rule = child.member.rule;
-				}
-			}
-
-			if(rule && !rule.isPlainPrimitive) {
-				item = new rule.handler();
-
-				// Parse all attributes.
-
-				for(var key of Object.keys(attrTbl)) {
-					splitter = key.indexOf(':');
-
-					if(splitter >= 0) {
-						var attrPrefix = key.substr(0, splitter);
-						if(attrPrefix == 'xmlns') continue;
-
-						var attrNamespace = namespaceTbl[attrPrefix];
-
-						if(attrNamespace) {
-							attr = attrNamespace[1] + key.substr(splitter + 1);
-						} else {
-							console.log('Namespace not found for ' + key);
-							continue;
-						}
-					} else {
-						attr = nodeNamespace[1] + key;
-					}
-
-					var ref = rule.attributeTbl[attr];
-
-					if(ref && ref.member.rule.isPlainPrimitive) {
-						item[ref.safeName] = convertPrimitive(attrTbl[key], ref.member.rule);
-					}
-				}
-
-				if(state.parent) {
-					Object.defineProperty(item, '_parent', {
-						enumerable: false,
-						value: state.parent.item
-					});
-				}
-
-				Object.defineProperty(item, '_name', {
-					enumerable: false,
-					value: node.name
-				});
-
-				if(item._before) item._before();
-			}
-
-			state = new State(state, child, rule, item, namespaceTbl);
-		});
-
-		xml.on('text', function(text: string) {
-			if(state.rule && state.rule.isPrimitive) {
-				if(!state.textList) state.textList = [];
-				state.textList.push(text);
-			}
-		});
-
-		xml.on('closetag', function(name: string) {
-			var member = state.memberRef;
-			var obj = state.item;
-			var item: any = obj;
-			var text: string;
-
-			if(state.rule && state.rule.isPrimitive) text = (state.textList || []).join('').trim();
-
-			if(text) {
-				var content = convertPrimitive(text, state.rule);
-
-				if(state.rule.isPlainPrimitive) item = content;
-				else obj.content = content;
-			}
-
-			if(obj && obj._after) obj._after();
-
-			state = state.parent;
-
-			if(member && member.proxy) {
-				if(item) state.item[member.safeName] = item;
-				item = state.item;
-
-				state = state.parent;
-				member = member.proxy;
-			}
-
-			if(item) {
-				var parent = state.item;
-
-				if(parent) {
-					if(member.max > 1) {
-						if(!parent.hasOwnProperty(member.safeName)) parent[member.safeName] = [];
-						parent[member.safeName].push(item);
-					} else parent[member.safeName] = item;
-				}
-			}
-		});
-
-		xml.on('end', function() {
-			resolve(rootState.item as any as Output);
-		});
-
-		xml.on('error', function(err: any) {
-			console.error(err);
-		});
-
-		if(typeof(stream) == 'string') {
-			xml.write(stream as string);
-			xml.end();
-		} else (stream as stream.Readable).pipe(xml);
+	/** Fast single-part getSlice handler for Node.js Buffers. */
+	private getBufferSlice(start: number, end?: number) {
+		return((
+			this.partList ? this.buildSlice(start, end) :
+			(this.chunk as Buffer).toString('utf-8', start, end)
+		).replace(/\r\n?|\n\r/g, '\n'));
 	}
+
+	/** Current input buffer. */
+	private chunk: string | Buffer;
+
+	private flush: (err: any, chunk: TokenBuffer) => void;
+
+	private bufferPartList: Buffer[] | null;
+	/** Storage for parts of strings split between code or input buffers. */
+	private partList: (string | Buffer[])[] | null;
+
+	/** Offset to start of text in input buffer, or -1 if not reading text. */
+	private partStart = -1;
+
+	private prefixLen: number;
+
+	private parser: ParserLib.Parser;
+	private codeBuffer: Uint32Array;
+	private tokenBuffer: TokenBuffer = [];
 }

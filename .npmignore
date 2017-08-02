@@ -1,10 +1,7 @@
 node_modules/
-typings/
-cache/
-test/
+build/
 src/
-.travis.yml
-*.png
+test/
 *.log.*
 *.log
 *.tgz
