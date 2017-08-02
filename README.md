@@ -1,7 +1,7 @@
 cxml
 ====
 
-This branch is a complete (not yet working) rewrite in progress.
+This branch is a complete rewrite in progress.
 
 License
 =======
