@@ -40,6 +40,8 @@ export class ParserConfig {
 			this.attributeSpace = parent.attributeSpace;
 
 			this.xmlnsToken = parent.xmlnsToken;
+
+			this.emptyPrefixToken = parent.emptyPrefixToken;
 			this.xmlnsPrefixToken = parent.xmlnsPrefixToken;
 			this.processingPrefixToken = parent.processingPrefixToken;
 
@@ -72,10 +74,11 @@ export class ParserConfig {
 		this.clonedNamespaceCount = this.maxNamespace;
 
 		if(!native) {
+			this.emptyPrefixToken = this.prefixSet.createToken('');
 			this.xmlnsPrefixToken = this.prefixSet.createToken('xmlns');
 			this.processingPrefixToken = this.prefixSet.createToken('?');
 
-			native = new NativeConfig(this.xmlnsPrefixToken.id, this.processingPrefixToken.id);
+			native = new NativeConfig(this.xmlnsToken.id, this.emptyPrefixToken.id, this.xmlnsPrefixToken.id, this.processingPrefixToken.id);
 		}
 
 		this.native = native;
@@ -162,12 +165,10 @@ export class ParserConfig {
 
 		prefix = prefix || nsParser.base.defaultPrefix;
 
-		if(prefix) {
-			(parser || this).bindPrefix(
-				this.addPrefix(prefix),
-				this.addUri(uri, nsParser)
-			);
-		}
+		(parser || this).bindPrefix(
+			this.addPrefix(prefix),
+			this.addUri(uri, nsParser)
+		);
 
 		return(nsParser.id);
 	}
@@ -247,6 +248,7 @@ export class ParserConfig {
 	options: ParserOptions;
 
 	xmlnsToken: InternalToken;
+	emptyPrefixToken: InternalToken;
 	xmlnsPrefixToken: InternalToken;
 	processingPrefixToken: InternalToken;
 

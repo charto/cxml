@@ -211,11 +211,11 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 						matchTarget = MatchTarget :: ELEMENT;
 
 						// Put unknown processing instructions in a placeholder namespace.
-						elementPrefix.idPrefix = config.processingToken;
-						elementPrefix.idNamespace = config.namespacePrefixTbl[config.processingToken].first;
+						elementPrefix.idPrefix = config.processingPrefixToken;
+						elementPrefix.idNamespace = config.namespacePrefixTbl[config.processingPrefixToken].first;
 						memberPrefix = &elementPrefix;
 
-						ns = config.namespacePrefixTbl[config.processingToken].second;
+						ns = config.namespacePrefixTbl[config.processingPrefixToken].second;
 
 						cursor.init(ns->*trie);
 
@@ -282,9 +282,9 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				for(ahead = 0; ahead + 1 < len && nameCharTbl[p[ahead]]; ++ahead) {}
 
 				if(matchTarget == MatchTarget :: ELEMENT) {
-					elementPrefix.idPrefix = config.xmlnsToken;
-					elementPrefix.idNamespace = config.namespacePrefixTbl[config.xmlnsToken].first;
-					ns = config.namespacePrefixTbl[config.xmlnsToken].second;
+					elementPrefix.idPrefix = config.emptyPrefixToken;
+					elementPrefix.idNamespace = config.namespacePrefixTbl[config.emptyPrefixToken].first;
+					ns = config.namespacePrefixTbl[config.emptyPrefixToken].second;
 				} else {
 					// By default, attributes belong to the same namespace as their parent element.
 					attributePrefix.idPrefix = elementPrefix.idPrefix;
@@ -292,7 +292,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					ns = config.namespaceList[elementPrefix.idNamespace].get();
 					// If element namespace prefix was known but undefined,
 					// try the default namespace to allow matching the magic xmlns attribute.
-					if(ns == nullptr) ns = config.namespacePrefixTbl[config.xmlnsToken].second;
+					if(ns == nullptr) ns = config.namespacePrefixTbl[config.emptyPrefixToken].second;
 				}
 
 				// Prepare Patricia tree cursor for parsing.
@@ -351,22 +351,29 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 
 					// Test for an attribute "xmlns:..." defining a namespace
 					// prefix.
-					if(
-						idToken == config.xmlnsToken && (
-							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE ||
-							matchTarget == MatchTarget :: ATTRIBUTE
-						) &&
-						tagType == TagType :: ELEMENT
-					) {
-						if(c == ':') {
+
+					if(tagType == TagType :: ELEMENT) {
+						if(
+							idToken == config.xmlnsPrefixToken &&
+							c == ':' &&
+							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
+						) {
 							pos = 0;
 							state = State :: DEFINE_XMLNS_BEFORE_PREFIX_NAME;
 							break;
-						} else {
-							// Prepare to set default namespace, handled like an
-							// otherwise illegal prefix definition xmlns:xmlns.
+						}
+
+						if(
+							idToken == config.xmlnsToken &&
+							c != ':' && (
+								matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE ||
+								matchTarget == MatchTarget :: ATTRIBUTE
+							)
+						) {
+							// Prepare to set the default namespace.
 							nameTokenType = TokenType :: XMLNS_ID;
 							afterNameState = State :: DEFINE_XMLNS_AFTER_PREFIX_NAME;
+							idToken = config.emptyPrefixToken;
 						}
 					}
 

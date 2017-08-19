@@ -17,7 +17,7 @@ export class Namespace {
 	id: number;
 
 	static idLast = 0;
-	static unknown = new Namespace('xmlns', '', 0, true);
+	static unknown = new Namespace('', '', 0, true);
 	static processing = new Namespace('?', '?', 0, true);
 
 }

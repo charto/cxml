@@ -166,7 +166,7 @@ public:
 	void setPrefix(uint32_t idPrefix) {
 		if(idPrefix < namespacePrefixTblSize) this->idPrefix = idPrefix;
 		memberPrefix->idPrefix = idPrefix;
-		memberPrefix->idNamespace = config.xmlnsToken;
+		memberPrefix->idNamespace = config.namespacePrefixTbl[config.emptyPrefixToken].first;
 	}
 
 	bool bindPrefix(uint32_t idPrefix, uint32_t uri) {

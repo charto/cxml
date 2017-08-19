@@ -1,8 +1,17 @@
 #include "ParserConfig.h"
 #include "PatriciaCursor.h"
 
-ParserConfig :: ParserConfig(uint32_t xmlnsToken, uint32_t processingToken) :
-xmlnsToken(xmlnsToken), processingToken(processingToken) {
+ParserConfig :: ParserConfig(
+	uint32_t xmlnsToken,
+	uint32_t emptyPrefixToken,
+	uint32_t xmlnsPrefixToken,
+	uint32_t processingPrefixToken
+) :
+	xmlnsToken(xmlnsToken),
+	emptyPrefixToken(emptyPrefixToken),
+	xmlnsPrefixToken(xmlnsPrefixToken),
+	processingPrefixToken(processingPrefixToken)
+{
 	for(unsigned int i = 0; i < namespacePrefixTblSize; ++i) {
 		namespacePrefixTbl[i] = std::make_pair(0, nullptr);
 	}
@@ -30,7 +39,7 @@ bool ParserConfig :: addUri(uint32_t uri, uint32_t ns) {
 #ifdef NBIND_CLASS
 
 NBIND_CLASS(ParserConfig) {
-	construct<uint32_t, uint32_t>();
+	construct<uint32_t, uint32_t, uint32_t, uint32_t>();
 
 	method(addNamespace);
 	method(addUri);

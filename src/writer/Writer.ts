@@ -167,8 +167,10 @@ export class Writer extends stream.Transform {
 
 		for(let i = 0; i < namespaceList.length; ++i) {
 			ns = namespaceList[i];
-			prefix = ns && ns.defaultPrefix;
-			if(!prefix || !ns) continue;
+			if(!ns) continue;
+
+			prefix = ns.defaultPrefix;
+			if(!prefix && !ns.isSpecial) continue;
 
 			if(prefixTbl[prefix]) {
 				let j = 1;
@@ -188,8 +190,10 @@ export class Writer extends stream.Transform {
 
 		for(let i = 0; i < namespaceList.length; ++i) {
 			ns = namespaceList[i];
-			prefix = ns && ns.defaultPrefix;
-			if(prefix || !ns || ns.isSpecial) continue;
+			if(!ns) continue;
+
+			prefix = ns.defaultPrefix;
+			if(prefix || ns.isSpecial) continue;
 
 			do {
 				prefix = 'p' + (++j);
