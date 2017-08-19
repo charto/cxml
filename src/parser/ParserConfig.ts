@@ -41,6 +41,7 @@ export class ParserConfig {
 
 			this.xmlnsToken = parent.xmlnsToken;
 			this.xmlnsPrefixToken = parent.xmlnsPrefixToken;
+			this.processingPrefixToken = parent.processingPrefixToken;
 
 			this.uriSet = parent.uriSet;
 			this.prefixSet = parent.prefixSet;
@@ -72,7 +73,9 @@ export class ParserConfig {
 
 		if(!native) {
 			this.xmlnsPrefixToken = this.prefixSet.createToken('xmlns');
-			native = new NativeConfig(this.xmlnsPrefixToken.id)
+			this.processingPrefixToken = this.prefixSet.createToken('?');
+
+			native = new NativeConfig(this.xmlnsPrefixToken.id, this.processingPrefixToken.id);
 		}
 
 		this.native = native;
@@ -245,6 +248,7 @@ export class ParserConfig {
 
 	xmlnsToken: InternalToken;
 	xmlnsPrefixToken: InternalToken;
+	processingPrefixToken: InternalToken;
 
 	/** Allocates ID numbers for xmlns uri tokens. */
 	uriSpace: TokenSpace;

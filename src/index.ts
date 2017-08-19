@@ -9,5 +9,8 @@ export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
 export * from './parser/Token';
 
-export const anonymous = new Namespace('xmlns', '');
+export const processing = Namespace.processing;
+export const anonymous = Namespace.unknown;
 export const xml1998 = new Namespace('xml', 'http://www.w3.org/XML/1998/namespace');
+
+processing.addElement('xml');

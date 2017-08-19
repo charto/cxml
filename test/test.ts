@@ -41,6 +41,7 @@ function testPatricia() {
 function testParser() {
 	const xmlConfig = new cxml.ParserConfig();
 
+	xmlConfig.bindNamespace(cxml.processing);
 	xmlConfig.bindNamespace(cxml.anonymous);
 	xmlConfig.addNamespace(cxml.xml1998);
 
@@ -48,9 +49,12 @@ function testParser() {
 
 	xmlParser.pipe(new cxml.Writer()).pipe(process.stdout);
 
-	xmlParser.write('<foo xmlns="urn:test:a1"><bar xmlns="urn:test:a2" /><bar /></foo>');
+	xmlParser.write('<?xml version="1.0" encoding="UTF-8"?><foo xmlns="urn:test:a1"><bar xmlns="urn:test:a2" /><bar /></foo>');
+	// xmlParser.write('<foo xmlns="urn:test:a1"><bar xmlns="urn:test:a2" /><bar /></foo>');
 	// xmlParser.write('<a:foo xmlns:a="urn:test:a1"><a:bar xmlns:a="urn:test:a2" /><a:bar /></a:foo>');
 	// xmlParser.write('</a></a>');
+
+	xmlParser.end();
 }
 
 testPatricia();

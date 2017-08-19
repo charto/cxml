@@ -46,6 +46,12 @@ export class Parser extends stream.Transform {
 		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 
 		this.tokenBuffer[0] = new RecycleToken(0);
+
+		for(let ns of this.config.namespaceList) {
+			if(ns && ns.base.isSpecial) {
+				this.namespaceList[ns.base.id] = ns.base;
+			}
+		}
 	}
 
 	public parseSync(data: string | ArrayType) {
@@ -202,10 +208,6 @@ export class Parser extends stream.Transform {
 					tokenBuffer[++tokenNum] = attributeList[code].string;
 					// TODO: If latestprefix is null, use current prefix for attribute's namespace.
 					prefixBuffer[tokenNum - elementStart] = latestPrefix;
-					break;
-
-				case CodeType.PROCESSING_ID:
-
 					break;
 
 				case CodeType.PREFIX_ID:
@@ -456,7 +458,7 @@ export class Parser extends stream.Transform {
 	private flush: (err: any, chunk: TokenBuffer | null) => void;
 
 	private namespaceList: (Namespace | undefined)[] = [];
-	private namespacesChanged = false;
+	private namespacesChanged = true;
 
 	/** Storage for parts of strings split between chunks of input. */
 	private partList: ArrayType[] | null = null;

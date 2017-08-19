@@ -14,7 +14,7 @@ public:
 
 	static constexpr uint32_t namespacePrefixTblSize = 256;
 
-	ParserConfig(uint32_t xmlnsToken);
+	ParserConfig(uint32_t xmlnsToken, uint32_t processingToken);
 
 	void setUriTrie(nbind::Buffer buffer) { uriTrie.setBuffer(buffer); }
 	void setPrefixTrie(nbind::Buffer buffer) { prefixTrie.setBuffer(buffer); }
@@ -42,6 +42,7 @@ private:
 	std::pair<uint32_t, const Namespace *> namespacePrefixTbl[namespacePrefixTblSize];
 
 	uint32_t xmlnsToken;
+	uint32_t processingToken;
 
 	Patricia uriTrie;
 	Patricia prefixTrie;

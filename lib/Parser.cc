@@ -205,13 +205,24 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 
 						afterNameState = State :: AFTER_PROCESSING_NAME;
 						afterValueState = State :: AFTER_PROCESSING_VALUE;
-						nameTokenType = TokenType :: PROCESSING_ID;
+						nameTokenType = TokenType :: OPEN_ELEMENT_ID;
 
 						tagType = TagType :: PROCESSING;
-						writeToken(TokenType :: UNKNOWN_START_OFFSET, p - chunkBuffer, tokenPtr);
+						matchTarget = MatchTarget :: ELEMENT;
 
-						idToken = Patricia :: notFound;
-						state = State :: UNKNOWN_NAME;
+						// Put unknown processing instructions in a placeholder namespace.
+						elementPrefix.idPrefix = config.processingToken;
+						elementPrefix.idNamespace = config.namespacePrefixTbl[config.processingToken].first;
+						memberPrefix = &elementPrefix;
+
+						ns = config.namespacePrefixTbl[config.processingToken].second;
+
+						cursor.init(ns->*trie);
+
+						tokenStart = p;
+
+						state = State :: MATCH_TRIE;
+						afterMatchTrieState = State :: NAME;
 						break;
 
 					// A closing element </NAME > (no whitespace after '<').
@@ -462,7 +473,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					c = *p++;
 				}
 
-				if(c == ':') {
+				if(c == ':' && tagType == TagType :: ELEMENT) {
 					// Found a new, undeclared namespace prefix, valid if
 					// declared with an xmlns attribute in the same element.
 
@@ -800,19 +811,16 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					case '?':
 
 						// End of an XML processing instruction.
-						writeToken(TokenType :: PROCESSING_END_TYPE, 0, tokenPtr);
-
-						expected = '>';
-						nextState = State :: BEFORE_TEXT;
-						otherState = State :: ERROR;
-
-						state = State :: EXPECT;
-						break;
+						// Handle like a self-closing element.
+						c = '/';
+						state = State :: AFTER_ELEMENT_NAME;
+						goto AFTER_ELEMENT_NAME;
 
 					case '>':
 
 						// End of an SGML processing instruction.
-						writeToken(TokenType :: PROCESSING_END_TYPE, 1, tokenPtr);
+						if(!updateElementStack(TokenType :: CLOSE_ELEMENT_ID)) return(ErrorType :: OTHER);
+						writeToken(TokenType :: CLOSED_ELEMENT_EMITTED, idElement, tokenPtr);
 
 						state = State :: BEFORE_TEXT;
 						break;

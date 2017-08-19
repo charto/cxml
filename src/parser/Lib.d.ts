@@ -43,8 +43,8 @@ export class Parser extends NBindBase {
 }
 
 export class ParserConfig extends NBindBase {
-	/** ParserConfig(uint32_t); */
-	constructor(p0: number);
+	/** ParserConfig(uint32_t, uint32_t); */
+	constructor(p0: number, p1: number);
 
 	/** uint32_t addNamespace(std::shared_ptr<Namespace>); */
 	addNamespace(p0: Namespace): number;

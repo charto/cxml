@@ -50,10 +50,15 @@ export class Writer extends stream.Transform {
 						member = token as MemberToken;
 						nsElement = member.ns;
 						partList[++partNum] = indent + '<' + prefixList[nsElement.id] + member.name;
-						if(depth == Indent.MIN_DEPTH) partList[++partNum] = this.xmlnsDefinitions;
-						indent = indentPattern.substr(0, ++depth);
 
-						state = State.ELEMENT;
+						if(nsElement.isSpecial && nsElement.defaultPrefix == '?') {
+							state = State.PROCESSING;
+						} else {
+							if(depth++ == Indent.MIN_DEPTH) partList[++partNum] = this.xmlnsDefinitions;
+							state = State.ELEMENT;
+						}
+
+						indent = indentPattern.substr(0, depth);
 						break;
 
 					case TokenKind.emitted:
@@ -65,14 +70,18 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.close:
 
-						member = token as MemberToken;
-						indent = indentPattern.substr(0, --depth);
-
-						if(state == State.ELEMENT) {
-							partList[++partNum] = '/>';
+						if(state == State.PROCESSING) {
+							partList[++partNum] = '?>';
 						} else {
-							if(state != State.AFTER_TEXT) partList[++partNum] = indent;
-							partList[++partNum] = '</' + prefixList[member.ns.id] + member.name + '>'
+							member = token as MemberToken;
+							indent = indentPattern.substr(0, --depth);
+
+							if(state == State.ELEMENT) {
+								partList[++partNum] = '/>';
+							} else {
+								if(state != State.AFTER_TEXT) partList[++partNum] = indent;
+								partList[++partNum] = '</' + prefixList[member.ns.id] + member.name + '>'
+							}
 						}
 
 						state = State.TEXT;
@@ -110,6 +119,7 @@ export class Writer extends stream.Transform {
 						break;
 
 					case State.ELEMENT:
+					case State.PROCESSING:
 
 						partList[++partNum] = '"' + token + '"';
 						break;
@@ -149,25 +159,26 @@ export class Writer extends stream.Transform {
 
 	copyPrefixes(namespaceList: (Namespace | undefined)[]) {
 		const prefixTbl = this.prefixTbl;
-		let prefix: string;
-
-		const prefixList = namespaceList.map((ns: Namespace) => ns.defaultPrefix);
+		const prefixList = this.prefixList;
+		let prefix: string | undefined;
+		let ns: Namespace | undefined;
 
 		// Add a number to distinguish between duplicate prefix names.
 
-		for(let i = 0; i < prefixList.length; ++i) {
-			prefix = prefixList[i];
-			if(!prefix) continue;
+		for(let i = 0; i < namespaceList.length; ++i) {
+			ns = namespaceList[i];
+			prefix = ns && ns.defaultPrefix;
+			if(!prefix || !ns) continue;
 
 			if(prefixTbl[prefix]) {
 				let j = 1;
 
 				do {
-					prefix = prefixList[i] + (++j);
+					prefix = ns!.defaultPrefix + (++j);
 				} while(prefixTbl[prefix]);
 			}
 
-			this.prefixList[i] = prefix;
+			prefixList[i] = prefix;
 			prefixTbl[prefix] = i + 1;
 		}
 
@@ -175,27 +186,31 @@ export class Writer extends stream.Transform {
 
 		// Name all unnamed prefixes with "p" and a sequence number.
 
-		for(let i = 0; i < prefixList.length; ++i) {
-			prefix = prefixList[i];
-			if(prefix) continue;
+		for(let i = 0; i < namespaceList.length; ++i) {
+			ns = namespaceList[i];
+			prefix = ns && ns.defaultPrefix;
+			if(prefix || !ns || ns.isSpecial) continue;
 
 			do {
 				prefix = 'p' + (++j);
 			} while(prefixTbl[prefix]);
 
-			this.prefixList[i] = prefix;
+			prefixList[i] = prefix;
 			prefixTbl[prefix] = i + 1;
 		}
 
-		this.xmlnsDefinitions = this.prefixList.map(
-			(prefix: string, num: number) => namespaceList[num] ?
-			' xmlns:' + prefix + '="' + namespaceList[num]!.uri + '"' :
-			''
-		).join('');
+		let definitionList: string[] = [];
 
-		for(let i = 0; i < prefixList.length; ++i) {
-			this.prefixList[i] = this.prefixList[i] + ':';
+		for(let i = 0; i < namespaceList.length; ++i) {
+			ns = namespaceList[i];
+			prefix = prefixList[i];
+			if(!prefix || !ns || ns.isSpecial) continue;
+
+			definitionList.push(' xmlns:' + prefix + '="' + ns.uri + '"');
+			this.prefixList[i] = prefix + ':';
 		}
+
+		this.xmlnsDefinitions = definitionList.join('');
 	}
 
 	private chunkCount = 0;
