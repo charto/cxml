@@ -352,24 +352,20 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					// Test for an attribute "xmlns:..." defining a namespace
 					// prefix.
 
-					if(tagType == TagType :: ELEMENT) {
-						if(
-							idToken == config.xmlnsPrefixToken &&
-							c == ':' &&
-							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE
-						) {
+					if(tagType == TagType :: ELEMENT && (
+						(
+							matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE &&
+							idToken == config.xmlnsPrefixToken
+						) || (
+							matchTarget == MatchTarget :: ATTRIBUTE &&
+							idToken == config.xmlnsToken
+						)
+					)) {
+						if(c == ':') {
 							pos = 0;
 							state = State :: DEFINE_XMLNS_BEFORE_PREFIX_NAME;
 							break;
-						}
-
-						if(
-							idToken == config.xmlnsToken &&
-							c != ':' && (
-								matchTarget == MatchTarget :: ATTRIBUTE_NAMESPACE ||
-								matchTarget == MatchTarget :: ATTRIBUTE
-							)
-						) {
+						} else {
 							// Prepare to set the default namespace.
 							nameTokenType = TokenType :: XMLNS_ID;
 							afterNameState = State :: DEFINE_XMLNS_AFTER_PREFIX_NAME;
