@@ -24,17 +24,23 @@ export const enum TokenKind {
 	uri,
 	prefix,
 	element,
-	attribute
+	attribute,
+
+	other
 }
 
 export abstract class Token {
 
 	constructor() {}
 
+	serialize?(): string;
+
 	kind: TokenKind;
 	kindString: string;
 
 }
+Token.prototype.kind = TokenKind.other;
+Token.prototype.kindString = 'other';
 
 export class SpecialToken extends Token {
 

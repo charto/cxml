@@ -109,6 +109,11 @@ export class Writer extends stream.Transform {
 							this.copyPrefixes((token as NamespaceToken).namespaceList);
 						}
 						break;
+
+					case TokenKind.other:
+
+						if(token.serialize) partList[++partNum] = token.serialize();
+						break;
 				}
 			} else {
 				switch(state) {
