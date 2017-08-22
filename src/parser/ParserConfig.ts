@@ -5,7 +5,7 @@ import { ParserNamespace } from './ParserNamespace';
 import { TokenSpace } from '../tokenizer/TokenSpace';
 import { TokenSet } from '../tokenizer/TokenSet';
 import { InternalToken } from './InternalToken';
-import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
+import { TokenKind, MemberToken, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
 import { Parser } from './Parser';
 
 export interface ParserOptions {
@@ -21,7 +21,7 @@ export interface TokenTbl {
 }
 
 export interface Registry {
-	names: { [ name: string ]: number };
+	tokens: { [ name: string ]: MemberToken };
 	elements: { [ id: number ]: string };
 	attributes: { [ id: number ]: string };
 }
@@ -214,10 +214,8 @@ export class ParserConfig {
 	}
 
 	registerTokens(tbl: TokenTbl): Registry {
-		const names: { [ name: string ]: number } = {};
-		const elements: { [ id: number ]: string } = {};
-		const attributes: { [ id: number ]: string } = {};
-		let id: number;
+		const registry = this.registry;
+		let token: MemberToken;
 		let qname: string;
 
 		for(let prefix of Object.keys(tbl)) {
@@ -227,24 +225,24 @@ export class ParserConfig {
 
 			for(let name of spec.elements || []) {
 				const tokens = this.getElementTokens(ns, name);
-				id = tokens[TokenKind.open]!.id!
+				token = tokens[TokenKind.open]!;
 				qname = prefix + ':' + name;
 
-				names[qname] = id;
-				elements[id] = qname;
+				registry.tokens[qname] = token;
+				registry.elements[token.id!] = qname;
 			}
 
 			for(let name of spec.attributes || []) {
 				const tokens = this.getAttributeTokens(ns, name);
-				id = tokens[TokenKind.string]!.id!;
+				token = tokens[TokenKind.string]!;
 				qname = prefix + ':' + name;
 
-				names[qname] = id;
-				attributes[id] = qname;
+				registry.tokens[qname] = token;
+				registry.attributes[token.id!] = qname;
 			}
 		}
 
-		return({ names, elements, attributes });
+		return(this.registry);
 	}
 
 	getElementTokens(ns: Namespace, name: string) {
@@ -288,6 +286,8 @@ export class ParserConfig {
 	private namespaceTbl: { [ uri: string ]: ParserNamespace };
 	maxNamespace: number;
 	clonedNamespaceCount: number;
+
+	registry: Registry = { tokens: {}, elements: {}, attributes: {} };
 
 	nsMapper?: (uri: string) => string | null | false | undefined;
 
