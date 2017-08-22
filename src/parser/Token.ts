@@ -1,5 +1,6 @@
 import { Namespace } from '../Namespace';
 import { ParserNamespace } from './ParserNamespace';
+import { ParserConfig } from './ParserConfig';
 
 export type TokenBuffer = (Token | number | string)[];
 
@@ -35,7 +36,7 @@ export abstract class Token {
 
 	constructor() {}
 
-	serialize?(): string;
+	serialize?(indent?: string, config?: ParserConfig, data?: any): string | TokenBuffer;
 
 	kind: TokenKind;
 	kindString: string;

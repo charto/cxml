@@ -2,6 +2,7 @@ import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
 import { Token, TokenBuffer, TokenKind, NamespaceToken, RecycleToken, MemberToken } from '../parser/Token';
+import { ParserConfig } from '../parser/ParserConfig';
 
 const enum Indent {
 	MIN_DEPTH= 1,
@@ -19,7 +20,11 @@ const enum State {
 const indentPattern = '\n' + new Array(Indent.MAX_DEPTH).join('\t');
 
 export class Writer extends stream.Transform {
-	constructor() {
+
+	/** @param config Parser config passed to any custom serializers.
+	  * @param data Arbitrary data passed to any custom serializers. */
+
+	constructor(private config?: ParserConfig, private data?: any) {
 		super({ objectMode: true });
 	}
 
@@ -32,6 +37,7 @@ export class Writer extends stream.Transform {
 		let token = chunk[0];
 		let member: MemberToken;
 		let prefix: string;
+		let serialized: string | TokenBuffer;
 
 		let partList: string[] = [];
 		let partNum = -1;
@@ -111,7 +117,20 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.other:
 
-						if(token.serialize) partList[++partNum] = token.serialize();
+						if(token.serialize) {
+
+							serialized = token.serialize(indent, this.config, this.data);
+							if(typeof(serialized) == 'string') {
+								partList[++partNum] = serialized;
+								state = State.AFTER_TEXT;
+							} else {
+								this.state = state;
+								this.depth = depth;
+								this.indent = indent;
+
+								partList[++partNum] = this.transform(serialized).join('');
+							}
+						}
 						break;
 				}
 			} else {
@@ -145,14 +164,14 @@ export class Writer extends stream.Transform {
 		return(partList);
 	}
 
-	_transform(chunk: TokenBuffer | null, enc: string, flush: (err: any, chunk: Buffer) => void) {
+	_transform(chunk: TokenBuffer | null, enc: string, flush: (err: any, chunk: string) => void) {
 		if(!chunk) {
-			flush(null, new Buffer(0));
+			flush(null, '');
 			return;
 		}
 
 		const partList = this.transform(chunk);
-		flush(null, new Buffer(partList.join('')));
+		flush(null, partList.join(''));
 
 		++this.chunkCount;
 	}
