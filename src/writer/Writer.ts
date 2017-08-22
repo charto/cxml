@@ -1,8 +1,7 @@
 import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
-import { Token, TokenKind, NamespaceToken, RecycleToken, MemberToken } from '../parser/Token';
-import { TokenBuffer } from '../parser/Parser';
+import { Token, TokenBuffer, TokenKind, NamespaceToken, RecycleToken, MemberToken } from '../parser/Token';
 
 const enum Indent {
 	MIN_DEPTH= 1,

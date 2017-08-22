@@ -1,6 +1,8 @@
 import { Namespace } from '../Namespace';
 import { ParserNamespace } from './ParserNamespace';
 
+export type TokenBuffer = (Token | number | string)[];
+
 // Order must match InternalToken.tokenList.
 export const enum TokenKind {
 	// External element token types

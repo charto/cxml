@@ -1,7 +1,7 @@
 import { Namespace } from '../Namespace';
-import { Token, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
+import { Token, TokenBuffer, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
 import { ParserConfig, ParserOptions } from '../parser/ParserConfig';
-import { Parser, TokenBuffer } from '../parser/Parser';
+import { Parser } from '../parser/Parser';
 import { SimpleSchema, SimpleSchemaSpecTbl } from '../schema/SimpleSchema';
 import { RuleSet, Rule, RuleMember } from './RuleSet';
 

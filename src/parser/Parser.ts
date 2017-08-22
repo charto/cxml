@@ -9,9 +9,7 @@ import { ParserConfig } from './ParserConfig';
 import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
-import { Token, TokenKind, SpecialToken, NamespaceToken, RecycleToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
-
-export type TokenBuffer = (Token | number | string)[];
+import { Token, TokenBuffer, TokenKind, SpecialToken, NamespaceToken, RecycleToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
 
 // const codeBufferSize = 2;
 // const codeBufferSize = 3;
