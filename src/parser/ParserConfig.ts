@@ -20,6 +20,12 @@ export interface TokenTbl {
 	}
 }
 
+export interface Registry {
+	names: { [ name: string ]: number };
+	elements: { [ id: number ]: string };
+	attributes: { [ id: number ]: string };
+}
+
 /** Parser configuration for quickly instantiating new parsers.
   * Each parser instance holds a new, cloned copy. */
 
@@ -207,8 +213,12 @@ export class ParserConfig {
 		return(token);
 	}
 
-	registerTokens(tbl: TokenTbl) {
-		const result: { [ name: string ]: number } = {};
+	registerTokens(tbl: TokenTbl): Registry {
+		const names: { [ name: string ]: number } = {};
+		const elements: { [ id: number ]: string } = {};
+		const attributes: { [ id: number ]: string } = {};
+		let id: number;
+		let qname: string;
 
 		for(let prefix of Object.keys(tbl)) {
 			const spec = tbl[prefix];
@@ -217,16 +227,24 @@ export class ParserConfig {
 
 			for(let name of spec.elements || []) {
 				const tokens = this.getElementTokens(ns, name);
-				result[prefix + ':' + name] = tokens[TokenKind.open]!.id!;
+				id = tokens[TokenKind.open]!.id!
+				qname = prefix + ':' + name;
+
+				names[qname] = id;
+				elements[id] = qname;
 			}
 
 			for(let name of spec.attributes || []) {
 				const tokens = this.getAttributeTokens(ns, name);
-				result[prefix + ':' + name] = tokens[TokenKind.string]!.id!;
+				id = tokens[TokenKind.string]!.id!;
+				qname = prefix + ':' + name;
+
+				names[qname] = id;
+				attributes[id] = qname;
 			}
 		}
 
-		return(result);
+		return({ names, elements, attributes });
 	}
 
 	getElementTokens(ns: Namespace, name: string) {
