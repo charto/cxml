@@ -176,8 +176,8 @@ export class Writer extends stream.Transform {
 		++this.chunkCount;
 	}
 
-	_flush( flush: (err: any, chunk: Buffer) => void) {
-		flush(null, new Buffer('\n'));
+	_flush( flush: (err: any, chunk: string) => void) {
+		flush(null, '\n');
 	}
 
 	copyPrefixes(namespaceList: (Namespace | undefined)[]) {
