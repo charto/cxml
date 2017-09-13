@@ -108,6 +108,10 @@ export class Parser extends stream.Transform {
 				SpecialToken.blank
 			);
 			flush(null, this.tokenBuffer);
+
+			this.tokenBuffer = [];
+			this.tokenBuffer[0] = new RecycleToken(0);
+
 			this.tokenNum = 1;
 		} else {
 			// Not ready to flush but have to send something to get more input.
