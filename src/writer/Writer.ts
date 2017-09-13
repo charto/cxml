@@ -233,7 +233,7 @@ export class Writer extends stream.Transform {
 			prefix = prefixList[i];
 			if(!prefix || !ns || ns.isSpecial) continue;
 
-			definitionList.push(' xmlns:' + prefix + '="' + ns.uri + '"');
+			if(prefix != 'xml') definitionList.push(' xmlns:' + prefix + '="' + ns.uri + '"');
 			this.prefixList[i] = prefix + ':';
 		}
 

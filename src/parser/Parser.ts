@@ -46,7 +46,7 @@ export class Parser extends stream.Transform {
 		this.tokenBuffer[0] = new RecycleToken(0);
 
 		for(let ns of this.config.namespaceList) {
-			if(ns && ns.base.isSpecial) {
+			if(ns && (ns.base.isSpecial || ns.base.defaultPrefix == 'xml')) {
 				this.namespaceList[ns.base.id] = ns.base;
 			}
 		}
