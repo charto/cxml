@@ -1000,6 +1000,7 @@ NBIND_CLASS(Parser) {
 	getter(getRow);
 	getter(getCol);
 	method(parse);
+	method(destroy);
 }
 
 #endif

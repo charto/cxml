@@ -74,6 +74,11 @@ export class Parser extends stream.Transform {
 		this.hasError = true;
 	}
 
+        _flush( flush: (err: any, chunk: TokenBuffer | null) => void) {
+		this.native.destroy();
+		flush(null, null);
+        }
+
 	_transform(
 		chunk: string | ArrayType,
 		enc: string,

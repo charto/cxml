@@ -103,6 +103,10 @@ public:
 
 	Parser(const ParserConfig &config);
 
+	void destroy() {
+		flushTokens.reset();
+	}
+
 	ParserConfig *getConfig() { return(&config); }
 
 	/** Parse a chunk of incoming data. */
