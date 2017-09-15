@@ -118,6 +118,8 @@ public:
 
 		tokenList = reinterpret_cast<uint32_t *>(tokenBuffer.data());
 		tokenBufferEnd = tokenList + tokenBuffer.length() / 4;
+
+		flushTokens.reset();
 	}
 
 	inline void flush(uint32_t *&tokenPtr) {
