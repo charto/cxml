@@ -4,12 +4,12 @@ import { Namespace } from '../Namespace';
 import { Token, TokenBuffer, TokenKind, NamespaceToken, RecycleToken, MemberToken } from '../parser/Token';
 import { ParserConfig } from '../parser/ParserConfig';
 
-const enum Indent {
-	MIN_DEPTH= 1,
+export const enum Indent {
+	MIN_DEPTH = 1,
 	MAX_DEPTH = 256
 }
 
-const enum State {
+export const enum State {
 	ELEMENT = 0,
 	PROCESSING,
 	TEXT,
@@ -17,7 +17,7 @@ const enum State {
 	COMMENT
 }
 
-const indentPattern = '\n' + new Array(Indent.MAX_DEPTH).join('\t');
+export const indentPattern = '\n' + new Array(Indent.MAX_DEPTH).join('\t');
 
 export class Writer extends stream.Transform {
 

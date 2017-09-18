@@ -37,6 +37,7 @@ export abstract class Token {
 	constructor() {}
 
 	serialize?(indent?: string, config?: ParserConfig, data?: any): string | TokenBuffer;
+	serializeJson?(indent?: string, config?: ParserConfig, data?: any): any;
 
 	kind: TokenKind;
 	kindString: string;

@@ -7,6 +7,7 @@ export { ParserConfig, ParserOptions, TokenTbl, Registry } from './parser/Parser
 export { Parser, ParseError } from './parser/Parser';
 export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
+export { JsonWriter } from './writer/JsonWriter';
 export * from './parser/Token';
 
 export const processing = Namespace.processing;
