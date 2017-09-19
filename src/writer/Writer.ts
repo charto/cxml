@@ -110,7 +110,7 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.namespace:
 
-						if(!this.chunkCount) {
+						if(!this.chunkCount && tokenNum < 2) {
 							this.copyPrefixes((token as NamespaceToken).namespaceList);
 						}
 						break;
