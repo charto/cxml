@@ -8,6 +8,7 @@ export { Parser, ParseError } from './parser/Parser';
 export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
 export { JsonWriter } from './writer/JsonWriter';
+export { jsxElement, jsxCompile, jsxExpand } from './parser/JSX';
 export * from './parser/Token';
 
 export const processing = Namespace.processing;

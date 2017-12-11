@@ -245,6 +245,20 @@ export class ParserConfig {
 		return(this.registry);
 	}
 
+	jsxRegister<Module>(prefix: string, spec: Module) {
+		const result: { [name: string]: OpenToken } = {};
+		const uri = (spec as any).xmlns;
+		const ns = this.getNamespace(uri) || new Namespace(prefix, uri);
+
+		for(let name of Object.keys(spec)) {
+			if(name == 'xmlns') continue;
+
+			result[name] = this.getElementTokens(ns, name)[TokenKind.open]!;
+		}
+
+		return(result as any as Module);
+	}
+
 	getElementTokens(ns: Namespace, name: string) {
 		const id = this.addNamespace(ns);
 		return(this.namespaceList[id].addElement(name).tokenList);
