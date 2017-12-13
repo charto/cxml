@@ -32,36 +32,36 @@ export interface Registry {
 
 export class ParserConfig {
 
-	/** Parameters are for internal use only.
-	  * @param parent Parent object for cloning.
-	  * @param native Reference to C++ object. */
-	constructor(parent?: ParserOptions | ParserConfig, native?: NativeConfig | null) {
-		this.isIndependent = !parent;
+	/** XML parser configuration.
+	  * @param config Parent object for cloning.
+	  * @param native Reference to C++ object. For internal use only. */
+	constructor(config?: ParserOptions | ParserConfig, native?: NativeConfig | null) {
+		if(config instanceof ParserConfig) {
+			this.isLinked = true;
 
-		if(parent instanceof ParserConfig) {
-			this.options = parent.options;
+			this.options = config.options;
 
-			this.uriSpace = parent.uriSpace;
-			this.prefixSpace = parent.prefixSpace;
-			this.elementSpace = parent.elementSpace;
-			this.attributeSpace = parent.attributeSpace;
+			this.uriSpace = config.uriSpace;
+			this.prefixSpace = config.prefixSpace;
+			this.elementSpace = config.elementSpace;
+			this.attributeSpace = config.attributeSpace;
 
-			this.xmlnsToken = parent.xmlnsToken;
+			this.xmlnsToken = config.xmlnsToken;
 
-			this.emptyPrefixToken = parent.emptyPrefixToken;
-			this.xmlnsPrefixToken = parent.xmlnsPrefixToken;
-			this.processingPrefixToken = parent.processingPrefixToken;
+			this.emptyPrefixToken = config.emptyPrefixToken;
+			this.xmlnsPrefixToken = config.xmlnsPrefixToken;
+			this.processingPrefixToken = config.processingPrefixToken;
 
-			this.uriSet = parent.uriSet;
-			this.prefixSet = parent.prefixSet;
+			this.uriSet = config.uriSet;
+			this.prefixSet = config.prefixSet;
 
-			this.namespaceList = parent.namespaceList;
-			this.namespaceTbl = parent.namespaceTbl;
-			this.maxNamespace = parent.maxNamespace;
+			this.namespaceList = config.namespaceList;
+			this.namespaceTbl = config.namespaceTbl;
+			this.maxNamespace = config.maxNamespace;
 
-			this.nsMapper = parent.nsMapper;
+			this.nsMapper = config.nsMapper;
 		} else {
-			this.options = parent || {};
+			this.options = config || {};
 
 			this.uriSpace = new TokenSpace(TokenKind.uri);
 			this.prefixSpace = new TokenSpace(TokenKind.prefix);
@@ -91,9 +91,9 @@ export class ParserConfig {
 		this.native = native;
 	}
 
-	makeIndependent() {
-		if(this.isIndependent) return;
-		this.isIndependent = true;
+	unlink() {
+		if(!this.isLinked) return;
+		this.isLinked = false;
 
 		this.uriSpace = new TokenSpace(TokenKind.uri, this.uriSpace);
 		this.prefixSpace = new TokenSpace(TokenKind.prefix, this.prefixSpace);
@@ -147,7 +147,7 @@ export class ParserConfig {
 
 		if(nsParser) return(nsParser.id);
 
-		if(!this.isIndependent) this.makeIndependent();
+		if(this.isLinked) this.unlink();
 
 		nsBase.uri = uri;
 		nsParser = new ParserNamespace(nsBase, this);
@@ -194,7 +194,7 @@ export class ParserConfig {
 	}
 
 	addUri(uri: string, ns: ParserNamespace) {
-		if(!this.isIndependent) this.makeIndependent();
+		if(this.isLinked) this.unlink();
 
 		const token = this.uriSet.createToken(uri);
 
@@ -205,7 +205,7 @@ export class ParserConfig {
 	}
 
 	addPrefix(prefix: string) {
-		if(!this.isIndependent) this.makeIndependent();
+		if(this.isLinked) this.unlink();
 
 		const token = this.prefixSet.createToken(prefix);
 
@@ -276,7 +276,7 @@ export class ParserConfig {
 	}
 
 	/** If false, object is a clone sharing data with a parent object. */
-	private isIndependent: boolean;
+	private isLinked: boolean;
 
 	/** Reference to C++ object. */
 	private native: NativeConfig;
