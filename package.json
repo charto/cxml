@@ -1,6 +1,6 @@
 {
   "name": "cxml",
-  "version": "0.3.0-alpha.7",
+  "version": "0.3.0-alpha.8",
   "description": "Advanced schema-aware streaming XML parser",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -35,10 +35,10 @@
     "typescript"
   ],
   "devDependencies": {
-    "typescript": "^2.6.1"
+    "typescript": "^2.6.2"
   },
   "dependencies": {
-    "@types/node": "^8.0.51",
+    "@types/node": "^8.5.0",
     "autogypi": "^0.2.2",
     "nbind": "^0.3.14"
   }
