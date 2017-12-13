@@ -7,6 +7,7 @@ import { TokenSet } from '../tokenizer/TokenSet';
 import { InternalToken } from './InternalToken';
 import { TokenKind, MemberToken, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
 import { Parser } from './Parser';
+import { XModuleTable } from './JSX';
 
 export interface ParserOptions {
 	parseUnknown?: boolean;
@@ -245,18 +246,23 @@ export class ParserConfig {
 		return(this.registry);
 	}
 
-	jsxRegister<Module>(prefix: string, spec: Module) {
-		const result: { [name: string]: OpenToken } = {};
-		const uri = (spec as any).xmlns;
-		const ns = this.getNamespace(uri) || new Namespace(prefix, uri);
+	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler: (result: Module) => Result) {
+		const result: { [prefix: string]: { [name: string]: OpenToken }} = {};
 
-		for(let name of Object.keys(spec)) {
-			if(name == 'xmlns') continue;
+		for(let prefix of Object.keys(spec)) {
+			const elements = (spec as any)[prefix];
+			const uri = elements.xmlns;
+			const ns = this.getNamespace(uri) || new Namespace(prefix, uri);
+			result[prefix] = {};
 
-			result[name] = this.getElementTokens(ns, name)[TokenKind.open]!;
+			for(let name of Object.keys(elements)) {
+				if(name == 'xmlns') continue;
+
+				result[prefix][name] = this.getElementTokens(ns, name)[TokenKind.open]!;
+			}
 		}
 
-		return(result as any as Module);
+		return(handler(result as Module));
 	}
 
 	getElementTokens(ns: Namespace, name: string) {

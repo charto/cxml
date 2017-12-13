@@ -1,6 +1,16 @@
 import { Token, TokenKind, OpenToken, StringToken } from './Token';
 import { ParserConfig } from './ParserConfig';
 
+export interface TokenElement extends OpenToken { new(): TokenElement }
+
+export interface XModule {
+	[name: string]: TokenElement;
+}
+
+export interface XModuleTable {
+	[prefix: string]: XModule;
+}
+
 export interface XMLElementNode<Attributes> extends Array<string | Attributes | XMLNode[]> {
 	0: any;
 	1: Attributes;
