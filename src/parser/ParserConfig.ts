@@ -253,7 +253,11 @@ export class ParserConfig {
 		return(this.registry);
 	}
 
-	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler: (result: Module) => Result) {
+	jsxRegister<Module extends XModuleTable>(spec: Module): Module;
+
+	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler?: (result: Module) => Result): Result;
+
+	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler?: (result: Module) => Result) {
 		const result: { [prefix: string]: { [name: string]: OpenToken }} = {};
 
 		for(let prefix of Object.keys(spec)) {
@@ -269,7 +273,7 @@ export class ParserConfig {
 			}
 		}
 
-		return(handler(result as Module));
+		return(handler ? handler(result as Module) : result as Module);
 	}
 
 	getElementTokens(ns: Namespace, name: string) {
