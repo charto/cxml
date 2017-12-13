@@ -19,5 +19,8 @@ export class Namespace {
 	static idLast = 0;
 	static unknown = new Namespace('', '', 0, true);
 	static processing = new Namespace('?', '?', 0, true);
+	static xml1998 = new Namespace('xml', 'http://www.w3.org/XML/1998/namespace');
 
 }
+
+Namespace.processing.addElement('xml');

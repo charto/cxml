@@ -41,10 +41,6 @@ function testPatricia() {
 function testParser() {
 	const xmlConfig = new cxml.ParserConfig();
 
-	xmlConfig.bindNamespace(cxml.processing);
-	xmlConfig.bindNamespace(cxml.anonymous);
-	xmlConfig.addNamespace(cxml.xml1998);
-
 	const xmlParser = xmlConfig.createParser();
 
 	xmlParser.pipe(new cxml.Writer()).pipe(process.stdout);

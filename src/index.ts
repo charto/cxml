@@ -13,6 +13,4 @@ export * from './parser/Token';
 
 export const processing = Namespace.processing;
 export const anonymous = Namespace.unknown;
-export const xml1998 = new Namespace('xml', 'http://www.w3.org/XML/1998/namespace');
-
-processing.addElement('xml');
+export const xml1998 = Namespace.xml1998;

@@ -11,6 +11,7 @@ import { XModuleTable } from './JSX';
 
 export interface ParserOptions {
 	parseUnknown?: boolean;
+	omitDefaults?: boolean;
 }
 
 export interface TokenTbl {
@@ -89,6 +90,12 @@ export class ParserConfig {
 		}
 
 		this.native = native;
+
+		if(!this.isLinked && !this.options.omitDefaults) {
+			this.bindNamespace(Namespace.processing);
+			this.bindNamespace(Namespace.unknown);
+			this.bindNamespace(Namespace.xml1998);
+		}
 	}
 
 	unlink() {
