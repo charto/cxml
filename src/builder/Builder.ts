@@ -182,7 +182,7 @@ export class Builder {
 			}
 		});
 
-		parser.on('end', () => cb(document));
+		parser.on('end', () => cb(null, document));
 	}
 
 	options: ParserOptions;
