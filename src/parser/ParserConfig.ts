@@ -79,7 +79,7 @@ export class ParserConfig {
 			this.maxNamespace = 0;
 		}
 
-		this.clonedNamespaceCount = this.maxNamespace;
+		// this.clonedNamespaceCount = this.maxNamespace;
 
 		if(!native) {
 			this.emptyPrefixToken = this.prefixSet.createToken('');
@@ -111,7 +111,9 @@ export class ParserConfig {
 		this.prefixSet = new TokenSet(this.prefixSpace, this.prefixSet);
 
 		const namespaceList = this.namespaceList.slice(0);
-		for(let num = 0; num < this.clonedNamespaceCount; ++num) {
+		let num = namespaceList.length;
+
+		while(num--) {
 			let ns = namespaceList[num];
 
 			// This just skips namespace 0 which never exists
@@ -316,7 +318,7 @@ export class ParserConfig {
 	/** Mapping from URI to namespace. */
 	private namespaceTbl: { [ uri: string ]: ParserNamespace };
 	maxNamespace: number;
-	clonedNamespaceCount: number;
+	// clonedNamespaceCount: number;
 
 	registry: Registry = { tokens: {}, elements: {}, attributes: {} };
 

@@ -129,11 +129,11 @@ export class Parser extends stream.Transform {
 		const codeBuffer = this.codeBuffer;
 		const codeCount = codeBuffer[0];
 
-		// NOTE: Remember to update these if config is cloned!
-		const elementList = config.elementSpace.list;
-		const attributeList = config.attributeSpace.list;
-		const prefixList = config.prefixSpace.list;
-		const uriList = config.uriSpace.list;
+		// NOTE: These must be updated if config is unlinked!
+		let elementList = config.elementSpace.list;
+		let attributeList = config.attributeSpace.list;
+		let prefixList = config.prefixSpace.list;
+		let uriList = config.uriSpace.list;
 		let partialList = elementList;
 
 		let codeNum = 0;
@@ -190,6 +190,8 @@ export class Parser extends stream.Transform {
 							// If an xmlns definition already resolved
 							// this token, ns will be null.
 							if(ns) {
+								// Ensure namespace is updated after config unlink.
+								ns = config.namespaceList[ns.id];
 								tokenBuffer[offset + elementStart] = (
 									tokenBuffer[offset + elementStart] as MemberToken
 								).resolve(ns);
@@ -213,8 +215,8 @@ export class Parser extends stream.Transform {
 				case CodeType.ATTRIBUTE_ID:
 
 					tokenBuffer[++tokenNum] = attributeList[code].string;
-					// TODO: If latestprefix is null, use current prefix for attribute's namespace.
-					prefixBuffer[tokenNum - elementStart] = latestPrefix;
+					// If latestprefix is null, set attribute prefix to match its parent element.
+					prefixBuffer[tokenNum - elementStart] = latestPrefix || prefixBuffer[0];
 					break;
 
 				case CodeType.PREFIX_ID:
@@ -265,7 +267,10 @@ export class Parser extends stream.Transform {
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 
 					name = this.getSlice(partStart, code);
-					tokenBuffer[++tokenNum] = latestNamespace!.addElement(name).close;
+					tokenBuffer[++tokenNum] = (latestNamespace ?
+						latestNamespace.addElement(name) :
+						unknownElementTbl[name]
+					).close;
 
 					partStart = -1;
 					break;
@@ -316,11 +321,12 @@ export class Parser extends stream.Transform {
 						// Create a new namespace for the unrecognized URI.
 						name = latestPrefix!.name;
 						const ns = new Namespace(name, uri, config.maxNamespace + 1);
+						// This may unlink the config:
 						const idNamespace = config.bindNamespace(ns, latestPrefix!.name, this);
-
 						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
 						latestPrefix = null;
 					} else {
+						// This may unlink the config:
 						latestPrefix = config.addPrefix(this.getSlice(partStart, code));
 
 						/* if(latestPrefix.id > dynamicTokenTblSize) {
@@ -330,6 +336,12 @@ export class Parser extends stream.Transform {
 
 						this.native.setPrefix(latestPrefix.id);
 					}
+
+					// Config may have been unlinked so update references to it.
+					elementList = config.elementSpace.list;
+					attributeList = config.attributeSpace.list;
+					prefixList = config.prefixSpace.list;
+					uriList = config.uriSpace.list;
 
 					partStart = -1;
 					break;
