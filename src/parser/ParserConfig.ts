@@ -179,7 +179,7 @@ export class ParserConfig {
 		let uri = nsBase.uri;
 		let nsParser = this.namespaceTbl[uri];
 
-		prefix = prefix || nsParser.base.defaultPrefix;
+		if(!prefix && prefix != '') prefix = nsParser.base.defaultPrefix;
 
 		(parser || this).bindPrefix(
 			this.addPrefix(prefix),
