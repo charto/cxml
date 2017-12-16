@@ -153,12 +153,10 @@ export class Builder {
 
 							id = (token as StringToken).id!;
 							member = rule && rule.attributes[id];
-							if(member) {
+							if(member || this.options.parseUnknown) {
 								target = (token as StringToken).name;
-							} else if(!this.options.parseUnknown) {
-								target = void 0;
 							} else {
-								target = (token as StringToken).name;
+								target = void 0;
 							}
 
 							break;
