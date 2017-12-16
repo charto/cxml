@@ -17,7 +17,10 @@ export class SimpleSchema {
 	constructor(private parserConfig: ParserConfig, public ns: Namespace, spec: SimpleSchemaSpec, root = spec['document']) {
 		const typeTbl = this.typeTbl;
 
-		const stringType = new SimpleType();
+		// SimpleType expands to a plain string without support for attributes,
+		// ComplexType expands to { $: "..." } allowing parseUnknown to work.
+		// const stringType = new SimpleType();
+		const stringType = new ComplexType();
 		typeTbl['xs:string'] = stringType;
 
 		parserConfig.addNamespace(ns);

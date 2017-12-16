@@ -144,6 +144,8 @@ export class Builder {
 						// Fallthru
 						case TokenKind.emitted:
 
+							if(rule != Rule.string) target = '$';
+
 							state = State.TEXT;
 							break;
 
