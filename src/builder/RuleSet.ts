@@ -42,11 +42,17 @@ function link<Type>(parent: Type) {
 	return(new (Result as any)());
 }
 
+export interface RuleStack {
+	meta?: ElementMeta;
+	rule?: Rule;
+	parent?: RuleStack;
+}
+
 export class RuleSet {
 
-	createRule(type: ComplexType, meta?: ElementMeta) {
+	createRule(type: ComplexType, meta?: ElementMeta, parent?: RuleStack) {
 		const rule = new Rule();
-		let childRule: Rule;
+		let childRule: Rule | undefined;
 		let proto: { [key: string]: any } = {};
 
 		if(meta) {
@@ -60,7 +66,21 @@ export class RuleSet {
 
 				if(memberMeta) {
 					if(memberMeta instanceof ElementMeta) {
-						childRule = this.createRule(memberMeta.type, memberMeta);
+						childRule = void 0;
+
+						for(let item = parent; item; item = item.parent) {
+							if(item.meta == memberMeta) {
+								// If the child element type matches an ancestor's,
+								// re-use its rule to avoid infinite recursion.
+
+								childRule = item.rule;
+								break;
+							}
+						}
+
+						if(!childRule) {
+							childRule = this.createRule(memberMeta.type, memberMeta, { meta, rule, parent });
+						}
 
 						// Subclass type metadata and clear existence flag to indicate a placeholder.
 						let fakeMeta = link(memberMeta);
