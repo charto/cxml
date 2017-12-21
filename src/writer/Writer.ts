@@ -28,8 +28,9 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenBuffer) {
+	transform(chunk: TokenBuffer, partList: string[]) {
 		const prefixList = this.prefixList;
+		const chunkCount = this.chunkCount++;
 		let state = this.state;
 		let depth = this.depth;
 		let indent = this.indent;
@@ -39,8 +40,7 @@ export class Writer extends stream.Transform {
 		let prefix: string;
 		let serialized: string | TokenBuffer;
 
-		let partList: string[] = [];
-		let partNum = -1;
+		let partNum = partList.length - 1;
 		let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
 		let tokenNum = -1;
 
@@ -110,7 +110,7 @@ export class Writer extends stream.Transform {
 
 					case TokenKind.namespace:
 
-						if(!this.chunkCount && tokenNum < 2) {
+						if(!chunkCount && tokenNum < 2) {
 							this.copyPrefixes((token as NamespaceToken).namespaceList);
 						}
 						break;
@@ -128,7 +128,7 @@ export class Writer extends stream.Transform {
 								this.depth = depth;
 								this.indent = indent;
 
-								partList[++partNum] = this.transform(serialized).join('');
+								this.transform(serialized, partList);
 							}
 						}
 						break;
@@ -170,10 +170,27 @@ export class Writer extends stream.Transform {
 			return;
 		}
 
-		const partList = this.transform(chunk);
-		flush(null, partList.join(''));
+		const partList: string[] = [];
 
-		++this.chunkCount;
+		if(!this.chunkCount) {
+			let i: number;
+
+			for(i = 0; i < 3; ++i) {
+				const token = chunk[i];
+
+				if(
+					token instanceof Token &&
+					token.kind == TokenKind.open &&
+					(token as MemberToken).ns == Namespace.processing &&
+					(token as MemberToken).name == 'xml'
+				) break;
+			}
+
+			if(i == 3) partList.push('<?xml version="1.0" encoding="utf-8"?>\n');
+		}
+
+		this.transform(chunk, partList);
+		flush(null, partList.join(''));
 	}
 
 	_flush( flush: (err: any, chunk: string) => void) {
