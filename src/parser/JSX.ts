@@ -4,7 +4,7 @@ import { ParserConfig } from './ParserConfig';
 export interface TokenElement extends OpenToken { new(): TokenElement }
 
 export interface XModule {
-	[name: string]: TokenElement;
+	[name: string]: string | TokenElement;
 }
 
 export interface XModuleTable {
