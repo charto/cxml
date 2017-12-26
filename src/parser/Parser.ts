@@ -74,10 +74,10 @@ export class Parser extends stream.Transform {
 		this.hasError = true;
 	}
 
-        _flush( flush: (err: any, chunk: TokenBuffer | null) => void) {
+	_flush( flush: (err: any, chunk: TokenBuffer | null) => void) {
 		this.native.destroy();
 		flush(null, null);
-        }
+	}
 
 	_transform(
 		chunk: string | ArrayType,
@@ -86,7 +86,6 @@ export class Parser extends stream.Transform {
 	) {
 		if(this.hasError) return;
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
-		this.flush = flush;
 
 		const len = chunk.length;
 		let nativeStatus: ErrorType;
@@ -471,8 +470,6 @@ export class Parser extends stream.Transform {
 
 	/** Current input buffer. */
 	private chunk: ArrayType;
-
-	private flush: (err: any, chunk: TokenBuffer | null) => void;
 
 	private namespaceList: (Namespace | undefined)[] = [];
 	private namespacesChanged = true;
