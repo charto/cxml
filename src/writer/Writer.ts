@@ -1,7 +1,8 @@
 import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
-import { Token, TokenBuffer, TokenKind, NamespaceToken, RecycleToken, MemberToken } from '../parser/Token';
+import { TokenChunk } from '../parser/TokenChunk';
+import { Token, TokenBuffer, TokenKind, MemberToken } from '../parser/Token';
 import { ParserConfig } from '../parser/ParserConfig';
 
 export const enum Indent {
@@ -28,25 +29,30 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenBuffer, partList: string[]) {
+	transform(chunk: TokenChunk, partList: string[]) {
 		const prefixList = this.prefixList;
 		const chunkCount = this.chunkCount++;
+		const buffer = chunk.buffer;
 		let state = this.state;
 		let depth = this.depth;
 		let indent = this.indent;
 		let nsElement = this.nsElement;
-		let token = chunk[0];
+		let token: typeof buffer[0];
 		let member: MemberToken;
 		let prefix: string;
 		let serialized: string | TokenBuffer;
 
 		let partNum = partList.length - 1;
-		let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
+		let lastNum = chunk.length - 1;
 		let tokenNum = -1;
+
+		if(chunk.namespaceList && !chunkCount) {
+			this.copyPrefixes(chunk.namespaceList);
+		}
 
 		while(tokenNum < lastNum) {
 
-			token = chunk[++tokenNum];
+			token = buffer[++tokenNum];
 
 			if(token instanceof Token) {
 				switch(token.kind) {
@@ -108,13 +114,6 @@ export class Writer extends stream.Transform {
 						state = State.COMMENT;
 						break;
 
-					case TokenKind.namespace:
-
-						if(!chunkCount && tokenNum < 2) {
-							this.copyPrefixes((token as NamespaceToken).namespaceList);
-						}
-						break;
-
 					case TokenKind.other:
 
 						if(token.serialize) {
@@ -128,7 +127,7 @@ export class Writer extends stream.Transform {
 								this.depth = depth;
 								this.indent = indent;
 
-								this.transform(serialized, partList);
+								this.transform(TokenChunk.allocate(serialized), partList);
 							}
 						}
 						break;
@@ -161,10 +160,12 @@ export class Writer extends stream.Transform {
 		this.indent = indent;
 		this.nsElement = nsElement;
 
+		chunk.free();
+
 		return(partList);
 	}
 
-	_transform(chunk: TokenBuffer | null, enc: string, flush: (err: any, chunk: string) => void) {
+	_transform(chunk: TokenChunk | null, enc: string, flush: (err: any, chunk: string) => void) {
 		if(!chunk) {
 			flush(null, '');
 			return;
@@ -173,20 +174,16 @@ export class Writer extends stream.Transform {
 		const partList: string[] = [];
 
 		if(!this.chunkCount) {
-			let i: number;
+			const token = chunk.buffer[0];
 
-			for(i = 0; i < 3; ++i) {
-				const token = chunk[i];
-
-				if(
-					token instanceof Token &&
-					token.kind == TokenKind.open &&
-					(token as MemberToken).ns == Namespace.processing &&
-					(token as MemberToken).name == 'xml'
-				) break;
+			if(
+				!(token instanceof Token) ||
+				token.kind != TokenKind.open ||
+				(token as MemberToken).ns != Namespace.processing ||
+				(token as MemberToken).name != 'xml'
+			) {
+				partList.push('<?xml version="1.0" encoding="utf-8"?>\n');
 			}
-
-			if(i == 3) partList.push('<?xml version="1.0" encoding="utf-8"?>\n');
 		}
 
 		this.transform(chunk, partList);

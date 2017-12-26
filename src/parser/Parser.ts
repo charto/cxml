@@ -9,7 +9,17 @@ import { ParserConfig } from './ParserConfig';
 import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
-import { Token, TokenBuffer, TokenKind, SpecialToken, NamespaceToken, RecycleToken, MemberToken, OpenToken, CloseToken, StringToken } from './Token';
+import { TokenChunk } from './TokenChunk';
+import {
+	Token,
+	TokenBuffer,
+	TokenKind,
+	SpecialToken,
+	MemberToken,
+	OpenToken,
+	CloseToken,
+	StringToken
+} from './Token';
 
 // const codeBufferSize = 2;
 // const codeBufferSize = 3;
@@ -43,8 +53,6 @@ export class Parser extends stream.Transform {
 		this.codeBuffer = new Uint32Array(codeBufferSize);
 		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 
-		this.tokenBuffer[0] = new RecycleToken(0);
-
 		for(let ns of this.config.namespaceList) {
 			if(ns && (ns.base.isSpecial || ns.base.defaultPrefix == 'xml')) {
 				this.namespaceList[ns.base.id] = ns.base;
@@ -53,13 +61,20 @@ export class Parser extends stream.Transform {
 	}
 
 	public parseSync(data: string | ArrayType) {
-		const output: TokenBuffer[] = [];
+		const buffer: TokenBuffer = [];
+		let namespaceList: (Namespace | undefined)[] | undefined;
 
-		this.on('data', (chunk: TokenBuffer) => output.push(chunk));
+		this.on('data', (chunk: TokenChunk) => {
+			for(let token of chunk.buffer) buffer.push(token);
+			if(chunk.namespaceList) namespaceList = chunk.namespaceList;
+		});
 		this.on('error', (err: any) => { throw(err); });
 		this.write(data);
 
-		return(Array.prototype.concat.apply([], output));
+		const output = TokenChunk.allocate(buffer);
+		output.namespaceList = namespaceList;
+
+		return(output);
 	}
 
 	public getConfig() { return(this.config); }
@@ -74,7 +89,7 @@ export class Parser extends stream.Transform {
 		this.hasError = true;
 	}
 
-	_flush( flush: (err: any, chunk: TokenBuffer | null) => void) {
+	_flush( flush: (err: any, chunk: TokenChunk | null) => void) {
 		this.native.destroy();
 		flush(null, null);
 	}
@@ -82,41 +97,42 @@ export class Parser extends stream.Transform {
 	_transform(
 		chunk: string | ArrayType,
 		enc: string,
-		flush: (err: any, chunk: TokenBuffer | null) => void
+		flush: (err: any, chunk: TokenChunk | null) => void
 	) {
 		if(this.hasError) return;
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
 
 		const len = chunk.length;
-		let nativeStatus: ErrorType;
+		let nativeStatus = ErrorType.OK;
 		let next: number;
 
-		for(let pos = 0; pos < len; pos = next) {
-			next = Math.min(pos + chunkSize, len);
-
-			this.chunk = chunk.slice(pos, next);
+		if(len < chunkSize) {
+			this.chunk = chunk;
 			nativeStatus = this.native.parse(this.chunk);
-
-			if(nativeStatus != ErrorType.OK) {
-				this.throwError(nativeStatus, this.native.row, this.native.col);
-				return;
-			}
 			this.parseCodeBuffer(false);
+		} else {
+			// Limit size of buffers sent to native code.
+			for(let pos = 0; pos < len; pos = next) {
+				next = Math.min(pos + chunkSize, len);
+
+				this.chunk = chunk.slice(pos, next);
+				nativeStatus = this.native.parse(this.chunk);
+
+				if(nativeStatus != ErrorType.OK) break;
+				this.parseCodeBuffer(false);
+			}
+		}
+
+		if(nativeStatus != ErrorType.OK) {
+			this.throwError(nativeStatus, this.native.row, this.native.col);
+			return;
 		}
 
 		if(this.elementStart < 0) {
-			(this.tokenBuffer[0] as RecycleToken).lastNum = this.tokenNum;
-			this.tokenBuffer[1] = (
-				this.namespacesChanged ?
-				new NamespaceToken(this.namespaceList) :
-				SpecialToken.blank
-			);
-			flush(null, this.tokenBuffer);
+			if(this.namespacesChanged) this.tokenChunk.namespaceList = this.namespaceList;
+			flush(null, this.tokenChunk);
 
-			this.tokenBuffer = [];
-			this.tokenBuffer[0] = new RecycleToken(0);
-
-			this.tokenNum = 1;
+			this.tokenChunk = TokenChunk.allocate();
 		} else {
 			// Not ready to flush but have to send something to get more input.
 			flush(null, null);
@@ -142,13 +158,13 @@ export class Parser extends stream.Transform {
 		let latestPrefix = this.latestPrefix;
 		let latestNamespace = this.latestNamespace;
 
-		const tokenBuffer = this.tokenBuffer;
+		const tokenBuffer = this.tokenChunk.buffer;
 		const prefixBuffer = this.prefixBuffer;
 		const namespaceBuffer = this.namespaceBuffer;
 		const unknownElementTbl = this.unknownElementTbl;
 		const unknownAttributeTbl = this.unknownAttributeTbl;
 		const unknownOffsetList = this.unknownOffsetList;
-		let tokenNum = this.tokenNum;
+		let tokenNum = this.tokenChunk.length - 1;
 		let token: Token;
 		let linkTbl: Token[];
 		let linkKind: number;
@@ -402,7 +418,7 @@ export class Parser extends stream.Transform {
 		this.latestPrefix = latestPrefix;
 		this.latestNamespace = latestNamespace;
 
-		this.tokenNum = tokenNum;
+		this.tokenChunk.length = tokenNum + 1;
 		this.elementStart = elementStart;
 		this.unknownCount = unknownCount;
 	}
@@ -439,7 +455,7 @@ export class Parser extends stream.Transform {
 	  * within the same element. */
 	private resolve(elementStart: number, tokenNum: number, prefix: InternalToken, idNamespace: number) {
 		const prefixBuffer = this.prefixBuffer;
-		const tokenBuffer = this.tokenBuffer;
+		const tokenBuffer = this.tokenChunk.buffer;
 		const ns = this.config.namespaceList[idNamespace];
 		const len = tokenNum - elementStart;
 		let token: Token | number | string;
@@ -486,10 +502,8 @@ export class Parser extends stream.Transform {
 
 	/** Shared with C++ library. */
 	private codeBuffer: Uint32Array;
-	/** Buffer for stream output. */
-	tokenBuffer: TokenBuffer = [];
-	/** Current tokenBuffer offset for writing stream output. */
-	private tokenNum = 1;
+	/** Stream output buffer chunk. */
+	tokenChunk = TokenChunk.allocate();
 
 	/** Offset to start of current element definition in output buffer. */
 	private elementStart = -1;

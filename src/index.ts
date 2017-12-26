@@ -9,6 +9,7 @@ export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
 export { JsonWriter } from './writer/JsonWriter';
 export { TokenElement, jsxElement, jsxCompile, jsxExpand } from './parser/JSX';
+export { TokenChunk } from './parser/TokenChunk';
 export * from './parser/Token';
 
 export const processing = Namespace.processing;

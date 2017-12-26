@@ -1,5 +1,6 @@
 import { Namespace } from '../Namespace';
-import { Token, TokenBuffer, TokenKind, RecycleToken, OpenToken, CloseToken, StringToken } from '../parser/Token';
+import { TokenChunk } from '../parser/TokenChunk';
+import { Token, TokenBuffer, TokenKind, OpenToken, CloseToken, StringToken } from '../parser/Token';
 import { ParserConfig, ParserOptions } from '../parser/ParserConfig';
 import { Parser } from '../parser/Parser';
 import { SimpleSchema, SimpleSchemaSpecTbl } from '../schema/SimpleSchema';
@@ -64,21 +65,22 @@ export class Builder {
 		let state = State.TEXT;
 		let target: string | undefined;
 
-		parser.on('data', (chunk: TokenBuffer) => {
+		parser.on('data', (chunk: TokenChunk) => {
 			if(!chunk) return;
 
-			let token = chunk[0];
+			const buffer = chunk.buffer;
+			let token: typeof buffer[0];
 			let dataType: string;
 			let kind: number;
 			let id: number;
 			let name: string;
 
-			let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
+			let lastNum = chunk.length - 1;
 			let tokenNum = -1;
 
 			while(tokenNum < lastNum) {
 
-				token = chunk[++tokenNum];
+				token = buffer[++tokenNum];
 				dataType = typeof(token);
 
 				if(ignoreDepth) {

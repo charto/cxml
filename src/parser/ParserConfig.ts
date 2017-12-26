@@ -5,6 +5,7 @@ import { ParserNamespace } from './ParserNamespace';
 import { TokenSpace } from '../tokenizer/TokenSpace';
 import { TokenSet } from '../tokenizer/TokenSet';
 import { InternalToken } from './InternalToken';
+import { TokenChunk } from './TokenChunk';
 import { TokenKind, MemberToken, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
 import { Parser } from './Parser';
 import { XModuleTable } from './JSX';

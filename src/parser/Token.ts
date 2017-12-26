@@ -20,9 +20,6 @@ export const enum TokenKind {
 	comment,
 	blank,
 
-	namespace,
-	recycle,
-
 	// Internal token types
 	uri,
 	prefix,
@@ -54,21 +51,6 @@ export class SpecialToken extends Token {
 	static blank = new SpecialToken(TokenKind.blank, 'blank');
 
 }
-
-export class NamespaceToken extends Token {
-
-	constructor(public namespaceList: (Namespace | undefined)[]) { super(); }
-
-}
-NamespaceToken.prototype.kind = TokenKind.namespace;
-
-export class RecycleToken extends Token {
-
-	constructor(public lastNum: number) { super(); }
-
-}
-RecycleToken.prototype.kind = TokenKind.recycle;
-RecycleToken.prototype.kindString = 'recycle';
 
 export abstract class MemberToken extends Token {
 
