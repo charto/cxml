@@ -14,6 +14,8 @@ export class TokenChunk {
 
 		chunk.length = buffer.length;
 		chunk.buffer = buffer;
+		// Clear free list pointer to help GC find garbage also if free() is not called.
+		chunk.next = void 0;
 		chunk.namespaceList = void 0;
 
 		return(chunk);

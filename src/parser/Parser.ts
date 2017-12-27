@@ -67,6 +67,8 @@ export class Parser extends stream.Transform {
 		this.on('data', (chunk: TokenChunk) => {
 			for(let token of chunk.buffer) buffer.push(token);
 			if(chunk.namespaceList) namespaceList = chunk.namespaceList;
+
+			chunk.free();
 		});
 		this.on('error', (err: any) => { throw(err); });
 		this.write(data);

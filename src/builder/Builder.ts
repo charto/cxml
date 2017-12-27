@@ -182,6 +182,8 @@ export class Builder {
 					}
 				}
 			}
+
+			chunk.free();
 		});
 
 		parser.on('end', () => cb(null, document));
