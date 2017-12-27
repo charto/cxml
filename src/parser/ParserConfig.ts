@@ -261,7 +261,8 @@ export class ParserConfig {
 	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler?: (result: Module) => Result): Result;
 
 	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler?: (result: Module) => Result) {
-		const result: { [prefix: string]: { [name: string]: OpenToken }} = {};
+		const result: { [prefix: string]: { [name: string]: OpenToken | StringToken }} = {};
+		let token: OpenToken | StringToken;
 
 		for(let prefix of Object.keys(spec)) {
 			const elements = (spec as any)[prefix];
@@ -272,7 +273,13 @@ export class ParserConfig {
 			for(let name of Object.keys(elements)) {
 				if(name == 'xmlns') continue;
 
-				result[prefix][name] = this.getElementTokens(ns, name)[TokenKind.open]!;
+				if(elements[name]) {
+					token = this.getElementTokens(ns, name)[TokenKind.open]!;
+				} else {
+					token = this.getAttributeTokens(ns, name)[TokenKind.string]!;
+				}
+
+				result[prefix][name] = token;
 			}
 		}
 

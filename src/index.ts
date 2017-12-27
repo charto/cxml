@@ -8,7 +8,7 @@ export { Parser, ParseError } from './parser/Parser';
 export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
 export { JsonWriter } from './writer/JsonWriter';
-export { TokenElement, jsxElement, jsxCompile, jsxExpand } from './parser/JSX';
+export { TokenElement, defineElement, defineAttribute, jsxElement, jsxCompile, jsxExpand } from './parser/JSX';
 export { TokenChunk } from './parser/TokenChunk';
 export * from './parser/Token';
 

@@ -1,10 +1,18 @@
-import { Token, TokenKind, OpenToken, StringToken } from './Token';
+import { Token, TokenKind, OpenToken, AttributeToken } from './Token';
 import { ParserConfig } from './ParserConfig';
 
 export interface TokenElement extends OpenToken { new(): TokenElement }
 
+export function defineElement(): TokenElement {
+	return(true as any);
+}
+
+export function defineAttribute(): AttributeToken {
+	return(false as any);
+}
+
 export interface XModule {
-	[name: string]: string | TokenElement;
+	[name: string]: string | TokenElement | AttributeToken;
 }
 
 export interface XModuleTable {
