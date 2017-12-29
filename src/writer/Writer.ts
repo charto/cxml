@@ -128,6 +128,7 @@ export class Writer extends stream.Transform {
 								this.indent = indent;
 
 								this.transform(TokenChunk.allocate(serialized), partList);
+								partNum = partList.length - 1;
 							}
 						}
 						break;
