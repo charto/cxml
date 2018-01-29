@@ -1,7 +1,8 @@
 import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
-import { Token, TokenBuffer, TokenKind, RecycleToken, MemberToken } from '../parser/Token';
+import { Token, TokenKind, MemberToken } from '../parser/Token';
+import { TokenChunk } from '../parser/TokenChunk';
 import { ParserConfig } from '../parser/ParserConfig';
 
 import { Indent, State, indentPattern } from './Writer';
@@ -15,24 +16,25 @@ export class JsonWriter extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenBuffer) {
+	transform(chunk: TokenChunk) {
 		let state = this.state;
 		let depth = this.depth;
 		let indent = this.indent;
 		let nsElement = this.nsElement;
-		let token = chunk[0];
+		const buffer = chunk.buffer;
+		let token: typeof buffer[0];
 		let member: MemberToken;
 		let prefix: string;
 		let serialized: any;
 
 		let partList: string[] = [];
 		let partNum = -1;
-		let lastNum = token instanceof RecycleToken ? token.lastNum : chunk.length - 1;
+		let lastNum = chunk.length - 1;
 		let tokenNum = -1;
 
 		while(tokenNum < lastNum) {
 
-			token = chunk[++tokenNum];
+			token = buffer[++tokenNum];
 
 			if(token instanceof Token) {
 				switch(token.kind) {
@@ -87,10 +89,6 @@ export class JsonWriter extends stream.Transform {
 						state = State.COMMENT;
 						break;
 
-					case TokenKind.namespace:
-
-						break;
-
 					case TokenKind.other:
 
 						if(token.serializeJson) {
@@ -132,7 +130,7 @@ export class JsonWriter extends stream.Transform {
 		return(partList);
 	}
 
-	_transform(chunk: TokenBuffer | null, enc: string, flush: (err: any, chunk: string) => void) {
+	_transform(chunk: TokenChunk | null, enc: string, flush: (err: any, chunk: string) => void) {
 		if(!chunk) {
 			flush(null, '');
 			return;
