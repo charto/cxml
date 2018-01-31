@@ -45,9 +45,24 @@ export class Writer extends stream.Transform {
 		let partNum = partList.length - 1;
 		let lastNum = chunk.length - 1;
 		let tokenNum = -1;
+		let namespaceList = chunk.namespaceList;
 
-		if(chunk.namespaceList && !chunkCount) {
-			this.copyPrefixes(chunk.namespaceList);
+		if(!chunkCount) {
+			if(!namespaceList) {
+				namespaceList = [];
+
+				while(tokenNum < lastNum) {
+					token = buffer[++tokenNum];
+
+					if(token instanceof MemberToken) {
+						namespaceList[token.ns.id] = token.ns;
+					}
+				}
+
+				tokenNum = -1;
+			}
+
+			this.copyPrefixes(namespaceList);
 		}
 
 		while(tokenNum < lastNum) {
