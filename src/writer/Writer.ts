@@ -29,10 +29,10 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenChunk, partList: string[]) {
+	transform(chunk: TokenChunk | TokenBuffer, partList: string[]) {
 		const prefixList = this.prefixList;
 		const chunkCount = this.chunkCount++;
-		const buffer = chunk.buffer;
+		let buffer: TokenBuffer;
 		let state = this.state;
 		let depth = this.depth;
 		let indent = this.indent;
@@ -45,7 +45,14 @@ export class Writer extends stream.Transform {
 		let partNum = partList.length - 1;
 		let lastNum = chunk.length - 1;
 		let tokenNum = -1;
-		let namespaceList = chunk.namespaceList;
+		let namespaceList: (Namespace | undefined)[] | undefined;
+
+		if(chunk instanceof TokenChunk) {
+			buffer = chunk.buffer
+			namespaceList = chunk.namespaceList;
+		} else {
+			buffer = chunk;
+		}
 
 		if(!chunkCount) {
 			if(!namespaceList) {
@@ -176,12 +183,12 @@ export class Writer extends stream.Transform {
 		this.indent = indent;
 		this.nsElement = nsElement;
 
-		chunk.free();
+		if(chunk instanceof TokenChunk) chunk.free();
 
 		return(partList);
 	}
 
-	_transform(chunk: TokenChunk | null, enc: string, flush: (err: any, chunk: string) => void) {
+	_transform(chunk: TokenChunk | TokenBuffer | null, enc: string, flush: (err: any, chunk: string) => void) {
 		if(!chunk) {
 			flush(null, '');
 			return;
@@ -190,7 +197,7 @@ export class Writer extends stream.Transform {
 		const partList: string[] = [];
 
 		if(!this.chunkCount) {
-			const token = chunk.buffer[0];
+			const token = chunk instanceof TokenChunk ? chunk.buffer[0] : chunk[0];
 
 			if(
 				!(token instanceof Token) ||
