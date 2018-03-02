@@ -3,7 +3,9 @@ build/
 src/
 test/
 package-lock.json
+appveyor.yml
 .travis.yml
+*.lock
 *.log.*
 *.log
 *.tgz

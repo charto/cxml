@@ -3,6 +3,7 @@ build/
 dist/
 package-lock.json
 auto*.gypi
+*.lock
 *.log.*
 *.log
 *.tgz
