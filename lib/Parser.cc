@@ -17,7 +17,7 @@ Parser :: Parser(const ParserConfig &config) : config(config) {
 	pattern = "\xef\xbb\xbf";
 	matchState = State :: BEFORE_TEXT;
 	noMatchState = State :: BEFORE_TEXT;
-	partialMatchState = State :: ERROR;
+	partialMatchState = State :: PARSE_ERROR;
 	pos = 0;
 	row = 0;
 	col = 0;
@@ -536,7 +536,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 
 						expected = '>';
 						nextState = State :: BEFORE_TEXT;
-						otherState = State :: ERROR;
+						otherState = State :: PARSE_ERROR;
 
 						state = State :: EXPECT;
 						break;
@@ -562,7 +562,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 							// Then equals sign and opening double quote.
 							afterNameState = State :: MATCH_SPARSE;
 							pattern = "=\"";
-							noMatchState = State :: ERROR;
+							noMatchState = State :: PARSE_ERROR;
 							partialMatchState = State :: QUOTE;
 
 							// Finally text content up to closing double quote.
@@ -649,7 +649,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				// Match equals sign and namespace URI in double quotes.
 				state = State :: MATCH_SPARSE;
 				pattern = "=\"";
-				noMatchState = State :: ERROR;
+				noMatchState = State :: PARSE_ERROR;
 				partialMatchState = State :: QUOTE;
 
 				matchState = State :: BEFORE_VALUE;
@@ -790,7 +790,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 
 						expected = '-';
 						nextState = State :: BEFORE_COMMENT;
-						otherState = State :: ERROR;
+						otherState = State :: PARSE_ERROR;
 
 						state = State :: EXPECT;
 						break;
@@ -904,10 +904,10 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 
 				state = (c == expected) ? nextState : otherState;
 
-				if(state == State :: ERROR) goto ERROR;
+				if(state == State :: PARSE_ERROR) goto PARSE_ERROR;
 				break;
 
-			case State :: ERROR: ERROR:
+			case State :: PARSE_ERROR: PARSE_ERROR:
 
 				return(ErrorType :: OTHER);
 
