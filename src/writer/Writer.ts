@@ -29,7 +29,7 @@ export class Writer extends stream.Transform {
 		super({ objectMode: true });
 	}
 
-	transform(chunk: TokenChunk | TokenBuffer, partList: string[]) {
+	transform(chunk: TokenChunk | TokenBuffer | string, partList: string[]) {
 		const prefixList = this.prefixList;
 		const chunkCount = this.chunkCount++;
 		let buffer: TokenBuffer;
@@ -47,8 +47,11 @@ export class Writer extends stream.Transform {
 		let tokenNum = -1;
 		let namespaceList: (Namespace | undefined)[] | undefined;
 
-		if(chunk instanceof TokenChunk) {
-			buffer = chunk.buffer
+		if(typeof(chunk) == 'string') {
+			partList.push(chunk);
+			return(partList);
+		} else if(chunk instanceof TokenChunk) {
+			buffer = chunk.buffer;
 			namespaceList = chunk.namespaceList;
 		} else {
 			buffer = chunk;
