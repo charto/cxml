@@ -100,6 +100,7 @@ export class ParserConfig {
 	}
 
 	unlink() {
+		if(this.isFrozen) throw('Cannot modify config object used by a parser.');
 		if(!this.isLinked) return;
 		this.isLinked = false;
 
@@ -139,6 +140,8 @@ export class ParserConfig {
 		const nativeParser = new NativeParser(this.native);
 		const config = new ParserConfig(this, nativeParser.getConfig());
 
+		this.isFrozen = true;
+
 		return(new Parser(config, nativeParser));
 	}
 
@@ -157,7 +160,7 @@ export class ParserConfig {
 
 		if(nsParser) return(nsParser.id);
 
-		if(this.isLinked) this.unlink();
+		this.unlink();
 
 		nsBase.uri = uri;
 		nsParser = new ParserNamespace(nsBase, this);
@@ -177,7 +180,7 @@ export class ParserConfig {
 	bindNamespace(nsBase: Namespace, prefix?: string, parser?: Parser) {
 		this.addNamespace(nsBase);
 
-		let uri = nsBase.uri;
+		let uri = (this.nsMapper && this.nsMapper(nsBase.uri)) || nsBase.uri;
 		let nsParser = this.namespaceTbl[uri];
 
 		if(!prefix && prefix != '') prefix = nsParser.base.defaultPrefix;
@@ -204,7 +207,7 @@ export class ParserConfig {
 	}
 
 	addUri(uri: string, ns: ParserNamespace) {
-		if(this.isLinked) this.unlink();
+		this.unlink();
 
 		const token = this.uriSet.createToken(uri);
 
@@ -215,7 +218,7 @@ export class ParserConfig {
 	}
 
 	addPrefix(prefix: string) {
-		if(this.isLinked) this.unlink();
+		this.unlink();
 
 		const token = this.prefixSet.createToken(prefix);
 
@@ -296,8 +299,10 @@ export class ParserConfig {
 		return(this.namespaceList[id].addAttribute(name).tokenList);
 	}
 
-	/** If false, object is a clone sharing data with a parent object. */
+	/** If true, object is a clone sharing data with a parent object. */
 	private isLinked: boolean;
+	/** If true, another object is a clone sharing data with this object. */
+	private isFrozen: boolean;
 
 	/** Reference to C++ object. */
 	private native: NativeConfig;
