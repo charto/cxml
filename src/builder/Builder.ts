@@ -60,7 +60,7 @@ export class Builder {
 		let item = document;
 		let itemNext: any;
 		const itemStack: any[] = [];
-		let ignoreDepth = 0;
+		let unknownDepth = 0;
 
 		let state = State.TEXT;
 		let target: string | undefined;
@@ -83,12 +83,12 @@ export class Builder {
 				token = buffer[++tokenNum];
 				dataType = typeof(token);
 
-				if(ignoreDepth) {
+				if(unknownDepth) {
 					if(dataType == 'object') {
 						kind = (token as Token).kind;
 
-						if(kind == TokenKind.open) ++ignoreDepth;
-						else if(kind == TokenKind.close) --ignoreDepth;
+						if(kind == TokenKind.open) ++unknownDepth;
+						else if(kind == TokenKind.close) --unknownDepth;
 					}
 				} else if(dataType == 'object') {
 					kind = (token as Token).kind;
@@ -116,7 +116,7 @@ export class Builder {
 									} else item[name] = itemNext;
 								}
 							} else if(!this.options.parseUnknown) {
-								++ignoreDepth;
+								++unknownDepth;
 
 								state = State.TEXT;
 								break;
