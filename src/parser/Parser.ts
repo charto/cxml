@@ -1,6 +1,6 @@
 import * as stream from 'stream';
 
-import { ArrayType, encodeArray, decodeArray, concatArray } from '../Buffer';
+import { ArrayType, encodeArray } from '../Buffer';
 import { Namespace } from '../Namespace';
 import { CodeType } from '../tokenizer/CodeType';
 import { ErrorType } from '../tokenizer/ErrorType';
@@ -10,6 +10,7 @@ import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
 import { TokenChunk } from './TokenChunk';
+import { Stitcher} from './Stitcher';
 import {
 	Token,
 	TokenBuffer,
@@ -110,6 +111,7 @@ export class Parser extends stream.Transform {
 
 		if(len < chunkSize) {
 			this.chunk = chunk;
+			this.stitcher.setChunk(this.chunk);
 			nativeStatus = this.native.parse(this.chunk);
 			this.parseCodeBuffer(false);
 		} else {
@@ -118,6 +120,7 @@ export class Parser extends stream.Transform {
 				next = Math.min(pos + chunkSize, len);
 
 				this.chunk = chunk.slice(pos, next);
+				this.stitcher.setChunk(this.chunk);
 				nativeStatus = this.native.parse(this.chunk);
 
 				if(nativeStatus != ErrorType.OK) break;
@@ -143,6 +146,7 @@ export class Parser extends stream.Transform {
 
 	private parseCodeBuffer(pending: boolean) {
 		const config = this.config;
+		const stitcher = this.stitcher;
 		const codeBuffer = this.codeBuffer;
 		const codeCount = codeBuffer[0];
 
@@ -263,7 +267,7 @@ export class Parser extends stream.Transform {
 
 				case CodeType.UNKNOWN_OPEN_ELEMENT_END_OFFSET:
 
-					name = this.getSlice(partStart, code);
+					name = stitcher.getSlice(partStart, code);
 					latestElement = unknownElementTbl[name];
 
 					if(!latestElement) {
@@ -283,7 +287,7 @@ export class Parser extends stream.Transform {
 
 				case CodeType.UNKNOWN_CLOSE_ELEMENT_END_OFFSET:
 
-					name = this.getSlice(partStart, code);
+					name = stitcher.getSlice(partStart, code);
 					tokenBuffer[++tokenNum] = (latestNamespace ?
 						latestNamespace.addElement(name) :
 						unknownElementTbl[name]
@@ -294,7 +298,7 @@ export class Parser extends stream.Transform {
 
 				case CodeType.UNKNOWN_ATTRIBUTE_END_OFFSET:
 
-					name = this.getSlice(partStart, code);
+					name = stitcher.getSlice(partStart, code);
 					token = unknownAttributeTbl[name];
 
 					if(!token) {
@@ -315,7 +319,7 @@ export class Parser extends stream.Transform {
 				case CodeType.VALUE_END_OFFSET:
 				case CodeType.TEXT_END_OFFSET:
 
-					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					tokenBuffer[++tokenNum] = stitcher.getSlice(partStart, code);
 					partStart = -1;
 					break;
 
@@ -328,7 +332,7 @@ export class Parser extends stream.Transform {
 					// after writing this token.
 
 					if(kind == CodeType.UNKNOWN_URI_END_OFFSET) {
-						let uri = this.getSlice(partStart, code);
+						let uri = stitcher.getSlice(partStart, code);
 
 						/* if(uri.id > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
@@ -344,7 +348,7 @@ export class Parser extends stream.Transform {
 						latestPrefix = null;
 					} else {
 						// This may unlink the config:
-						latestPrefix = config.addPrefix(this.getSlice(partStart, code));
+						latestPrefix = config.addPrefix(stitcher.getSlice(partStart, code));
 
 						/* if(latestPrefix.id > dynamicTokenTblSize) {
 							// TODO: report row and column in error messages.
@@ -366,7 +370,7 @@ export class Parser extends stream.Transform {
 				case CodeType.COMMENT_END_OFFSET:
 
 					tokenBuffer[++tokenNum] = SpecialToken.comment;
-					tokenBuffer[++tokenNum] = this.getSlice(partStart, code);
+					tokenBuffer[++tokenNum] = stitcher.getSlice(partStart, code);
 
 					partStart = -1;
 					break;
@@ -393,9 +397,7 @@ export class Parser extends stream.Transform {
 				// Fallthru
 				case CodeType.PARTIAL_ELEMENT_ID:
 
-					this.partList = [ partialList[code].buf.slice(0, partialLen) ];
-					this.partListTotalByteLen = partialLen;
-
+					stitcher.reset(partialList[code].buf, partialLen);
 					partialList = elementList;
 					break;
 
@@ -406,7 +408,7 @@ export class Parser extends stream.Transform {
 		}
 
 		if(!pending && partStart >= 0) {
-			this.storeSlice(partStart);
+			stitcher.storeSlice(partStart);
 			partStart = 0;
 		}
 
@@ -423,34 +425,6 @@ export class Parser extends stream.Transform {
 		this.tokenChunk.length = tokenNum + 1;
 		this.elementStart = elementStart;
 		this.unknownCount = unknownCount;
-	}
-
-	private storeSlice(start: number, end?: number) {
-		if(!this.partList) this.partList = [];
-		if(end !== 0) {
-			this.partList.push(this.chunk.slice(start, end));
-			this.partListTotalByteLen += (end || this.chunk.length) - start;
-		}
-	}
-
-	/** getSlice helper for concatenating buffer parts. */
-	private buildSlice(start: number, end?: number) {
-		this.storeSlice(start, end);
-
-		const result = decodeArray(concatArray(this.partList!, this.partListTotalByteLen));
-		this.partList = null;
-		this.partListTotalByteLen = 0;
-
-		return(result);
-	}
-
-	/** Get a string from the input buffer. Prepend any parts left from
-	  * previous code buffers. */
-	private getSlice(start: number, end?: number) {
-		return((
-			this.partList ? this.buildSlice(start, end) :
-			decodeArray(this.chunk, start, end)
-		).replace(/\r\n?|\n\r/g, '\n'));
 	}
 
 	/** Resolve any prior occurrences of a recently defined prefix
@@ -479,6 +453,8 @@ export class Parser extends stream.Transform {
 		}
 	}
 
+	private stitcher = new Stitcher();
+
 	/** Current element not yet emitted (closing angle bracket unseen). */
 	private latestElement: OpenToken;
 	/** Previous namespace prefix token, applied to the next element, attribute
@@ -491,10 +467,6 @@ export class Parser extends stream.Transform {
 
 	private namespaceList: (Namespace | undefined)[] = [];
 	private namespacesChanged = true;
-
-	/** Storage for parts of strings split between chunks of input. */
-	private partList: ArrayType[] | null = null;
-	private partListTotalByteLen = 0;
 
 	/** Offset to start of text in input buffer, or -1 if not reading text. */
 	private partStart = -1;
