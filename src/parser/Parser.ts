@@ -1,5 +1,3 @@
-import * as stream from 'stream';
-
 import { ArrayType, encodeArray } from '../Buffer';
 import { Namespace } from '../Namespace';
 import { CodeType } from '../tokenizer/CodeType';
@@ -10,7 +8,7 @@ import { ParserNamespace } from './ParserNamespace';
 import { InternalToken } from './InternalToken';
 import { TokenSet } from '../tokenizer/TokenSet';
 import { TokenChunk } from './TokenChunk';
-import { Stitcher} from './Stitcher';
+import { Stitcher } from './Stitcher';
 import {
 	Token,
 	TokenBuffer,
@@ -43,14 +41,13 @@ export class ParseError extends Error {
 
 /** XML parser stream, emits tokens with fully qualified names. */
 
-export class Parser extends stream.Transform {
+export class Parser {
 
 	/** Call only from ParserConfig.createParser.
 	  * @param config Reference to C++ config object.
 	  * @param native Reference to C++ parser object. */
-	constructor(private config: ParserConfig, private native: NativeParser) {
-		super({ objectMode: true });
 
+	constructor(private config: ParserConfig, private native: NativeParser) {
 		this.codeBuffer = new Uint32Array(codeBufferSize);
 		this.native.setCodeBuffer(this.codeBuffer, () => this.parseCodeBuffer(true));
 
@@ -61,18 +58,31 @@ export class Parser extends stream.Transform {
 		}
 	}
 
+	public getConfig() { return(this.config); }
+
+	bindPrefix(prefix: InternalToken, uri: InternalToken) {
+		this.native.bindPrefix(prefix.id, uri.id);
+	}
+
+	destroy() {
+		this.native.destroy();
+	}
+
 	public parseSync(data: string | ArrayType) {
 		const buffer: TokenBuffer = [];
 		let namespaceList: (Namespace | undefined)[] | undefined;
 
-		this.on('data', (chunk: TokenChunk) => {
-			for(let token of chunk.buffer) buffer.push(token);
+		this.write(data, '', (err: any, chunk: TokenChunk) => {
+			if(err) throw(err);
+
+			for(let tokenNum = 0; tokenNum < chunk.length; ++tokenNum) {
+				buffer.push(chunk.buffer[tokenNum]);
+			}
+
 			if(chunk.namespaceList) namespaceList = chunk.namespaceList;
 
 			chunk.free();
 		});
-		this.on('error', (err: any) => { throw(err); });
-		this.write(data);
 
 		const output = TokenChunk.allocate(buffer);
 		output.namespaceList = namespaceList;
@@ -80,29 +90,16 @@ export class Parser extends stream.Transform {
 		return(output);
 	}
 
-	public getConfig() { return(this.config); }
-
-	bindPrefix(prefix: InternalToken, uri: InternalToken) {
-		this.native.bindPrefix(prefix.id, uri.id);
-	}
-
-	private throwError(msg: ErrorType, row: number, col: number) {
-		const err = new ParseError(msg, row + 1, col + 1);
-		this.emit('error', err);
-		this.hasError = true;
-	}
-
-	_flush( flush: (err: any, chunk: TokenChunk | null) => void) {
-		this.native.destroy();
-		flush(null, null);
-	}
-
-	_transform(
+	write(
 		chunk: string | ArrayType,
 		enc: string,
 		flush: (err: any, chunk: TokenChunk | null) => void
 	) {
-		if(this.hasError) return;
+		if(this.hasError) {
+			flush(this.hasError, null);
+			return;
+		}
+
 		if(typeof(chunk) == 'string') chunk = encodeArray(chunk);
 
 		const len = chunk.length;
@@ -129,7 +126,8 @@ export class Parser extends stream.Transform {
 		}
 
 		if(nativeStatus != ErrorType.OK) {
-			this.throwError(nativeStatus, this.native.row, this.native.col);
+			this.hasError = new ParseError(nativeStatus, this.native.row + 1, this.native.col + 1);
+			flush(this.hasError, null);
 			return;
 		}
 
@@ -494,5 +492,6 @@ export class Parser extends stream.Transform {
 
 	private unknownCount = 0;
 
-	private hasError = false;
+	private hasError?: ParseError;
+
 }

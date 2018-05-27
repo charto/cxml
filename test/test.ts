@@ -5,6 +5,8 @@ import * as nbind from 'nbind';
 import * as cxml from '..';
 import * as Lib from '../dist/parser/Lib';
 
+import { ParserStream } from '../dist/parser/ParserStream';
+
 import { TokenSpace } from '../dist/tokenizer/TokenSpace';
 import { Patricia } from '../dist/tokenizer/Patricia';
 
@@ -41,7 +43,7 @@ function testPatricia() {
 function testParser() {
 	const xmlConfig = new cxml.ParserConfig();
 
-	const xmlParser = xmlConfig.createParser();
+	const xmlParser = new ParserStream(xmlConfig);
 
 	xmlParser.pipe(new cxml.Writer()).pipe(process.stdout);
 
