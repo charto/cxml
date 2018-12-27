@@ -151,7 +151,9 @@ export class ParserConfig {
 	}
 
 	createParser() {
+		// Create a native code parser which clones the native config.
 		const nativeParser = new NativeParser(this.native);
+		// Create a cloned config with a native object shared with the new parser.
 		const config = new ParserConfig(this, nativeParser.getConfig());
 
 		return(new Parser(config, nativeParser));

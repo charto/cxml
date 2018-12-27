@@ -1,10 +1,17 @@
+/** Basic XML namespace definition. */
+
 export class Namespace {
 
-	/** @param uri Unique identifier for the namespace, should be a valid URI.
-	  * @param defaultPrefix Default xmlns prefix for serializing to XML. */
-	constructor(public defaultPrefix: string, public uri: string, id?: number, public isSpecial = false) {
-		this.id = id || Namespace.idLast++;
-	}
+	constructor(
+		/** Default xmlns prefix for serializing to XML. */
+		public defaultPrefix: string,
+		/** Unique identifier for the namespace, should be a valid URI. */
+		public uri: string,
+		/** Numeric ID for faster mapping of namespaces to local prefixes. */
+		public id = Namespace.idLast++,
+		/** Special namespaces represent processing instructions (always defined). */
+		public isSpecial = false
+	) {}
 
 	addElement(name: string) { this.elementNameList.push(name); }
 	addAttribute(name: string) { this.attributeNameList.push(name); }
@@ -13,8 +20,6 @@ export class Namespace {
 	elementNameList: string[] = [];
 	attributeNameList: string[] = [];
 	schemaLocationList: string[] = [];
-
-	id: number;
 
 	static idLast = 0;
 	static unknown = new Namespace('', '', 0, true);
