@@ -39,6 +39,7 @@ export class ParserConfig {
 	  * @param native Reference to C++ object. For internal use only. */
 	constructor(config?: ParserOptions | ParserConfig, native?: NativeConfig | null) {
 		if(config instanceof ParserConfig) {
+			config.link();
 			this.isLinked = true;
 
 			this.options = config.options;
@@ -63,6 +64,8 @@ export class ParserConfig {
 
 			this.nsMapper = config.nsMapper;
 		} else {
+			this.isLinked = false;
+
 			this.options = config || {};
 
 			this.uriSpace = new TokenSpace(TokenKind.uri);
@@ -99,8 +102,19 @@ export class ParserConfig {
 		}
 	}
 
+	link() {
+		this.isLinked = true;
+
+		this.uriSpace.link();
+		this.prefixSpace.link();
+		this.elementSpace.link();
+		this.attributeSpace.link();
+
+		this.uriSet.link();
+		this.prefixSet.link();
+	}
+
 	unlink() {
-		if(this.isFrozen) throw('Cannot modify config object used by a parser.');
 		if(!this.isLinked) return;
 		this.isLinked = false;
 
@@ -139,8 +153,6 @@ export class ParserConfig {
 	createParser() {
 		const nativeParser = new NativeParser(this.native);
 		const config = new ParserConfig(this, nativeParser.getConfig());
-
-		this.isFrozen = true;
 
 		return(new Parser(config, nativeParser));
 	}
@@ -299,10 +311,8 @@ export class ParserConfig {
 		return(this.namespaceList[id].addAttribute(name).tokenList);
 	}
 
-	/** If true, object is a clone sharing data with a parent object. */
+	/** If true, object is a clone sharing data with another object. */
 	private isLinked: boolean;
-	/** If true, another object is a clone sharing data with this object. */
-	private isFrozen: boolean;
 
 	/** Reference to C++ object. */
 	private native: NativeConfig;

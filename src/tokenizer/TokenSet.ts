@@ -6,20 +6,26 @@ import { InternalToken } from '../parser/InternalToken';
 export class TokenSet {
 
 	constructor(private space: TokenSpace, parent?: TokenSet) {
-		this.isIndependent = !parent;
-
 		if(parent) {
+			this.isLinked = true;
+
 			this.tbl = parent.tbl;
 			this.trie = parent.trie;
 		} else {
+			this.isLinked = false;
+
 			this.tbl = {};
 			this.trie = new Patricia();
 		}
 	}
 
-	private makeIndependent() {
-		if(this.isIndependent) return;
-		this.isIndependent = true;
+	link() {
+		this.isLinked = true;
+	}
+
+	private unlink() {
+		if(!this.isLinked) return;
+		this.isLinked = false;
 
 		const tbl: { [ name: string ]: InternalToken } = {};
 		for(let key of Object.keys(this.tbl)) {
@@ -34,7 +40,7 @@ export class TokenSet {
 		let token = this.tbl[name];
 
 		if(!token) {
-			if(!this.isIndependent) this.makeIndependent();
+			this.unlink();
 
 			token = this.space.createToken(name, ns);
 
@@ -60,8 +66,8 @@ export class TokenSet {
 		return(this.trie.encode());
 	}
 
-	/** If false, object is a clone sharing data with a parent object. */
-	private isIndependent: boolean;
+	/** If true, object is a clone sharing data with another object. */
+	private isLinked: boolean;
 
 	private tbl: { [ name: string ]: InternalToken };
 	private trie: Patricia;

@@ -7,26 +7,32 @@ import { TokenKind } from '../parser/Token';
 export class TokenSpace {
 
 	constructor(private kind: TokenKind, parent?: TokenSpace) {
-		this.isIndependent = !parent;
-
 		if(parent) {
+			this.isLinked = true;
+
 			this.idLast = parent.idLast;
 			this.list = parent.list;
 		} else {
+			this.isLinked = false;
+
 			this.idLast = 0;
 			this.list = [];
 		}
 	}
 
-	private makeIndependent() {
-		if(this.isIndependent) return;
-		this.isIndependent = true;
+	link() {
+		this.isLinked = true;
+	}
+
+	private unlink() {
+		if(!this.isLinked) return;
+		this.isLinked = false;
 
 		this.list = this.list.slice(0);
 	}
 
 	createToken(name: string, ns?: ParserNamespace) {
-		if(!this.isIndependent) this.makeIndependent();
+		this.unlink();
 
 		const token = new InternalToken(++this.idLast, this.kind, name, ns);
 		this.list[token.id] = token;
@@ -34,8 +40,8 @@ export class TokenSpace {
 		return(token);
 	}
 
-	/** If false, object is a clone sharing data with a parent object. */
-	private isIndependent: boolean;
+	/** If true, object is a clone sharing data with another object. */
+	private isLinked: boolean;
 	private idLast: number;
 
 	list: InternalToken[];
