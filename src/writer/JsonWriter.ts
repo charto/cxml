@@ -3,16 +3,14 @@ import * as stream from 'stream';
 import { Namespace } from '../Namespace';
 import { Token, TokenKind, MemberToken } from '../parser/Token';
 import { TokenChunk } from '../parser/TokenChunk';
-import { ParserConfig } from '../parser/ParserConfig';
 
 import { Indent, State, indentPattern } from './Writer';
 
 export class JsonWriter extends stream.Transform {
 
-	/** @param config Parser config passed to any custom serializers.
-	  * @param data Arbitrary data passed to any custom serializers. */
+	/** @param data Arbitrary data passed to any custom serializers. */
 
-	constructor(private config?: ParserConfig, private data?: any) {
+	constructor(private data?: any) {
 		super({ objectMode: true });
 	}
 
@@ -92,7 +90,7 @@ export class JsonWriter extends stream.Transform {
 					case TokenKind.other:
 
 						if(token.serializeJson) {
-							serialized = token.serializeJson(indent, this.config, this.data);
+							serialized = token.serializeJson(indent, this.data);
 							if(typeof(serialized) != 'string') serialized = JSON.stringify(serialized);
 
 							partList[++partNum] = indent + serialized;

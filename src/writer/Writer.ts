@@ -3,7 +3,6 @@ import * as stream from 'stream';
 import { Namespace } from '../Namespace';
 import { TokenChunk } from '../parser/TokenChunk';
 import { Token, TokenBuffer, TokenKind, MemberToken } from '../parser/Token';
-import { ParserConfig } from '../parser/ParserConfig';
 
 export const enum Indent {
 	MIN_DEPTH = 1,
@@ -22,10 +21,9 @@ export const indentPattern = '\n' + new Array(Indent.MAX_DEPTH).join('\t');
 
 export class Writer extends stream.Transform {
 
-	/** @param config Parser config passed to any custom serializers.
-	  * @param data Arbitrary data passed to any custom serializers. */
+	/** @param data Arbitrary data passed to any custom serializers. */
 
-	constructor(private config?: ParserConfig, private data?: any) {
+	constructor(private data?: any) {
 		super({ objectMode: true });
 	}
 
@@ -143,7 +141,7 @@ export class Writer extends stream.Transform {
 
 						if(token.serialize) {
 
-							serialized = token.serialize(indent, this.config, this.data);
+							serialized = token.serialize(indent, this.data);
 							if(typeof(serialized) == 'string') {
 								partList[++partNum] = serialized;
 								state = State.AFTER_TEXT;
