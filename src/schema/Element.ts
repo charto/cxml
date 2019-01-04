@@ -39,13 +39,13 @@ export class SimpleElementMeta extends MemberMeta {
 
 /** Metadata for elements in builder output. */
 
-export class ElementMeta<ElementClass extends Element = Element> extends MemberMeta {
+export class ElementMeta<ElementClass extends ElementInstance = ElementInstance> extends MemberMeta {
 
 	createProto() {
 		if(!this.XMLType) {
 			const BaseType: ElementTypeConstructor = this.type.createProto<ElementClass>();
 
-			this.XMLType = class XMLType extends BaseType implements Element {
+			this.XMLType = class XMLType extends BaseType implements ElementInstance {
 				_: ElementMeta<this>;
 			} as ElementConstructor<ElementClass>;
 
@@ -89,7 +89,7 @@ export class ElementBase {}
 
 /** Represents any element defined in the schema. */
 
-export interface Element extends ElementBase {
+export interface ElementInstance extends ElementBase {
 
 	/** Builder metadata. Defined in the prototypes of parsed objects,
 	  * or properties of placeholders for non-existent members. */
@@ -100,6 +100,6 @@ export interface Element extends ElementBase {
 
 }
 
-export interface ElementConstructor<ElementClass extends Element = Element> {
+export interface ElementConstructor<ElementClass extends ElementInstance = ElementInstance> {
 	new(): ElementClass;
 };

@@ -1,7 +1,7 @@
 import { SimpleSchema } from '../schema/SimpleSchema';
 import { ComplexType } from '../schema/ComplexType';
 import { MemberSpec } from '../schema/Member';
-import { Element, ElementMeta, ElementConstructor } from '../schema/Element';
+import { ElementInstance, ElementMeta, ElementConstructor } from '../schema/Element';
 
 export class Rule {
 
@@ -86,7 +86,7 @@ export class RuleSet {
 						let fakeMeta = link(memberMeta);
 						fakeMeta.exists = false;
 
-						let placeholder: Element | Element[] | null = new childRule.XMLType();
+						let placeholder: ElementInstance | ElementInstance[] | null = new childRule.XMLType();
 						placeholder._ = fakeMeta;
 						memberMeta.placeholder = placeholder;
 

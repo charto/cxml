@@ -1,9 +1,7 @@
-import { Token, TokenKind, OpenToken, AttributeToken } from './Token';
+import { Token, TokenKind, ElementToken, OpenToken, AttributeToken } from './Token';
 import { ParserConfig } from './ParserConfig';
 
-export interface TokenElement extends OpenToken { new(): TokenElement }
-
-export function defineElement(): TokenElement {
+export function defineElement(): ElementToken {
 	return(true as any);
 }
 
@@ -12,7 +10,7 @@ export function defineAttribute(): AttributeToken {
 }
 
 export interface XModule {
-	[name: string]: string | TokenElement | AttributeToken;
+	[name: string]: string | ElementToken | AttributeToken;
 }
 
 export interface XModuleTable {

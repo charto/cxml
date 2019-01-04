@@ -7,7 +7,7 @@ import { SimpleSchema, SimpleSchemaSpecTbl } from '../schema/SimpleSchema';
 import { RuleSet, Rule, RuleMember } from './RuleSet';
 
 import { ComplexType } from '../schema/ComplexType';
-import { Element, ElementSpec, ElementMeta, ElementConstructor } from '../schema/Element';
+import { ElementInstance, ElementSpec, ElementMeta, ElementConstructor } from '../schema/Element';
 import { ElementToken } from '../parser/Token';
 import { BuilderConfig } from './BuilderConfig';
 

@@ -1,6 +1,6 @@
 import { AttributeSpec } from './Attribute';
 import { AttributeGroup } from './AttributeGroup';
-import { SimpleElementSpec, Element, ElementSpec, ElementBase } from './Element';
+import { SimpleElementSpec, ElementSpec, ElementBase } from './Element';
 import { Group, GroupKind } from './Group';
 
 export interface ElementTypeConstructor<ElementClass extends ElementBase = ElementBase> {

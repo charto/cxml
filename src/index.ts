@@ -8,8 +8,10 @@ export { Parser, ParseError } from './parser/Parser';
 export { Builder } from './builder/Builder';
 export { Writer } from './writer/Writer';
 export { JsonWriter } from './writer/JsonWriter';
-export { TokenElement, defineElement, defineAttribute, jsxElement, jsxCompile, jsxExpand } from './parser/JSX';
+export { defineElement, defineAttribute, jsxElement, jsxCompile, jsxExpand } from './parser/JSX';
 export { TokenChunk } from './parser/TokenChunk';
+export { ElementMeta } from './schema/Element';
+export { AttributeMeta } from './schema/Attribute';
 export * from './parser/Token';
 
 export const processing = Namespace.processing;
