@@ -1,7 +1,7 @@
 import { Namespace } from '../Namespace';
 import { ParserNamespace } from './ParserNamespace';
 import { ArrayType, encodeArray } from '../Buffer';
-import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken } from './Token';
+import { TokenKind, OpenToken, CloseToken, EmittedToken, StringToken, PrefixToken, UriToken } from './Token';
 
 export class InternalToken {
 	constructor(
@@ -38,6 +38,14 @@ export class InternalToken {
 				];
 				break;
 
+			case TokenKind.prefix:
+				this.prefix = new PrefixToken(name, id);
+				break;
+
+			case TokenKind.uri:
+				this.uri = new UriToken(ns!.base);
+				break;
+
 			default:
 
 				break;
@@ -54,6 +62,9 @@ export class InternalToken {
 	emitted: EmittedToken;
 
 	string: StringToken;
+
+	prefix: PrefixToken;
+	uri: UriToken;
 
 	// Order must match TokenKind.
 	tokenList: [

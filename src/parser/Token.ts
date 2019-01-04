@@ -52,6 +52,22 @@ export class SpecialToken extends Token {
 
 }
 
+export class PrefixToken extends Token {
+
+	constructor(public name: string, public id?: number) { super(); }
+
+}
+PrefixToken.prototype.kind = TokenKind.prefix;
+PrefixToken.prototype.kindString = 'prefix';
+
+export class UriToken extends Token {
+
+	constructor(public ns: Namespace) { super(); }
+
+}
+UriToken.prototype.kind = TokenKind.uri;
+UriToken.prototype.kindString = 'uri';
+
 export abstract class MemberToken extends Token {
 
 	constructor(public name: string, public ns: Namespace, public id?: number) { super(); }

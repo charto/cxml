@@ -223,10 +223,11 @@ export class ParserConfig {
 	addUri(uri: string, ns: ParserNamespace) {
 		this.unlink();
 
-		const token = this.uriSet.createToken(uri);
+		const token = this.uriSet.createToken(uri, ns);
 
 		this.native.setUriTrie(this.uriSet.encodeTrie());
 		this.native.addUri(token.id, ns.id);
+		ns.uriToken = token.uri;
 
 		return(token);
 	}

@@ -2,6 +2,7 @@ import { NativeNamespace } from './ParserLib';
 
 import { Namespace } from '../Namespace';
 import { ParserConfig } from './ParserConfig';
+import { Token } from './Token';
 import { TokenSet } from '../tokenizer/TokenSet';
 import { InternalToken } from './InternalToken';
 
@@ -15,6 +16,8 @@ export class ParserNamespace {
 
 			this.elementSet = new TokenSet(config.elementSpace, parent.elementSet);
 			this.attributeSet = new TokenSet(config.attributeSpace, parent.attributeSet);
+
+			this.uriToken = parent.uriToken;
 		} else {
 			this.base = parent;
 			this.native = new NativeNamespace(parent.uri);
@@ -59,6 +62,8 @@ export class ParserNamespace {
 
 	/** Index in parser's namespaceList. */
 	public id: number;
+
+	uriToken: Token;
 
 	private elementSet: TokenSet;
 	private attributeSet: TokenSet;

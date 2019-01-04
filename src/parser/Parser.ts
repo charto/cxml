@@ -252,6 +252,8 @@ export class Parser {
 				case CodeType.NAMESPACE_ID:
 
 					this.resolve(elementStart, tokenNum, latestPrefix!, code);
+					tokenBuffer[++tokenNum] = latestPrefix!.prefix;
+					tokenBuffer[++tokenNum] = this.config.namespaceList[code].uriToken;
 					latestPrefix = null;
 					break;
 
@@ -343,6 +345,8 @@ export class Parser {
 						// This may unlink the config:
 						const idNamespace = config.bindNamespace(ns, latestPrefix!.name, this);
 						this.resolve(elementStart, tokenNum, latestPrefix!, idNamespace);
+						tokenBuffer[++tokenNum] = latestPrefix!.prefix;
+						tokenBuffer[++tokenNum] = this.config.namespaceList[idNamespace].uriToken;
 						latestPrefix = null;
 					} else {
 						// This may unlink the config:
