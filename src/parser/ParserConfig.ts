@@ -24,9 +24,9 @@ export interface TokenTbl {
 }
 
 export interface Registry {
-	tokens: { [ name: string ]: MemberToken };
-	elements: { [ id: number ]: string };
-	attributes: { [ id: number ]: string };
+	[prefix: string]: {
+		[ idOrName: string ]: MemberToken;
+	}
 }
 
 /** Parser configuration for quickly instantiating new parsers.
@@ -243,9 +243,8 @@ export class ParserConfig {
 	}
 
 	registerTokens(tbl: TokenTbl): Registry {
-		const registry = this.registry;
+		const registry: Registry = {};
 		let token: MemberToken;
-		let qname: string;
 
 		for(let prefix of Object.keys(tbl)) {
 			const spec = tbl[prefix];
@@ -255,23 +254,21 @@ export class ParserConfig {
 			for(let name of spec.elements || []) {
 				const tokens = this.getElementTokens(ns, name);
 				token = tokens[TokenKind.open]!;
-				qname = prefix + ':' + name;
 
-				registry.tokens[qname] = token;
-				registry.elements[token.id!] = qname;
+				registry[prefix][name] = token;
+				registry[prefix][token.id!] = token;
 			}
 
 			for(let name of spec.attributes || []) {
 				const tokens = this.getAttributeTokens(ns, name);
 				token = tokens[TokenKind.string]!;
-				qname = prefix + ':' + name;
 
-				registry.tokens[qname] = token;
-				registry.attributes[token.id!] = qname;
+				registry[prefix][name] = token;
+				registry[prefix][token.id!] = token;
 			}
 		}
 
-		return(this.registry);
+		return(registry);
 	}
 
 	jsxRegister<Module extends XModuleTable>(spec: Module): Module;
@@ -279,7 +276,7 @@ export class ParserConfig {
 	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler?: (result: Module) => Result): Result;
 
 	jsxRegister<Module extends XModuleTable, Result>(spec: Module, handler?: (result: Module) => Result) {
-		const result: { [prefix: string]: { [name: string]: OpenToken | StringToken }} = {};
+		const result: { [prefix: string]: { [name: string]: OpenToken | StringToken | string }} = {};
 		let token: OpenToken | StringToken;
 
 		for(let prefix of Object.keys(spec)) {
@@ -289,9 +286,9 @@ export class ParserConfig {
 			result[prefix] = {};
 
 			for(let name of Object.keys(elements)) {
-				if(name == 'xmlns') continue;
-
-				if(elements[name]) {
+				if(name == 'xmlns') {
+					token = elements[name];
+				} else if(elements[name]) {
 					token = this.getElementTokens(ns, name)[TokenKind.open]!;
 				} else {
 					token = this.getAttributeTokens(ns, name)[TokenKind.string]!;
@@ -322,8 +319,10 @@ export class ParserConfig {
 
 	options: ParserOptions;
 
+	/** Represents an "attribute" defining the default xmlns. */
 	xmlnsToken: InternalToken;
 	emptyPrefixToken: InternalToken;
+	/** Represents the "xmlns" prefix defining a named xmlns. */
 	xmlnsPrefixToken: InternalToken;
 	processingPrefixToken: InternalToken;
 
@@ -344,9 +343,6 @@ export class ParserConfig {
 	/** Mapping from URI to namespace. */
 	private namespaceTbl: { [ uri: string ]: ParserNamespace };
 	maxNamespace: number;
-	// clonedNamespaceCount: number;
-
-	registry: Registry = { tokens: {}, elements: {}, attributes: {} };
 
 	nsMapper?: (uri: string) => string | null | false | undefined;
 
