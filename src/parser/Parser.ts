@@ -72,8 +72,8 @@ export class Parser {
 		const buffer: TokenBuffer = [];
 		let namespaceList: (Namespace | undefined)[] | undefined;
 
-		this.write(data, '', (err: any, chunk: TokenChunk) => {
-			if(err) throw(err);
+		this.write(data, '', (err: any, chunk: TokenChunk | null) => {
+			if(err || !chunk) throw(err);
 
 			for(let tokenNum = 0; tokenNum < chunk.length; ++tokenNum) {
 				buffer.push(chunk.buffer[tokenNum]);

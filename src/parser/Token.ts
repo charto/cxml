@@ -63,7 +63,7 @@ export abstract class MemberToken extends Token {
 export class ElementToken extends MemberToken {
 
 	resolve(ns: ParserNamespace) {
-		return(ns.addElement(this.name).tokenList[this.kind]!);
+		return(ns.addElement(this.name).tokenList[this.kind as number]!);
 	}
 
 }
@@ -71,7 +71,7 @@ export class ElementToken extends MemberToken {
 export class AttributeToken extends MemberToken {
 
 	resolve(ns: ParserNamespace) {
-		return(ns.addAttribute(this.name).tokenList[this.kind]!);
+		return(ns.addAttribute(this.name).tokenList[this.kind as number]!);
 	}
 
 }

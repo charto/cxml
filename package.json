@@ -35,10 +35,10 @@
     "typescript"
   ],
   "devDependencies": {
-    "typescript": "^2.7.2"
+    "typescript": "^3.2.2"
   },
   "dependencies": {
-    "@types/node": "^9.4.6",
+    "@types/node": "^10.12.18",
     "autogypi": "^0.2.2",
     "nbind": "^0.3.15"
   }

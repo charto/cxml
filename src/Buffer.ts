@@ -6,7 +6,7 @@ export declare class TextEncoder {
 }
 
 export type ArrayType = Buffer | Uint8Array;
-export let ArrayType: { new(data: number | number[]): ArrayType };
+export let ArrayType: { new(size: number): ArrayType };
 
 export let encodeArray: (text: string) => ArrayType;
 export let decodeArray: (data: ArrayType, start?: number, end?: number) => string;
@@ -18,7 +18,7 @@ if(typeof(Buffer) == 'function') {
 	encodeArray = (text: string) => new Buffer(text);
 	decodeArray = (data: ArrayType, start?: number, end?: number) => (data as Buffer).toString('utf-8', start, end);
 
-	concatArray = Buffer.concat;
+	concatArray = Buffer.concat as any;
 } else if(typeof(TextEncoder) == 'function') {
 	ArrayType = Uint8Array;
 

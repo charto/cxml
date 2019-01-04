@@ -66,10 +66,10 @@ export class ElementMeta<ElementClass extends Element = Element> extends MemberM
 		return(this.XMLType);
 	}
 
-	XMLType: ElementConstructor<ElementClass>;
+	XMLType?: ElementConstructor<ElementClass>;
 
 	/** A singleton object to use if the element is missing. */
-	placeholder: ElementClass;
+	placeholder?: ElementClass;
 
 	/** Substitution group head. */
 	substitutes?: ElementMeta;
