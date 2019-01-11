@@ -230,6 +230,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 						afterNameState = State :: AFTER_CLOSE_ELEMENT_NAME;
 						nameTokenType = TokenType :: CLOSE_ELEMENT_ID;
 
+						tagType = TagType :: ELEMENT;
 						matchTarget = MatchTarget :: ELEMENT;
 						state = State :: BEFORE_NAME;
 						break;
