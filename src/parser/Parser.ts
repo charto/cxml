@@ -258,6 +258,7 @@ export class Parser {
 					break;
 
 				case CodeType.TEXT_START_OFFSET:
+				case CodeType.CDATA_START_OFFSET:
 				case CodeType.VALUE_START_OFFSET:
 				case CodeType.COMMENT_START_OFFSET:
 				case CodeType.UNKNOWN_START_OFFSET:
@@ -320,6 +321,14 @@ export class Parser {
 				case CodeType.TEXT_END_OFFSET:
 
 					tokenBuffer[++tokenNum] = stitcher.getSlice(partStart, code);
+					partStart = -1;
+					break;
+
+				case CodeType.CDATA_END_OFFSET:
+
+					tokenBuffer[++tokenNum] = SpecialToken.cdata;
+					name = stitcher.getSlice(partStart, code);
+					tokenBuffer[++tokenNum] = name.substr(0, name.length - 3);
 					partStart = -1;
 					break;
 

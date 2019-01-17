@@ -184,6 +184,41 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				state = afterTextState;
 				break;
 
+			case State :: BEFORE_CDATA:
+
+				writeToken(textTokenType, p - chunkBuffer - 1, tokenPtr);
+				state = State :: CDATA;
+				goto CDATA;
+
+			// Note: the terminating "]]>" is included in the output byte range.
+			case State :: CDATA: CDATA:
+
+				while(1) {
+					if(c == ']') {
+						++pos;
+					} else if(c == '>' && pos >= 2) {
+						break;
+					} else {
+						pos = 0;
+					}
+
+					updateRowCol(c);
+					if(!--len) return(ErrorType :: OK);
+					c = *p++;
+				}
+
+				writeToken(
+					// End token ID is always one higher than the corresponding
+					// start token ID.
+					static_cast<TokenType>(static_cast<uint32_t>(textTokenType) + 1),
+					p - chunkBuffer,
+					tokenPtr
+				);
+
+				pos = 0;
+				state = afterTextState;
+				break;
+
 			// The previous character was a '<' starting a tag. The current
 			// character determines what kind of tag.
 			case State :: AFTER_LT:
@@ -781,9 +816,17 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 			case State :: SGML_DECLARATION:
 
 				switch(c) {
-					// TODO: <![CDATA[ non-xml data ]]>
 					case '[':
 
+						pattern = "CDATA[";
+						matchState = State :: BEFORE_CDATA;
+						noMatchState = State :: PARSE_ERROR;
+						partialMatchState = State :: PARSE_ERROR;
+
+						textTokenType = TokenType :: CDATA_START_OFFSET;
+						afterTextState = State :: BEFORE_TEXT;
+
+						state = State :: MATCH;
 						break;
 
 					// <!-- comment -->

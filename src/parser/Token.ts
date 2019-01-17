@@ -18,6 +18,7 @@ export const enum TokenKind {
 	attributeEnd = number,
 
 	comment,
+	cdata,
 	blank,
 
 	// Internal token types
@@ -48,6 +49,7 @@ export class SpecialToken extends Token {
 	constructor(public kind: TokenKind, public kindString: string) { super(); }
 
 	static comment = new SpecialToken(TokenKind.comment, 'comment');
+	static cdata = new SpecialToken(TokenKind.cdata, 'cdata');
 	static blank = new SpecialToken(TokenKind.blank, 'blank');
 
 }

@@ -14,7 +14,8 @@ export const enum State {
 	PROCESSING,
 	TEXT,
 	AFTER_TEXT,
-	COMMENT
+	COMMENT,
+	CDATA
 }
 
 export const indentPattern = '\n' + new Array(Indent.MAX_DEPTH).join('\t');
@@ -137,6 +138,11 @@ export class Writer extends stream.Transform {
 						state = State.COMMENT;
 						break;
 
+					case TokenKind.cdata:
+
+						state = State.CDATA;
+						break;
+
 					case TokenKind.other:
 
 						if(token.serialize) {
@@ -159,8 +165,15 @@ export class Writer extends stream.Transform {
 			} else {
 				switch(state) {
 					case State.TEXT:
+					case State.AFTER_TEXT:
 
 						partList[++partNum] = '' + token;
+						state = State.AFTER_TEXT;
+						break;
+
+					case State.CDATA:
+
+						partList[++partNum] = '<![CDATA[' + token + ']]>';
 						state = State.AFTER_TEXT;
 						break;
 
