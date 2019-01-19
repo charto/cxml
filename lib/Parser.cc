@@ -915,32 +915,30 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 				state = State :: COMMENT;
 				goto COMMENT;
 
+			// Note: the terminating "-->" is included in the output byte range.
 			case State :: COMMENT: COMMENT:
 
-				// Fast inner loop for skipping comments.
-				while(c != '-') {
+				while(1) {
+					if(c == '-') {
+						++pos;
+					} else if(c == '>' && pos >= 2) {
+						break;
+					} else {
+						pos = 0;
+					}
+
 					updateRowCol(c);
 					if(!--len) return(ErrorType :: OK);
 					c = *p++;
 				}
 
-				pattern = "->";
-				matchState = State :: AFTER_COMMENT;
-				noMatchState = State :: COMMENT;
-				partialMatchState = State :: COMMENT;
-
-				state = State :: MATCH;
-				break;
-
-			// Note: the terminating "-->" is included in the output byte range.
-			case State :: AFTER_COMMENT:
-
 				writeToken(
 					TokenType :: COMMENT_END_OFFSET,
-					p - chunkBuffer - 1,
+					p - chunkBuffer,
 					tokenPtr
 				);
 
+				pos = 0;
 				state = State :: BEFORE_TEXT;
 				break;
 
