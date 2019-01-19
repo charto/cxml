@@ -2,7 +2,7 @@ import * as stream from 'stream';
 
 import { Namespace } from '../Namespace';
 import { TokenChunk } from '../parser/TokenChunk';
-import { Token, TokenBuffer, TokenKind, MemberToken } from '../parser/Token';
+import { Token, TokenBuffer, TokenKind, MemberToken, SgmlToken } from '../parser/Token';
 
 export const enum Indent {
 	MIN_DEPTH = 1,
@@ -12,6 +12,8 @@ export const enum Indent {
 export const enum State {
 	ELEMENT = 0,
 	PROCESSING,
+	SGML,
+	SGML_TEXT,
 	TEXT,
 	AFTER_TEXT,
 	COMMENT,
@@ -96,6 +98,11 @@ export class Writer extends stream.Transform {
 						indent = indentPattern.substr(0, depth);
 						break;
 
+					case TokenKind.sgmlEmitted:
+
+						this.sgmlSeparator = '<!';
+
+					// Fallthru
 					case TokenKind.emitted:
 
 						partList[++partNum] = '>';
@@ -133,6 +140,14 @@ export class Writer extends stream.Transform {
 						partList[++partNum] = ' ' + prefix + member.name + '=';
 						break;
 
+					case TokenKind.sgml:
+
+						prefix = (token as SgmlToken).prefix;
+
+						partList[++partNum] = this.sgmlSeparator + prefix + (prefix && ':') + (token as SgmlToken).name;
+						this.sgmlSeparator = ' ';
+						break;
+
 					case TokenKind.comment:
 
 						state = State.COMMENT;
@@ -141,6 +156,25 @@ export class Writer extends stream.Transform {
 					case TokenKind.cdata:
 
 						state = State.CDATA;
+						break;
+
+					case TokenKind.sgmlNestedStart:
+
+						partList[++partNum] = this.sgmlSeparator + '[';
+						this.sgmlSeparator = '<!';
+						state = State.TEXT;
+						break;
+
+					case TokenKind.sgmlNestedEnd:
+
+						partList[++partNum] = ']';
+						this.sgmlSeparator = ' ';
+						state = State.SGML;
+						break;
+
+					case TokenKind.sgmlText:
+
+						state = State.SGML_TEXT;
 						break;
 
 					case TokenKind.other:
@@ -186,6 +220,13 @@ export class Writer extends stream.Transform {
 					case State.COMMENT:
 
 						partList[++partNum] = indent + '<!--' + token;
+						state = State.TEXT;
+						break;
+
+					case State.SGML_TEXT:
+
+						partList[++partNum] = this.sgmlSeparator + '"' + token + '"';
+						this.sgmlSeparator = ' ';
 						break;
 
 				}
@@ -295,6 +336,7 @@ export class Writer extends stream.Transform {
 	private state = State.TEXT as State;
 	private depth = Indent.MIN_DEPTH;
 	private indent = '';
+	private sgmlSeparator = '<!';
 	private nsElement: Namespace;
 	private prefixList: string[] = [];
 	private prefixTbl: { [ key: string ]: number } = {};

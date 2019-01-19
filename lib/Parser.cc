@@ -9,11 +9,14 @@
 
 unsigned char whiteCharTbl[256];
 unsigned char valueCharTbl[256];
-unsigned char nameStartCharTbl[256];
-unsigned char nameCharTbl[256];
+unsigned char xmlNameStartCharTbl[256];
+unsigned char xmlNameCharTbl[256];
+unsigned char dtdNameCharTbl[256];
 
 Parser :: Parser(const ParserConfig &config) : config(config) {
 	state = State :: MATCH;
+	nameCharTbl = xmlNameCharTbl;
+	nameStartCharTbl = xmlNameStartCharTbl;
 	pattern = "\xef\xbb\xbf";
 	matchState = State :: BEFORE_TEXT;
 	noMatchState = State :: BEFORE_TEXT;
@@ -21,6 +24,7 @@ Parser :: Parser(const ParserConfig &config) : config(config) {
 	pos = 0;
 	row = 0;
 	col = 0;
+	sgmlNesting = 0;
 }
 
 /** Branchless cursor position update based on UTF-8 input byte. Assumes
@@ -161,6 +165,19 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 								// TODO: Stricter parsing would ban these.
 								break;
 
+							case ']':
+
+								if(sgmlNesting) {
+									// Signal end of DTD embedded in DOCTYPE.
+									writeToken(TokenType :: SGML_NESTED_END, 0, tokenPtr);
+									--sgmlNesting;
+
+									textEndChar = ']';
+									afterTextState = State :: SGML_DECLARATION;
+									continue;
+								}
+								break;
+
 							default:
 
 								// Disallow nonsense bytes.
@@ -230,8 +247,8 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 					// or a comment <!-- ... -->
 					case '!':
 
-						tagType = TagType :: SGML_DECLARATION;
-						state = State :: SGML_DECLARATION;
+						tagType = TagType :: ELEMENT;
+						state = State :: BEFORE_SGML;
 						break;
 
 					// An SGML <? ... > or an XML <? ... ?> processing
@@ -763,6 +780,10 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 								// TODO: Stricter parsing would ban these.
 								break;
 
+							case ']':
+
+								break;
+
 							default:
 
 								// Disallow nonsense bytes.
@@ -813,7 +834,7 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 			// ----------------------------
 
 			// Tag starting with <! (comment, cdata, entity definition...)
-			case State :: SGML_DECLARATION:
+			case State :: BEFORE_SGML:
 
 				switch(c) {
 					case '[':
@@ -839,14 +860,61 @@ Parser :: ErrorType Parser :: parse(nbind::Buffer chunk) {
 						state = State :: EXPECT;
 						break;
 
+					default:
+
+						// writeToken(TokenType :: SGML_START, 0, tokenPtr);
+						goto SGML_DECLARATION;
+				}
+				break;
+
+			case State :: SGML_DECLARATION: SGML_DECLARATION:
+
+				if(whiteCharTbl[c]) break;
+
+				switch(c) {
+					case '"':
+					case '\'':
+
+						textTokenType = TokenType :: SGML_TEXT_START_OFFSET;
+						textEndChar = c;
+						afterTextState = State :: SGML_DECLARATION;
+
+						state = State :: TEXT;
+						break;
+
 					case '>':
+
+						writeToken(TokenType :: SGML_EMITTED, 0, tokenPtr);
+
+						nameCharTbl = xmlNameCharTbl;
+						nameStartCharTbl = xmlNameStartCharTbl;
 
 						state = State :: BEFORE_TEXT;
 						break;
 
-					// Ignore the declaration contents for now.
 					default:
 
+						matchTarget = MatchTarget :: ELEMENT;
+						nameTokenType = TokenType :: SGML_ID;
+						memberPrefix = &elementPrefix;
+
+						nameCharTbl = dtdNameCharTbl;
+						nameStartCharTbl = dtdNameCharTbl;
+						afterNameState = State :: SGML_DECLARATION;
+
+						state = State :: BEFORE_NAME;
+						goto BEFORE_NAME;
+
+					case '[':
+
+						// Signal start of DTD embedded in DOCTYPE.
+						writeToken(TokenType :: SGML_NESTED_START, 0, tokenPtr);
+						++sgmlNesting;
+
+						nameCharTbl = xmlNameCharTbl;
+						nameStartCharTbl = xmlNameStartCharTbl;
+
+						state = State :: BEFORE_TEXT;
 						break;
 				}
 				break;
@@ -1012,16 +1080,18 @@ struct Init {
 		for(unsigned int i = 0; i <= 0xff; ++i) {
 			whiteCharTbl[i] = 0;
 			valueCharTbl[i] = (i >= ' ' && i <= 0xf7);
-			nameStartCharTbl[i] = 0;
-			nameCharTbl[i] = 0;
+			xmlNameStartCharTbl[i] = 0;
+			xmlNameCharTbl[i] = 0;
+			dtdNameCharTbl[i] = 0;
 		}
 
 		for(unsigned char c : "\r\n\t ")    c && (valueCharTbl[c] = 1, whiteCharTbl[c] = 1);
 
-		for(unsigned char c : "\"'&<>\x7f") c && (valueCharTbl[c] = 0);
+		for(unsigned char c : "\"'&<>]\x7f") c && (valueCharTbl[c] = 0);
 
-		setRange(nameStartCharTbl,  "__AZaz\x80\xf7", 1);
-		setRange(nameCharTbl, "..--09__AZaz\x80\xf7", 1);
+		setRange(xmlNameStartCharTbl,  "__AZaz\x80\xf7", 1);
+		setRange(xmlNameCharTbl, "..--09__AZaz\x80\xf7", 1);
+		setRange(dtdNameCharTbl, "##%%..--09__AZaz\x80\xf7", 1);
 	}
 };
 

@@ -6,9 +6,11 @@ export const enum CodeType {
 	PREFIX_ID,
 	XMLNS_ID,
 	URI_ID,
+	SGML_ID,
 
 	ELEMENT_EMITTED,
 	CLOSED_ELEMENT_EMITTED,
+	SGML_EMITTED,
 
 	NAMESPACE_ID,
 
@@ -24,6 +26,12 @@ export const enum CodeType {
 	COMMENT_START_OFFSET,
 	COMMENT_END_OFFSET,
 
+	SGML_NESTED_START,
+	SGML_NESTED_END,
+
+	SGML_TEXT_START_OFFSET,
+	SGML_TEXT_END_OFFSET,
+
 	// Unrecognized element name.
 	UNKNOWN_START_OFFSET,
 
@@ -34,6 +42,7 @@ export const enum CodeType {
 	UNKNOWN_PREFIX_END_OFFSET,
 	UNKNOWN_XMLNS_END_OFFSET,
 	UNKNOWN_URI_END_OFFSET,
+	UNKNOWN_SGML_END_OFFSET,
 
 	// Recognized part from an unrecognized name.
 	PARTIAL_ELEMENT_ID,

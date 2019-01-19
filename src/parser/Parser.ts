@@ -17,7 +17,8 @@ import {
 	MemberToken,
 	OpenToken,
 	CloseToken,
-	StringToken
+	StringToken,
+	SgmlToken
 } from './Token';
 
 // const codeBufferSize = 2;
@@ -167,12 +168,12 @@ export class Parser {
 		const namespaceBuffer = this.namespaceBuffer;
 		const unknownElementTbl = this.unknownElementTbl;
 		const unknownAttributeTbl = this.unknownAttributeTbl;
+		const sgmlTbl = this.sgmlTbl;
 		const unknownOffsetList = this.unknownOffsetList;
 		let tokenNum = this.tokenChunk.length - 1;
 		let token: Token;
-		let linkTbl: Token[];
-		let linkKind: number;
 		let name: string;
+		let prefix: string;
 		let elementStart = this.elementStart;
 		let unknownCount = this.unknownCount;
 
@@ -257,10 +258,26 @@ export class Parser {
 					latestPrefix = null;
 					break;
 
+				case CodeType.SGML_ID:
+
+					token = elementList[code].open;
+					prefix = (token as MemberToken).ns.defaultPrefix;
+					name = (token as MemberToken).name;
+					token = sgmlTbl[prefix + ':' + name];
+
+					if(!token) {
+						token = new SgmlToken(name, prefix);
+						sgmlTbl[prefix + ':' + name] = token as SgmlToken;
+					}
+
+					tokenBuffer[++tokenNum] = token;
+					break;
+
 				case CodeType.TEXT_START_OFFSET:
 				case CodeType.CDATA_START_OFFSET:
 				case CodeType.VALUE_START_OFFSET:
 				case CodeType.COMMENT_START_OFFSET:
+				case CodeType.SGML_TEXT_START_OFFSET:
 				case CodeType.UNKNOWN_START_OFFSET:
 
 					partStart = code;
@@ -317,6 +334,35 @@ export class Parser {
 					partStart = -1;
 					break;
 
+				case CodeType.UNKNOWN_SGML_END_OFFSET:
+
+					prefix = latestPrefix ? latestPrefix.name : '';
+					name = stitcher.getSlice(partStart, code);
+					token = sgmlTbl[prefix + ':' + name];
+
+					if(!token) {
+						token = new SgmlToken(name, prefix);
+						sgmlTbl[prefix + ':' + name] = token as SgmlToken;
+					}
+
+					tokenBuffer[++tokenNum] = token;
+
+					partStart = -1;
+					break;
+
+				case CodeType.SGML_EMITTED:
+				case CodeType.SGML_NESTED_START:
+				case CodeType.SGML_NESTED_END:
+
+					tokenBuffer[++tokenNum] = this.specialTokenTbl[kind];
+					break;
+
+				case CodeType.COMMENT_END_OFFSET:
+				case CodeType.SGML_TEXT_END_OFFSET:
+
+					tokenBuffer[++tokenNum] = this.specialTokenTbl[kind];
+
+				// Fallthru
 				case CodeType.VALUE_END_OFFSET:
 				case CodeType.TEXT_END_OFFSET:
 
@@ -374,14 +420,6 @@ export class Parser {
 					attributeList = config.attributeSpace.list;
 					prefixList = config.prefixSpace.list;
 					uriList = config.uriSpace.list;
-
-					partStart = -1;
-					break;
-
-				case CodeType.COMMENT_END_OFFSET:
-
-					tokenBuffer[++tokenNum] = SpecialToken.comment;
-					tokenBuffer[++tokenNum] = stitcher.getSlice(partStart, code);
 
 					partStart = -1;
 					break;
@@ -501,9 +539,18 @@ export class Parser {
 	private unknownElementTbl: { [ name: string ]: OpenToken } = {};
 	/** Unresolved attributes (temporary tokens lacking a namespace). */
 	private unknownAttributeTbl: { [ name: string ]: Token } = {};
+	private sgmlTbl: { [ name: string ]: SgmlToken } = {};
 	private unknownOffsetList: number[] = [];
 
 	private unknownCount = 0;
+
+	specialTokenTbl = {
+		[CodeType.COMMENT_END_OFFSET]: SpecialToken.comment,
+		[CodeType.SGML_EMITTED]: SpecialToken.sgmlEmitted,
+		[CodeType.SGML_NESTED_START]: SpecialToken.sgmlNestedStart,
+		[CodeType.SGML_NESTED_END]: SpecialToken.sgmlNestedEnd,
+		[CodeType.SGML_TEXT_END_OFFSET]: SpecialToken.sgmlText
+	};
 
 	private hasError?: ParseError;
 

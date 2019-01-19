@@ -64,7 +64,7 @@ public:
 		BEFORE_ATTRIBUTE_VALUE, AFTER_ATTRIBUTE_VALUE,
 		DEFINE_XMLNS_BEFORE_PREFIX_NAME, DEFINE_XMLNS_AFTER_PREFIX_NAME,
 		BEFORE_VALUE, VALUE, UNKNOWN_VALUE, DEFINE_XMLNS_AFTER_URI,
-		SGML_DECLARATION,
+		BEFORE_SGML, SGML_DECLARATION,
 		AFTER_PROCESSING_NAME, AFTER_PROCESSING_VALUE,
 		BEFORE_COMMENT, COMMENT,
 		EXPECT,
@@ -220,6 +220,8 @@ public:
 
 	PatriciaCursor cursor;
 
+	unsigned char *nameCharTbl;
+	unsigned char *nameStartCharTbl;
 	const char *pattern;
 
 	State state;
@@ -257,6 +259,8 @@ public:
 	uint32_t idPrefix;
 
 	uint32_t idElement;
+
+	uint32_t sgmlNesting;
 
 	TokenType nameTokenType;
 	TokenType textTokenType;

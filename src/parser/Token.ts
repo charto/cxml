@@ -20,6 +20,11 @@ export const enum TokenKind {
 	comment,
 	cdata,
 	blank,
+	sgml,
+	sgmlEmitted,
+	sgmlNestedStart,
+	sgmlNestedEnd,
+	sgmlText,
 
 	// Internal token types
 	uri,
@@ -51,6 +56,10 @@ export class SpecialToken extends Token {
 	static comment = new SpecialToken(TokenKind.comment, 'comment');
 	static cdata = new SpecialToken(TokenKind.cdata, 'cdata');
 	static blank = new SpecialToken(TokenKind.blank, 'blank');
+	static sgmlEmitted = new SpecialToken(TokenKind.sgmlEmitted, 'SGML emitted');
+	static sgmlNestedStart = new SpecialToken(TokenKind.sgmlNestedStart, 'DTD start');
+	static sgmlNestedEnd = new SpecialToken(TokenKind.sgmlNestedEnd, 'DTD end');
+	static sgmlText = new SpecialToken(TokenKind.sgmlText, 'SGML text');
 
 }
 
@@ -112,3 +121,11 @@ EmittedToken.prototype.kindString = 'emitted';
 export class StringToken extends AttributeToken {}
 StringToken.prototype.kind = TokenKind.string;
 StringToken.prototype.kindString = 'string';
+
+export class SgmlToken extends Token {
+
+	constructor(public name: string, public prefix: string) { super(); }
+
+}
+SgmlToken.prototype.kind = TokenKind.sgml;
+SgmlToken.prototype.kindString = 'sgml';
