@@ -104,9 +104,7 @@ public:
 
 	Parser(const ParserConfig &config);
 
-	void destroy() {
-		flushTokens.reset();
-	}
+	ErrorType destroy();
 
 	ParserConfig *getConfig() { return(&config); }
 

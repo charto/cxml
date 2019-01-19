@@ -20,7 +20,7 @@ export class ParserStream extends stream.Transform {
 	}
 
 	_flush( flush: (err: any, chunk: TokenChunk | null) => void) {
-		this.parser.destroy();
+		this.parser.destroy(flush);
 		flush(null, null);
 	}
 

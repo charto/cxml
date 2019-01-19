@@ -35,8 +35,8 @@ export class Parser extends NBindBase {
 	/** int32_t parse(Buffer); */
 	parse(p0: number[] | ArrayBuffer | DataView | Uint8Array | Buffer): number;
 
-	/** void destroy(); */
-	destroy(): void;
+	/** int32_t destroy(); */
+	destroy(): number;
 
 	/** uint32_t row; -- Read-only */
 	row: number;

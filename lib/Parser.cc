@@ -48,6 +48,29 @@ inline void Parser :: updateRowCol(unsigned char c) {
 	row += (c == '\n');
 }
 
+Parser :: ErrorType Parser :: destroy() {
+	uint32_t *tokenPtr = tokenList + 1;
+
+	tokenList[0] = 0;
+
+	switch(state) {
+
+		case State :: TEXT:
+
+			writeToken(static_cast<TokenType>(static_cast<uint32_t>(textTokenType) + 1), 0, tokenPtr);
+			break;
+
+		default:
+
+			break;
+
+	}
+
+	flushTokens.reset();
+
+	return(ErrorType :: OK);
+}
+
 /** Parse a chunk of incoming data.
   * For security from buffer overflow attacks, memory writes are only done in
   * writeToken which should be foolproof. */

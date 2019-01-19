@@ -65,10 +65,6 @@ export class Parser {
 		this.native.bindPrefix(prefix.id, uri.id);
 	}
 
-	destroy() {
-		this.native.destroy();
-	}
-
 	public parseSync(data: string | ArrayType) {
 		const buffer: TokenBuffer = [];
 		let namespaceList: (Namespace | undefined)[] | undefined;
@@ -89,6 +85,20 @@ export class Parser {
 		output.namespaceList = namespaceList;
 
 		return(output);
+	}
+
+	destroy(
+		flush: (err: any, chunk: TokenChunk | null) => void
+	) {
+		const nativeStatus = this.native.destroy();
+
+		if(nativeStatus != ErrorType.OK) {
+			this.hasError = new ParseError(nativeStatus, this.native.row + 1, this.native.col + 1);
+			flush(this.hasError, null);
+		} else {
+			this.parseCodeBuffer(false);
+			flush(null, this.tokenChunk);
+		}
 	}
 
 	write(
